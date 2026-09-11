@@ -144,16 +144,17 @@ export function LocationPicker({
                 Darbhanga quick picks
               </p>
               {presetMatches.map((location) => (
-                <button
+                <Button
                   key={location.id}
                   type="button"
+                  variant="ghost"
                   onClick={() => choosePreset(location)}
-                  className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent"
+                  className="h-auto w-full items-start justify-start gap-2 rounded-sm px-2 py-2 text-left text-sm font-normal"
                 >
                   <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
                   <span className="flex-1">{location.label}</span>
                   {value === location.id ? <Check className="mt-0.5 size-4" /> : null}
-                </button>
+                </Button>
               ))}
             </div>
           ) : null}
@@ -168,12 +169,13 @@ export function LocationPicker({
                 </p>
               ) : null}
               {liveResults.map((suggestion) => (
-                <button
+                <Button
                   key={suggestion.placeId}
                   type="button"
+                  variant="ghost"
                   disabled={selectingPlaceId !== null}
                   onClick={() => void chooseLivePlace(suggestion)}
-                  className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+                  className="h-auto w-full items-start justify-start gap-2 whitespace-normal rounded-sm px-2 py-2 text-left text-sm font-normal"
                 >
                   {selectingPlaceId === suggestion.placeId ? (
                     <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin" />
@@ -181,7 +183,7 @@ export function LocationPicker({
                     <MapPin className="mt-0.5 size-4 shrink-0 text-accent-foreground" />
                   )}
                   <span>{suggestion.label}</span>
-                </button>
+                </Button>
               ))}
               {!isSearching && !error && liveResults.length === 0 ? (
                 <p className="px-2 py-3 text-sm text-muted-foreground">No live places found.</p>

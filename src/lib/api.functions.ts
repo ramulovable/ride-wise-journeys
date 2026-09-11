@@ -44,6 +44,10 @@ const routeDistanceInput = z
 
 const GOOGLE_MAPS_GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 const placeSearchCache = new Map<string, { expiresAt: number; results: PlaceSuggestion[] }>();
+const drivingDistanceCache = new Map<
+  string,
+  { expiresAt: number; result: { distanceKm: number; durationMinutes: number | null } }
+>();
 
 type PlaceSuggestion = { placeId: string; label: string };
 type LocationCoordinates = { latitude: number; longitude: number };
@@ -220,6 +224,9 @@ export const getDrivingDistance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => routeDistanceInput.parse(data))
   .handler(async ({ data }) => {
+    const cacheKey = `${data.fromLocationId}:${data.toLocationId}`;
+    const cached = drivingDistanceCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.result;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [origin, destination] = await Promise.all([
       getLocationCoordinates(data.fromLocationId, supabaseAdmin),
@@ -241,12 +248,14 @@ export const getDrivingDistance = createServerFn({ method: "GET" })
     };
     const route = payload.routes?.[0];
     if (!route?.distanceMeters) throw new Error("No driving route was found between these places.");
-    return {
+    const result = {
       distanceKm: Math.round((route.distanceMeters / 1000) * 10) / 10,
       durationMinutes: route.duration
         ? Math.max(1, Math.round(Number.parseFloat(route.duration.replace("s", "")) / 60))
         : null,
     };
+    drivingDistanceCache.set(cacheKey, { expiresAt: Date.now() + 60 * 60_000, result });
+    return result;
   });
 
 /** Returns only the non-sensitive fields needed to compare currently available rides. */

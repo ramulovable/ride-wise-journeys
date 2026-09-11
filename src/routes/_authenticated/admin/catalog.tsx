@@ -121,9 +121,9 @@ function Catalog() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => toggle("locations", x.id, !x.is_active)}
+                  onClick={() => toggle("locations", x.id, !x.isActive)}
                 >
-                  {x.is_active ? "Disable" : "Enable"}
+                  {x.isActive ? "Disable" : "Enable"}
                 </Button>
               </div>
             ))}

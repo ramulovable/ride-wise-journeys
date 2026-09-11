@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { RouteIcon } from "lucide-react";
 import { RiderShell } from "@/components/shells";
@@ -82,16 +82,6 @@ function Fares() {
   });
   const name = (id: string) => allLocations.find((location) => location.id === id)?.label ?? "—";
 
-  useEffect(() => {
-    if (!fares.data || !locations.data) return;
-    const missingIds = new Set(
-      fares.data.flatMap((fare) => [fare.from_location_id, fare.to_location_id]),
-    );
-    if (locations.data.every((location) => !missingIds.has(location.id))) {
-      void qc.invalidateQueries({ queryKey: ["locations"] });
-    }
-  }, [fares.data, locations.data, qc]);
-
   function selectLocation(location: Location, target: "from" | "to") {
     setSelectedLocations((current) =>
       current.some((item) => item.id === location.id) ? current : [...current, location],
@@ -105,6 +95,10 @@ function Fares() {
       toast.error("Complete a valid directional fare.");
       return;
     }
+    if (!distance.data) {
+      toast.error("Wait for the driving distance before saving this fare.");
+      return;
+    }
     const { error } = await supabase.from("rider_route_fares").upsert(
       {
         rider_id: user!.id,
@@ -113,8 +107,8 @@ function Fares() {
         to_location_id: to,
         share_fare: Number(share),
         reserve_fare: Number(reserve),
-        distance_km: distance.data?.distanceKm ?? null,
-        duration_minutes: distance.data?.durationMinutes ?? null,
+        distance_km: distance.data.distanceKm,
+        duration_minutes: distance.data.durationMinutes,
         is_active: true,
       },
       { onConflict: "rider_id,vehicle_id,from_location_id,to_location_id" },

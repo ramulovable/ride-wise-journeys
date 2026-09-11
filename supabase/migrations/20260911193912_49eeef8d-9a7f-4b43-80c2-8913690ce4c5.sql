@@ -1,0 +1,1 @@
+DROP VIEW public.available_rider_offers;

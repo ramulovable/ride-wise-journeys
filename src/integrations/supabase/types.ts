@@ -506,7 +506,52 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      available_rider_offers: {
+        Row: {
+          average_rating: number | null
+          from_location_id: string | null
+          rating_count: number | null
+          reserve_fare: number | null
+          rider_id: string | null
+          rider_name: string | null
+          seat_capacity: number | null
+          share_fare: number | null
+          to_location_id: string | null
+          vehicle_category_id: string | null
+          vehicle_id: string | null
+          vehicle_number: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rider_route_fares_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_route_fares_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_route_fares_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_vehicles_vehicle_category_id_fkey"
+            columns: ["vehicle_category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {

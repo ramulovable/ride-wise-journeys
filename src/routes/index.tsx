@@ -38,31 +38,29 @@ function WelcomePage() {
   }, [loading, session, role, navigate]);
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col">
-        <section className="relative">
+    <main className="min-h-screen bg-muted/40">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background shadow-xl">
+        <header className="flex min-h-16 items-center gap-3 border-b border-border bg-card px-4 py-2.5">
+          <BrandMark size={44} />
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight text-foreground">Shahin Travels</h1>
+            <p className="text-xs font-medium text-primary">आपकी यात्रा हमारी जिम्मेदारी</p>
+          </div>
+        </header>
+
+        <section className="relative h-32 overflow-hidden sm:h-40">
           <img
             src={banner.url}
-            alt="Welcome to Shahin Travels — आपकी यात्रा, हमारी जिम्मेदारी"
-            className="h-64 w-full object-cover object-top"
+            alt="Shahin Travels service area"
+            className="h-full w-full object-cover object-bottom"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/80" />
         </section>
 
-        <section className="-mt-10 flex-1 rounded-t-3xl bg-card px-5 pb-10 pt-6 shadow-lg">
-          <div className="mb-5 flex items-center gap-3">
-            <BrandMark size={52} />
-            <div>
-              <h1 className="text-lg font-bold leading-tight text-foreground">
-                Welcome to Shahin Travels
-              </h1>
-              <p className="text-sm text-primary">आपकी यात्रा, हमारी जिम्मेदारी!</p>
-            </div>
-          </div>
-
+        <section className="relative -mt-5 flex-1 rounded-t-2xl bg-card px-5 pb-6 pt-5 shadow-lg">
           <AuthCard />
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-5 text-center text-xs text-muted-foreground">
             Ride • Book • Reach — a safer & smarter tomorrow
           </p>
           <p className="mt-2 text-center text-xs">
@@ -79,14 +77,14 @@ function WelcomePage() {
 function AuthCard() {
   return (
     <Tabs defaultValue="login">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid h-10 w-full grid-cols-2 rounded-lg">
         <TabsTrigger value="login">Login</TabsTrigger>
         <TabsTrigger value="signup">Create account</TabsTrigger>
       </TabsList>
-      <TabsContent value="login" className="pt-4">
+      <TabsContent value="login" className="pt-3">
         <LoginForm />
       </TabsContent>
-      <TabsContent value="signup" className="pt-4">
+      <TabsContent value="signup" className="pt-3">
         <SignupForm />
       </TabsContent>
     </Tabs>
@@ -114,7 +112,7 @@ function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-3.5">
       <div className="space-y-1.5">
         <Label htmlFor="login-mobile">Mobile number</Label>
         <Input
@@ -124,6 +122,7 @@ function LoginForm() {
           placeholder="9876543210"
           value={mobile}
           onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
+          className="h-10"
         />
       </div>
       <div className="space-y-1.5">
@@ -134,9 +133,10 @@ function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Your password"
+          className="h-10"
         />
       </div>
-      <Button type="submit" className="w-full" disabled={busy}>
+      <Button type="submit" className="h-10 w-full" disabled={busy}>
         {busy ? "Signing in…" : "Login"}
       </Button>
     </form>

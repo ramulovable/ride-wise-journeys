@@ -42,15 +42,20 @@ function AdminLogin() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-foreground px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
-        <div className="mb-5 flex items-center gap-3">
+    <main className="min-h-screen bg-muted/40">
+      <div className="mx-auto min-h-screen w-full max-w-md bg-background shadow-xl">
+        <header className="flex min-h-16 items-center gap-3 border-b border-border bg-card px-4 py-2.5">
           <BrandMark size={44} />
-          <div>
-            <h1 className="text-base font-bold text-foreground">Admin control panel</h1>
-            <p className="text-xs text-muted-foreground">Shahin Travels staff only</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight text-foreground">Shahin Travels</h1>
+            <p className="text-xs font-medium text-primary">आपकी यात्रा हमारी जिम्मेदारी</p>
           </div>
-        </div>
+        </header>
+        <section className="px-5 py-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-foreground">Admin login</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Sign in to manage travel operations.</p>
+          </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="admin-email">Email</Label>
@@ -82,6 +87,7 @@ function AdminLogin() {
             Back to app
           </Link>
         </p>
+        </section>
       </div>
     </main>
   );

@@ -34,7 +34,7 @@ export function AppShell({
     <div className="min-h-screen bg-background pb-20">
       <BrandHeader
         title={title}
-        subtitle={subtitle}
+        {...(subtitle === undefined ? {} : { subtitle })}
         right={
           <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
             <LogOut className="h-4 w-4" />
@@ -50,7 +50,7 @@ export function AppShell({
             return (
               <Link
                 key={item.to}
-                to={item.to as "/app"}
+                to={item.to}
                 className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}

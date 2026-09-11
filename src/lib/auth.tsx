@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,6 +29,7 @@ export type RiderDetails = {
   seat_capacity: number;
   base_location_id: string | null;
   is_approved: boolean;
+  is_blocked: boolean;
   is_online: boolean;
   subscription_valid_until: string | null;
 };
@@ -42,7 +51,7 @@ export const mobileToEmail = (mobile: string) => `${mobile}@${MOBILE_DOMAIN}`;
 export const isValidMobile = (mobile: string) => /^[6-9]\d{9}$/.test(mobile);
 
 export function subscriptionActive(rider: RiderDetails | null): boolean {
-  if (!rider?.is_approved || !rider.subscription_valid_until) return false;
+  if (!rider?.is_approved || rider.is_blocked || !rider.subscription_valid_until) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return new Date(`${rider.subscription_valid_until}T00:00:00`) >= today;
@@ -64,11 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const [roleRes, profileRes, riderRes] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
-      supabase.from("profiles").select("id, mobile, full_name, photo_url, address").eq("id", uid).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("id, mobile, full_name, photo_url, address")
+        .eq("id", uid)
+        .maybeSingle(),
       supabase.from("rider_details").select("*").eq("user_id", uid).maybeSingle(),
     ]);
     const roles = (roleRes.data ?? []).map((r) => r.role as AppRole);
-    setRole(roles.includes("admin") ? "admin" : roles.includes("rider") ? "rider" : roles[0] ?? "customer");
+    setRole(
+      roles.includes("admin")
+        ? "admin"
+        : roles.includes("rider")
+          ? "rider"
+          : (roles[0] ?? "customer"),
+    );
     setProfile((profileRes.data as Profile) ?? null);
     setRiderDetails((riderRes.data as RiderDetails) ?? null);
   }, []);

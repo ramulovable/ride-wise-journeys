@@ -10,6 +10,7 @@ import {
   Route as RouteIcon,
   User,
   Users,
+  QrCode,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 
@@ -36,27 +37,52 @@ const adminNav: NavItem[] = [
   { to: "/admin/catalog", label: "Catalog", icon: icon(<MapPin className="h-4 w-4" />) },
   { to: "/admin/rides", label: "Rides", icon: icon(<CalendarClock className="h-4 w-4" />) },
   { to: "/admin/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
+  { to: "/admin/qr", label: "QR", icon: icon(<QrCode className="h-4 w-4" />) },
 ];
 
-export function CustomerShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+export function CustomerShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
   return (
-    <AppShell title={title} subtitle={subtitle} nav={customerNav}>
+    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={customerNav}>
       {children}
     </AppShell>
   );
 }
 
-export function RiderShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+export function RiderShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
   return (
-    <AppShell title={title} subtitle={subtitle} nav={riderNav}>
+    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={riderNav}>
       {children}
     </AppShell>
   );
 }
 
-export function AdminShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+export function AdminShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
   return (
-    <AppShell title={title} subtitle={subtitle} nav={adminNav}>
+    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={adminNav}>
       {children}
     </AppShell>
   );

@@ -444,6 +444,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      shares_ride_with: { Args: { _other: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "rider" | "customer"

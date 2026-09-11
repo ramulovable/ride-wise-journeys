@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin/riders")({ component
 function Riders() {
   useRoleGuard("admin");
   const qc = useQueryClient();
-  const [amount, setAmount] = useState("500");
+  const [amount, setAmount] = useState("99");
   const riders = useQuery({
     queryKey: ["admin-riders"],
     queryFn: async () => {

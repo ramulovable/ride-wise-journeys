@@ -23,6 +23,241 @@ const riderOfferInput = z
     message: "Pickup and drop locations must be different.",
   });
 
+const placeSearchInput = z.object({
+  query: z.string().trim().min(2).max(120),
+  sessionToken: z.string().uuid(),
+});
+
+const placeDetailsInput = z.object({
+  placeId: z.string().trim().min(1).max(300),
+  sessionToken: z.string().uuid(),
+});
+
+const routeDistanceInput = z
+  .object({
+    fromLocationId: z.string().uuid(),
+    toLocationId: z.string().uuid(),
+  })
+  .refine((value) => value.fromLocationId !== value.toLocationId, {
+    message: "Pickup and destination must be different.",
+  });
+
+const GOOGLE_MAPS_GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
+const placeSearchCache = new Map<string, { expiresAt: number; results: PlaceSuggestion[] }>();
+const drivingDistanceCache = new Map<
+  string,
+  { expiresAt: number; result: { distanceKm: number; durationMinutes: number | null } }
+>();
+
+type PlaceSuggestion = { placeId: string; label: string };
+type LocationCoordinates = { latitude: number; longitude: number };
+
+function googleHeaders(fieldMask?: string): HeadersInit {
+  const lovableApiKey = process.env["LOVABLE_API_KEY"];
+  const googleMapsApiKey = process.env["GOOGLE_MAPS_API_KEY"];
+  if (!lovableApiKey || !googleMapsApiKey) {
+    throw new Error("Location search is not configured yet.");
+  }
+  return {
+    Authorization: `Bearer ${lovableApiKey}`,
+    "X-Connection-Api-Key": googleMapsApiKey,
+    "Content-Type": "application/json",
+    ...(fieldMask ? { "X-Goog-FieldMask": fieldMask } : {}),
+  };
+}
+
+async function throwGoogleError(response: Response): Promise<never> {
+  const body = await response.text();
+  if (response.status === 403) {
+    let reason = "";
+    try {
+      const parsed = JSON.parse(body) as { error?: { details?: Array<{ reason?: string }> } };
+      reason = parsed.error?.details?.find((detail) => detail.reason)?.reason ?? "";
+    } catch {
+      // The provider occasionally returns a non-JSON error page.
+    }
+    if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
+      throw new Error(
+        "Google Maps server access is restricted. Please update the server key restrictions.",
+      );
+    }
+    if (reason === "API_KEY_SERVICE_BLOCKED") {
+      throw new Error("The required Google Maps API is not enabled for this connection.");
+    }
+  }
+  console.error(`Google Maps request failed [${response.status}]: ${body}`);
+  throw new Error("Google Maps could not complete this request. Please try again.");
+}
+
+export const searchIndiaPlaces = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => placeSearchInput.parse(data))
+  .handler(async ({ data }) => {
+    const cacheKey = data.query.toLocaleLowerCase("en-IN");
+    const cached = placeSearchCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.results;
+
+    const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/places/v1/places:autocomplete`, {
+      method: "POST",
+      headers: googleHeaders(
+        "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text",
+      ),
+      body: JSON.stringify({
+        input: data.query,
+        sessionToken: data.sessionToken,
+        includedRegionCodes: ["in"],
+      }),
+    });
+    if (!response.ok) await throwGoogleError(response);
+    const payload = (await response.json()) as {
+      suggestions?: Array<{ placePrediction?: { placeId?: string; text?: { text?: string } } }>;
+    };
+    const results = (payload.suggestions ?? [])
+      .flatMap((suggestion): PlaceSuggestion[] => {
+        const placeId = suggestion.placePrediction?.placeId;
+        const label = suggestion.placePrediction?.text?.text;
+        return placeId && label ? [{ placeId, label }] : [];
+      })
+      .slice(0, 5);
+    placeSearchCache.set(cacheKey, { expiresAt: Date.now() + 5 * 60_000, results });
+    return results;
+  });
+
+export const selectIndiaPlace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => placeDetailsInput.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const existing = await supabaseAdmin
+      .from("locations")
+      .select("id, name, area, formatted_address, latitude, longitude, is_active")
+      .eq("provider_place_id", data.placeId)
+      .maybeSingle();
+    if (existing.error) throw new Error("Could not check this location.");
+    if (existing.data) return existing.data;
+
+    const detailsUrl = new URL(
+      `${GOOGLE_MAPS_GATEWAY}/places/v1/places/${encodeURIComponent(data.placeId)}`,
+    );
+    detailsUrl.searchParams.set("sessionToken", data.sessionToken);
+    const response = await fetch(detailsUrl, {
+      headers: googleHeaders("id,displayName,formattedAddress,location,addressComponents"),
+    });
+    if (!response.ok) await throwGoogleError(response);
+    const place = (await response.json()) as {
+      id?: string;
+      displayName?: { text?: string };
+      formattedAddress?: string;
+      location?: { latitude?: number; longitude?: number };
+      addressComponents?: Array<{ shortText?: string; types?: string[] }>;
+    };
+    const country = place.addressComponents?.find((part) => part.types?.includes("country"));
+    if (country?.shortText?.toUpperCase() !== "IN") {
+      throw new Error("Please select a location in India.");
+    }
+    const name = place.displayName?.text?.trim();
+    const latitude = place.location?.latitude;
+    const longitude = place.location?.longitude;
+    if (!place.id || !name || !place.formattedAddress || latitude == null || longitude == null) {
+      throw new Error("This place does not have enough location details.");
+    }
+
+    const { data: saved, error } = await supabaseAdmin
+      .from("locations")
+      .upsert(
+        {
+          provider_place_id: place.id,
+          name,
+          area: place.formattedAddress,
+          formatted_address: place.formattedAddress,
+          latitude,
+          longitude,
+          source: "google",
+          is_active: true,
+        },
+        { onConflict: "provider_place_id" },
+      )
+      .select("id, name, area, formatted_address, latitude, longitude, is_active")
+      .single();
+    if (error) throw new Error("Could not save this location.");
+    return saved;
+  });
+
+async function getLocationCoordinates(
+  locationId: string,
+  supabaseAdmin: SupabaseClient<Database>,
+): Promise<LocationCoordinates> {
+  const { data: location, error } = await supabaseAdmin
+    .from("locations")
+    .select("name, area, formatted_address, latitude, longitude")
+    .eq("id", locationId)
+    .single();
+  if (error) throw new Error("Could not load the selected location.");
+  if (location.latitude != null && location.longitude != null) {
+    return { latitude: Number(location.latitude), longitude: Number(location.longitude) };
+  }
+
+  const address =
+    location.formatted_address ||
+    [location.name, location.area, "Bihar, India"].filter(Boolean).join(", ");
+  const geocodeUrl = new URL(`${GOOGLE_MAPS_GATEWAY}/maps/api/geocode/json`);
+  geocodeUrl.searchParams.set("address", address);
+  geocodeUrl.searchParams.set("components", "country:IN");
+  const response = await fetch(geocodeUrl, { headers: googleHeaders() });
+  if (!response.ok) await throwGoogleError(response);
+  const payload = (await response.json()) as {
+    status?: string;
+    results?: Array<{ geometry?: { location?: { lat?: number; lng?: number } } }>;
+  };
+  const point = payload.results?.[0]?.geometry?.location;
+  if (payload.status !== "OK" || point?.lat == null || point.lng == null) {
+    throw new Error(`Driving distance is unavailable for ${location.name}.`);
+  }
+  await supabaseAdmin
+    .from("locations")
+    .update({ latitude: point.lat, longitude: point.lng })
+    .eq("id", locationId);
+  return { latitude: point.lat, longitude: point.lng };
+}
+
+export const getDrivingDistance = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => routeDistanceInput.parse(data))
+  .handler(async ({ data }) => {
+    const cacheKey = `${data.fromLocationId}:${data.toLocationId}`;
+    const cached = drivingDistanceCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.result;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [origin, destination] = await Promise.all([
+      getLocationCoordinates(data.fromLocationId, supabaseAdmin),
+      getLocationCoordinates(data.toLocationId, supabaseAdmin),
+    ]);
+    const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/routes/directions/v2:computeRoutes`, {
+      method: "POST",
+      headers: googleHeaders("routes.distanceMeters,routes.duration"),
+      body: JSON.stringify({
+        origin: { location: { latLng: origin } },
+        destination: { location: { latLng: destination } },
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_UNAWARE",
+      }),
+    });
+    if (!response.ok) await throwGoogleError(response);
+    const payload = (await response.json()) as {
+      routes?: Array<{ distanceMeters?: number; duration?: string }>;
+    };
+    const route = payload.routes?.[0];
+    if (!route?.distanceMeters) throw new Error("No driving route was found between these places.");
+    const result = {
+      distanceKm: Math.round((route.distanceMeters / 1000) * 10) / 10,
+      durationMinutes: route.duration
+        ? Math.max(1, Math.round(Number.parseFloat(route.duration.replace("s", "")) / 60))
+        : null,
+    };
+    drivingDistanceCache.set(cacheKey, { expiresAt: Date.now() + 60 * 60_000, result });
+    return result;
+  });
+
 /** Returns only the non-sensitive fields needed to compare currently available rides. */
 export const getRiderOffers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

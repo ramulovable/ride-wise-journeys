@@ -1,7 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getRiderOffers } from "@/lib/api.functions";
 
-export type Location = { id: string; name: string; area: string | null; is_active: boolean };
+export type Location = {
+  id: string;
+  name: string;
+  area: string | null;
+  formattedAddress: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  source: "preset" | "google";
+  isActive: boolean;
+  label: string;
+};
 export type VehicleCategory = {
   id: string;
   name: string;
@@ -12,11 +22,29 @@ export type VehicleCategory = {
 };
 
 export async function fetchLocations(activeOnly = true): Promise<Location[]> {
-  let q = supabase.from("locations").select("id, name, area, is_active").order("name");
+  let q = supabase
+    .from("locations")
+    .select("id, name, area, formatted_address, latitude, longitude, source, is_active")
+    .order("name");
   if (activeOnly) q = q.eq("is_active", true);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return (data ?? []) as Location[];
+  return (data ?? []).map((location) => ({
+    id: location.id,
+    name: location.name,
+    area: location.area,
+    formattedAddress: location.formatted_address,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    source: location.source as "preset" | "google",
+    isActive: location.is_active,
+    label:
+      location.source === "google"
+        ? location.formatted_address || location.area || location.name
+        : location.area
+          ? `${location.name} · ${location.area}`
+          : location.name,
+  }));
 }
 
 export async function fetchCategories(activeOnly = true): Promise<VehicleCategory[]> {

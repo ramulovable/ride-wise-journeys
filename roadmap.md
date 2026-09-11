@@ -11,3 +11,7 @@
 - [x] Admin: dashboard, riders, subscriptions, catalog, locations, rides, support, QR
 - [x] Harden server-side booking, rider state transitions, and admin actions
 - [x] Verify database security checks, clean build, and mobile workflows
+- [ ] Add authenticated India-wide location autocomplete with Darbhanga presets
+- [ ] Persist canonical selected places and preserve exact route matching
+- [ ] Show Google driving distance in customer booking and rider fare screens
+- [ ] Verify location search, distance, matching, mobile UI, and clean build

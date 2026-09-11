@@ -39,23 +39,38 @@ export type Database = {
         Row: {
           area: string | null
           created_at: string
+          formatted_address: string | null
           id: string
           is_active: boolean
+          latitude: number | null
+          longitude: number | null
           name: string
+          provider_place_id: string | null
+          source: string
         }
         Insert: {
           area?: string | null
           created_at?: string
+          formatted_address?: string | null
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           name: string
+          provider_place_id?: string | null
+          source?: string
         }
         Update: {
           area?: string | null
           created_at?: string
+          formatted_address?: string | null
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           name?: string
+          provider_place_id?: string | null
+          source?: string
         }
         Relationships: []
       }
@@ -193,6 +208,8 @@ export type Database = {
       rider_route_fares: {
         Row: {
           created_at: string
+          distance_km: number | null
+          duration_minutes: number | null
           from_location_id: string
           id: string
           is_active: boolean
@@ -205,6 +222,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          distance_km?: number | null
+          duration_minutes?: number | null
           from_location_id: string
           id?: string
           is_active?: boolean
@@ -217,6 +236,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          distance_km?: number | null
+          duration_minutes?: number | null
           from_location_id?: string
           id?: string
           is_active?: boolean

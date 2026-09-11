@@ -162,6 +162,30 @@ export const selectIndiaPlace = createServerFn({ method: "POST" })
       throw new Error("This place does not have enough location details.");
     }
 
+    const preset = await supabaseAdmin
+      .from("locations")
+      .select("id, name, area, formatted_address, latitude, longitude, is_active")
+      .eq("source", "preset")
+      .ilike("name", name)
+      .limit(1)
+      .maybeSingle();
+    if (preset.error) throw new Error("Could not match this location.");
+    if (preset.data) {
+      const { data: matched, error: matchError } = await supabaseAdmin
+        .from("locations")
+        .update({
+          provider_place_id: place.id,
+          formatted_address: place.formattedAddress,
+          latitude,
+          longitude,
+        })
+        .eq("id", preset.data.id)
+        .select("id, name, area, formatted_address, latitude, longitude, is_active")
+        .single();
+      if (matchError) throw new Error("Could not match this location.");
+      return matched;
+    }
+
     const { data: saved, error } = await supabaseAdmin
       .from("locations")
       .upsert(

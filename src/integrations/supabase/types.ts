@@ -39,23 +39,38 @@ export type Database = {
         Row: {
           area: string | null
           created_at: string
+          formatted_address: string | null
           id: string
           is_active: boolean
+          latitude: number | null
+          longitude: number | null
           name: string
+          provider_place_id: string | null
+          source: string
         }
         Insert: {
           area?: string | null
           created_at?: string
+          formatted_address?: string | null
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           name: string
+          provider_place_id?: string | null
+          source?: string
         }
         Update: {
           area?: string | null
           created_at?: string
+          formatted_address?: string | null
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           name?: string
+          provider_place_id?: string | null
+          source?: string
         }
         Relationships: []
       }

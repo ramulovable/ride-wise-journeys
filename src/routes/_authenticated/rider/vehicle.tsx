@@ -38,8 +38,10 @@ function Vehicles() {
     },
   });
   async function save() {
-    if (!category || !number.trim())
-      return toast.error("Select a category and enter the registration number.");
+    if (!category || !number.trim()) {
+      toast.error("Select a category and enter the registration number.");
+      return;
+    }
     const { error } = await supabase.from("rider_vehicles").insert({
       rider_id: user!.id,
       vehicle_category_id: category,

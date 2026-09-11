@@ -51,8 +51,10 @@ function Fares() {
   });
   const name = (id: string) => locations.data?.find((l) => l.id === id)?.name ?? "—";
   async function save() {
-    if (!vehicle || !from || !to || from === to || Number(share) <= 0 || Number(reserve) <= 0)
-      return toast.error("Complete a valid directional fare.");
+    if (!vehicle || !from || !to || from === to || Number(share) <= 0 || Number(reserve) <= 0) {
+      toast.error("Complete a valid directional fare.");
+      return;
+    }
     const { error } = await supabase.from("rider_route_fares").upsert(
       {
         rider_id: user!.id,

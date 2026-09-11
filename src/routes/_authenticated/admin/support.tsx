@@ -28,7 +28,10 @@ function Support() {
   });
   async function reply(id: string) {
     const text = replies[id]?.trim();
-    if (!text) return toast.error("Enter a reply.");
+    if (!text) {
+      toast.error("Enter a reply.");
+      return;
+    }
     const { error } = await supabase
       .from("support_requests")
       .update({ admin_reply: text, status: "resolved" })

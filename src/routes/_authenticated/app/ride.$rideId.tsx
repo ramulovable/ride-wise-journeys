@@ -34,7 +34,11 @@ function RideDetail() {
   const ride = useQuery({
     queryKey: ["ride", rideId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("rides").select("*").eq("id", rideId).maybeSingle();
+      const { data, error } = await supabase
+        .from("rides")
+        .select("*")
+        .eq("id", rideId)
+        .maybeSingle();
       if (error) throw new Error(error.message);
       return data;
     },
@@ -64,7 +68,11 @@ function RideDetail() {
   const rating = useQuery({
     queryKey: ["rating", rideId],
     queryFn: async () => {
-      const { data } = await supabase.from("ratings").select("stars").eq("ride_id", rideId).maybeSingle();
+      const { data } = await supabase
+        .from("ratings")
+        .select("stars")
+        .eq("ride_id", rideId)
+        .maybeSingle();
       return data;
     },
   });
@@ -72,9 +80,13 @@ function RideDetail() {
   useEffect(() => {
     const channel = supabase
       .channel(`ride-${rideId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rides", filter: `id=eq.${rideId}` }, () => {
-        void queryClient.invalidateQueries({ queryKey: ["ride", rideId] });
-      })
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "rides", filter: `id=eq.${rideId}` },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["ride", rideId] });
+        },
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -86,15 +98,25 @@ function RideDetail() {
   async function cancelRide() {
     const { error } = await supabase
       .from("rides")
-      .update({ status: "cancelled", cancel_reason: "Cancelled by customer", cancelled_by: user?.id ?? null })
+      .update({
+        status: "cancelled",
+        cancel_reason: "Cancelled by customer",
+        cancelled_by: user?.id ?? null,
+      })
       .eq("id", rideId);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Ride cancelled.");
     void queryClient.invalidateQueries({ queryKey: ["ride", rideId] });
   }
 
   async function submitRating() {
-    if (!ride.data?.rider_id || stars < 1) return toast.error("Pick a star rating first.");
+    if (!ride.data?.rider_id || stars < 1) {
+      toast.error("Pick a star rating first.");
+      return;
+    }
     const { error } = await supabase.from("ratings").insert({
       ride_id: rideId,
       customer_id: user!.id,
@@ -102,13 +124,17 @@ function RideDetail() {
       stars,
       comment: comment.trim() || null,
     });
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Thanks for rating your driver!");
     void queryClient.invalidateQueries({ queryKey: ["rating", rideId] });
   }
 
   const r = ride.data;
-  const canCancel = r && ["requested", "searching", "accepted", "on_the_way", "arrived"].includes(r.status);
+  const canCancel =
+    r && ["requested", "searching", "accepted", "on_the_way", "arrived"].includes(r.status);
 
   return (
     <CustomerShell title="Ride status">
@@ -128,8 +154,10 @@ function RideDetail() {
               <span className="text-lg font-bold text-foreground">{rupees(r.total_fare)}</span>
             </div>
             <p className="mt-1 text-right text-[11px] text-muted-foreground">
-              {r.booking_type === "share" ? `Share • ${rupees(r.unit_fare)} × ${r.passengers}` : "Reserve • fixed price"} •
-              cash on completion
+              {r.booking_type === "share"
+                ? `Share • ${rupees(r.unit_fare)} × ${r.passengers}`
+                : "Reserve • fixed price"}{" "}
+              • cash on completion
             </p>
           </section>
 
@@ -137,7 +165,9 @@ function RideDetail() {
             <section className="rounded-2xl border border-border bg-card p-4">
               <ol className="space-y-2">
                 {RIDE_FLOW.map((step) => {
-                  const done = RIDE_FLOW.indexOf(r.status as (typeof RIDE_FLOW)[number]) >= RIDE_FLOW.indexOf(step);
+                  const done =
+                    RIDE_FLOW.indexOf(r.status as (typeof RIDE_FLOW)[number]) >=
+                    RIDE_FLOW.indexOf(step);
                   return (
                     <li key={step} className="flex items-center gap-3 text-sm">
                       <span
@@ -160,7 +190,10 @@ function RideDetail() {
                 <p className="text-sm font-semibold text-foreground">{driver.data.full_name}</p>
                 <p className="text-xs text-muted-foreground">Your driver</p>
               </div>
-              <a href={`tel:${driver.data.mobile}`} className="inline-flex items-center gap-2 text-sm text-primary">
+              <a
+                href={`tel:${driver.data.mobile}`}
+                className="inline-flex items-center gap-2 text-sm text-primary"
+              >
                 <Phone className="h-4 w-4" /> Call
               </a>
             </section>
@@ -177,8 +210,15 @@ function RideDetail() {
               <p className="text-sm font-semibold text-foreground">Rate your driver</p>
               <div className="mt-2 flex gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <button key={s} type="button" onClick={() => setStars(s)} aria-label={`${s} star`}>
-                    <Star className={`h-7 w-7 ${s <= stars ? "fill-accent text-accent" : "text-border"}`} />
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStars(s)}
+                    aria-label={`${s} star`}
+                  >
+                    <Star
+                      className={`h-7 w-7 ${s <= stars ? "fill-accent text-accent" : "text-border"}`}
+                    />
                   </button>
                 ))}
               </div>
@@ -194,7 +234,9 @@ function RideDetail() {
             </section>
           ) : null}
 
-          {rating.data ? <p className="text-center text-xs text-muted-foreground">You rated this ride.</p> : null}
+          {rating.data ? (
+            <p className="text-center text-xs text-muted-foreground">You rated this ride.</p>
+          ) : null}
         </div>
       )}
     </CustomerShell>

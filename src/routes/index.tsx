@@ -20,7 +20,10 @@ export const Route = createFileRoute("/")({
           "Sign in to Shahin Travels to book E-Rickshaw, bike and car rides across Darbhanga. आपकी यात्रा, हमारी जिम्मेदारी.",
       },
       { property: "og:title", content: "Shahin Travels — Book a ride in Darbhanga" },
-      { property: "og:description", content: "Safe rides, reliable service, affordable fares, on-time always." },
+      {
+        property: "og:description",
+        content: "Safe rides, reliable service, affordable fares, on-time always.",
+      },
     ],
   }),
   component: WelcomePage,
@@ -50,7 +53,9 @@ function WelcomePage() {
           <div className="mb-5 flex items-center gap-3">
             <BrandMark size={52} />
             <div>
-              <h1 className="text-lg font-bold leading-tight text-foreground">Welcome to Shahin Travels</h1>
+              <h1 className="text-lg font-bold leading-tight text-foreground">
+                Welcome to Shahin Travels
+              </h1>
               <p className="text-sm text-primary">आपकी यात्रा, हमारी जिम्मेदारी!</p>
             </div>
           </div>
@@ -100,7 +105,10 @@ function LoginForm() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: mobileToEmail(mobile), password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: mobileToEmail(mobile),
+      password,
+    });
     setBusy(false);
     if (error) toast.error("Wrong mobile number or password.");
   }
@@ -144,9 +152,18 @@ function SignupForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (fullName.trim().length < 2) return toast.error("Please enter your full name.");
-    if (!isValidMobile(mobile)) return toast.error("Enter a valid 10-digit mobile number starting with 6-9.");
-    if (password.length < 6) return toast.error("Password must be at least 6 characters.");
+    if (fullName.trim().length < 2) {
+      toast.error("Please enter your full name.");
+      return;
+    }
+    if (!isValidMobile(mobile)) {
+      toast.error("Enter a valid 10-digit mobile number starting with 6-9.");
+      return;
+    }
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
 
     setBusy(true);
     const { error } = await supabase.auth.signUp({
@@ -156,10 +173,18 @@ function SignupForm() {
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message.includes("already") ? "This mobile number is already registered." : error.message);
+      toast.error(
+        error.message.includes("already")
+          ? "This mobile number is already registered."
+          : error.message,
+      );
       return;
     }
-    toast.success(role === "rider" ? "Account created. Complete your vehicle details next." : "Account created.");
+    toast.success(
+      role === "rider"
+        ? "Account created. Complete your vehicle details next."
+        : "Account created.",
+    );
   }
 
   return (
@@ -171,7 +196,9 @@ function SignupForm() {
             type="button"
             onClick={() => setRole(r)}
             className={`rounded-xl border px-3 py-3 text-sm font-medium capitalize transition ${
-              role === r ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+              role === r
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground"
             }`}
           >
             {r === "customer" ? "I need a ride" : "I am a driver"}
@@ -180,7 +207,12 @@ function SignupForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="su-name">Full name</Label>
-        <Input id="su-name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
+        <Input
+          id="su-name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Your name"
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="su-mobile">Mobile number</Label>

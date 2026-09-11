@@ -40,7 +40,10 @@ function ProfilePage() {
       .update({ full_name: fullName.trim(), address: address.trim() || null })
       .eq("id", profile.id);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Profile saved.");
     await refresh();
   }

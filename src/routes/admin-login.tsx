@@ -42,46 +42,54 @@ function AdminLogin() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-foreground px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
-        <div className="mb-5 flex items-center gap-3">
+    <main className="min-h-screen bg-muted/40">
+      <div className="mx-auto min-h-screen w-full max-w-md bg-background shadow-xl">
+        <header className="flex min-h-16 items-center gap-3 border-b border-border bg-card px-4 py-2.5">
           <BrandMark size={44} />
-          <div>
-            <h1 className="text-base font-bold text-foreground">Admin control panel</h1>
-            <p className="text-xs text-muted-foreground">Shahin Travels staff only</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight text-foreground">Shahin Travels</h1>
+            <p className="text-xs font-medium text-primary">आपकी यात्रा हमारी जिम्मेदारी</p>
           </div>
-        </div>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-email">Email</Label>
-            <Input
-              id="admin-email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-            />
+        </header>
+        <section className="px-5 py-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-foreground">Admin login</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to manage travel operations.
+            </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-password">Password</Label>
-            <Input
-              id="admin-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-5 text-center text-xs">
-          <Link to="/" className="text-muted-foreground underline underline-offset-4">
-            Back to app
-          </Link>
-        </p>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-email">Email</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-password">Password</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
+          <p className="mt-5 text-center text-xs">
+            <Link to="/" className="text-muted-foreground underline underline-offset-4">
+              Back to app
+            </Link>
+          </p>
+        </section>
       </div>
     </main>
   );

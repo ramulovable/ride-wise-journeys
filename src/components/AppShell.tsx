@@ -50,7 +50,7 @@ export function AppShell({
             return (
               <Link
                 key={item.to}
-                to={item.to}
+                to={item.to as "/app"}
                 className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}

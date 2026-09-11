@@ -2,21 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeftRight, Car, Minus, Plus, Star } from "lucide-react";
+import { ArrowLeftRight, Car, MapPin, Minus, Plus, RouteIcon, Star } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
+import { LocationPicker } from "@/components/LocationPicker";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLocations, fetchRiderOffers, type RiderOffer } from "@/lib/data";
+import { fetchLocations, fetchRiderOffers, type Location, type RiderOffer } from "@/lib/data";
 import { rupees } from "@/lib/format";
-import { createBooking } from "@/lib/api.functions";
+import { createBooking, getDrivingDistance } from "@/lib/api.functions";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
 export const Route = createFileRoute("/_authenticated/app/")({
@@ -32,6 +26,8 @@ export const Route = createFileRoute("/_authenticated/app/")({
         property: "og:description",
         content: "Compare drivers and fares on your route in Darbhanga.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: BookPage,
@@ -45,13 +41,31 @@ function BookPage() {
   const [passengers, setPassengers] = useState(1);
   const [note, setNote] = useState("");
   const [booking, setBooking] = useState<string | null>(null);
+  const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
 
   const locations = useQuery({ queryKey: ["locations"], queryFn: () => fetchLocations(true) });
+  const allLocations = [...(locations.data ?? []), ...selectedLocations].filter(
+    (location, index, values) => values.findIndex((item) => item.id === location.id) === index,
+  );
   const offers = useQuery({
     queryKey: ["offers", fromId, toId],
     queryFn: () => fetchRiderOffers(fromId, toId),
     enabled: Boolean(fromId && toId && fromId !== toId),
   });
+  const distance = useQuery({
+    queryKey: ["driving-distance", fromId, toId],
+    queryFn: () => getDrivingDistance({ data: { fromLocationId: fromId, toLocationId: toId } }),
+    enabled: Boolean(fromId && toId && fromId !== toId),
+    staleTime: 30 * 60_000,
+  });
+
+  function selectLocation(location: Location, target: "from" | "to") {
+    setSelectedLocations((current) =>
+      current.some((item) => item.id === location.id) ? current : [...current, location],
+    );
+    if (target === "from") setFromId(location.id);
+    else setToId(location.id);
+  }
 
   async function book(offer: RiderOffer, bookingType: "share" | "reserve") {
     setBooking(`${offer.riderId}-${bookingType}`);
@@ -90,19 +104,15 @@ function BookPage() {
           ) : (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Pickup</label>
-                <Select value={fromId} onValueChange={setFromId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pickup point" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(locations.data ?? []).map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="size-3.5" /> Pickup
+                </label>
+                <LocationPicker
+                  locations={allLocations}
+                  value={fromId}
+                  onChange={(location) => selectLocation(location, "from")}
+                  placeholder="Search pickup anywhere in India"
+                />
               </div>
 
               <div className="flex justify-center">
@@ -120,20 +130,38 @@ function BookPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Drop</label>
-                <Select value={toId} onValueChange={setToId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select drop point" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(locations.data ?? []).map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="size-3.5" /> Destination
+                </label>
+                <LocationPicker
+                  locations={allLocations}
+                  value={toId}
+                  onChange={(location) => selectLocation(location, "to")}
+                  placeholder="Search destination anywhere in India"
+                />
               </div>
+
+              {fromId && toId && fromId !== toId ? (
+                <div className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm">
+                  <RouteIcon className="size-4 shrink-0 text-primary" />
+                  {distance.isFetching ? (
+                    <span className="text-muted-foreground">Calculating driving distance…</span>
+                  ) : distance.data ? (
+                    <span>
+                      <strong>{distance.data.distanceKm} km</strong>
+                      {distance.data.durationMinutes
+                        ? ` · about ${distance.data.durationMinutes} min by road`
+                        : " by road"}
+                    </span>
+                  ) : (
+                    <span className="text-destructive">
+                      {distance.error instanceof Error
+                        ? distance.error.message
+                        : "Driving distance unavailable."}
+                    </span>
+                  )}
+                </div>
+              ) : null}
 
               <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
                 <span className="text-sm text-foreground">Passengers</span>

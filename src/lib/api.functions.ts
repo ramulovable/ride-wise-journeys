@@ -73,7 +73,9 @@ async function throwGoogleError(response: Response): Promise<never> {
       // The provider occasionally returns a non-JSON error page.
     }
     if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
-      throw new Error("Google Maps server access is restricted. Please update the server key restrictions.");
+      throw new Error(
+        "Google Maps server access is restricted. Please update the server key restrictions.",
+      );
     }
     if (reason === "API_KEY_SERVICE_BLOCKED") {
       throw new Error("The required Google Maps API is not enabled for this connection.");
@@ -191,7 +193,9 @@ async function getLocationCoordinates(
     return { latitude: Number(location.latitude), longitude: Number(location.longitude) };
   }
 
-  const address = location.formatted_address || [location.name, location.area, "Bihar, India"].filter(Boolean).join(", ");
+  const address =
+    location.formatted_address ||
+    [location.name, location.area, "Bihar, India"].filter(Boolean).join(", ");
   const geocodeUrl = new URL(`${GOOGLE_MAPS_GATEWAY}/maps/api/geocode/json`);
   geocodeUrl.searchParams.set("address", address);
   geocodeUrl.searchParams.set("components", "country:IN");

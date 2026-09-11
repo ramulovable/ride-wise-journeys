@@ -40,7 +40,8 @@ export function LocationPicker({
         .filter(
           (location) =>
             location.source === "preset" &&
-            (!normalizedQuery || location.label.toLocaleLowerCase("en-IN").includes(normalizedQuery)),
+            (!normalizedQuery ||
+              location.label.toLocaleLowerCase("en-IN").includes(normalizedQuery)),
         )
         .slice(0, normalizedQuery ? 8 : 12),
     [locations, normalizedQuery],

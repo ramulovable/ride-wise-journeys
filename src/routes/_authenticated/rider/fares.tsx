@@ -20,9 +20,15 @@ export const Route = createFileRoute("/_authenticated/rider/fares")({
   head: () => ({
     meta: [
       { title: "Routes and fares — Shahin Travels" },
-      { name: "description", content: "Manage directional rider routes, driving distance, and fares." },
+      {
+        name: "description",
+        content: "Manage directional rider routes, driving distance, and fares.",
+      },
       { property: "og:title", content: "Routes and fares — Shahin Travels" },
-      { property: "og:description", content: "Manage directional rider routes, driving distance, and fares." },
+      {
+        property: "og:description",
+        content: "Manage directional rider routes, driving distance, and fares.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -54,39 +54,41 @@ function AdminLogin() {
         <section className="px-5 py-8">
           <div className="mb-6">
             <h2 className="text-xl font-bold text-foreground">Admin login</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to manage travel operations.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to manage travel operations.
+            </p>
           </div>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-email">Email</Label>
-            <Input
-              id="admin-email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-password">Password</Label>
-            <Input
-              id="admin-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-5 text-center text-xs">
-          <Link to="/" className="text-muted-foreground underline underline-offset-4">
-            Back to app
-          </Link>
-        </p>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-email">Email</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-password">Password</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
+          <p className="mt-5 text-center text-xs">
+            <Link to="/" className="text-muted-foreground underline underline-offset-4">
+              Back to app
+            </Link>
+          </p>
         </section>
       </div>
     </main>

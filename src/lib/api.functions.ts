@@ -14,14 +14,106 @@ const bookingInput = z.object({
   pickupNote: z.string().max(300).optional(),
 });
 
+const riderOfferInput = z
+  .object({
+    fromLocationId: z.string().uuid(),
+    toLocationId: z.string().uuid(),
+  })
+  .refine((value) => value.fromLocationId !== value.toLocationId, {
+    message: "Pickup and drop locations must be different.",
+  });
+
+/** Returns only the non-sensitive fields needed to compare currently available rides. */
+export const getRiderOffers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => riderOfferInput.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data: fares, error: fareError } = await supabaseAdmin
+      .from("rider_route_fares")
+      .select("rider_id, vehicle_id, share_fare, reserve_fare")
+      .eq("from_location_id", data.fromLocationId)
+      .eq("to_location_id", data.toLocationId)
+      .eq("is_active", true);
+    if (fareError) throw new Error("Could not load available fares.");
+    if (!fares?.length) return [];
+
+    const riderIds = [...new Set(fares.map((fare) => fare.rider_id))];
+    const vehicleIds = fares.flatMap((fare) => (fare.vehicle_id ? [fare.vehicle_id] : []));
+    const [ridersRes, profilesRes, vehiclesRes, categoriesRes, ratingsRes] = await Promise.all([
+      supabaseAdmin
+        .from("rider_details")
+        .select("user_id")
+        .in("user_id", riderIds)
+        .eq("is_approved", true)
+        .eq("is_blocked", false)
+        .eq("is_online", true)
+        .gte("subscription_valid_until", today),
+      supabaseAdmin.from("profiles").select("id, full_name").in("id", riderIds),
+      supabaseAdmin
+        .from("rider_vehicles")
+        .select("id, rider_id, vehicle_category_id, vehicle_number, seat_capacity")
+        .in("id", vehicleIds)
+        .eq("is_active", true),
+      supabaseAdmin.from("vehicle_categories").select("id, name").eq("is_active", true),
+      supabaseAdmin.from("ratings").select("rider_id, stars").in("rider_id", riderIds),
+    ]);
+    if (
+      ridersRes.error ||
+      profilesRes.error ||
+      vehiclesRes.error ||
+      categoriesRes.error ||
+      ratingsRes.error
+    ) {
+      throw new Error("Could not load available riders.");
+    }
+
+    const availableRiders = new Set((ridersRes.data ?? []).map((rider) => rider.user_id));
+    const profiles = new Map((profilesRes.data ?? []).map((profile) => [profile.id, profile]));
+    const vehicles = new Map((vehiclesRes.data ?? []).map((vehicle) => [vehicle.id, vehicle]));
+    const categories = new Map(
+      (categoriesRes.data ?? []).map((category) => [category.id, category.name]),
+    );
+    const ratings = new Map<string, number[]>();
+    for (const rating of ratingsRes.data ?? []) {
+      const values = ratings.get(rating.rider_id) ?? [];
+      values.push(Number(rating.stars));
+      ratings.set(rating.rider_id, values);
+    }
+
+    return fares.flatMap((fare) => {
+      if (!availableRiders.has(fare.rider_id) || !fare.vehicle_id) return [];
+      const vehicle = vehicles.get(fare.vehicle_id);
+      if (!vehicle || vehicle.rider_id !== fare.rider_id) return [];
+      const values = ratings.get(fare.rider_id) ?? [];
+      return [
+        {
+          riderId: fare.rider_id,
+          vehicleId: vehicle.id,
+          name: profiles.get(fare.rider_id)?.full_name || "Shahin driver",
+          vehicleName: categories.get(vehicle.vehicle_category_id) ?? "Vehicle",
+          vehicleNumber: vehicle.vehicle_number,
+          seatCapacity: Number(vehicle.seat_capacity),
+          shareFare: Number(fare.share_fare),
+          reserveFare: Number(fare.reserve_fare),
+          rating: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null,
+          trips: values.length,
+        },
+      ];
+    });
+  });
+
 /** Creates a ride. The fare is always recalculated on the server from the rider's own route fares. */
 export const createBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => bookingInput.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rider, error: riderError } = await supabase
+    const { data: rider, error: riderError } = await supabaseAdmin
       .from("rider_details")
       .select("user_id, is_approved, is_blocked, is_online, subscription_valid_until")
       .eq("user_id", data.riderId)
@@ -38,7 +130,7 @@ export const createBooking = createServerFn({ method: "POST" })
     ) {
       throw new Error("This rider's subscription is not active.");
     }
-    const { data: vehicle, error: vehicleError } = await supabase
+    const { data: vehicle, error: vehicleError } = await supabaseAdmin
       .from("rider_vehicles")
       .select("id, rider_id, vehicle_category_id, seat_capacity, is_active")
       .eq("id", data.vehicleId)
@@ -48,7 +140,7 @@ export const createBooking = createServerFn({ method: "POST" })
     if (!vehicle?.is_active) throw new Error("This vehicle is no longer available.");
     if (!rider.is_online) throw new Error("This rider is offline right now.");
 
-    const { data: fare, error: fareError } = await supabase
+    const { data: fare, error: fareError } = await supabaseAdmin
       .from("rider_route_fares")
       .select("share_fare, reserve_fare, is_active")
       .eq("rider_id", data.riderId)

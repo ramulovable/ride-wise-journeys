@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          description: string | null
+          key: string
+          numeric_value: number
+          updated_at: string
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          numeric_value: number
+          updated_at?: string
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          numeric_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           area: string | null

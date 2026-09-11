@@ -98,7 +98,9 @@ export const getRiderOffers = createServerFn({ method: "GET" })
           seatCapacity: Number(vehicle.seat_capacity),
           shareFare: Number(fare.share_fare),
           reserveFare: Number(fare.reserve_fare),
-          rating: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null,
+          rating: values.length
+            ? values.reduce((sum, value) => sum + value, 0) / values.length
+            : null,
           trips: values.length,
         },
       ];
@@ -371,4 +373,3 @@ export const deleteRiderAccount = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-

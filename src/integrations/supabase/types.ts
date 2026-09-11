@@ -208,6 +208,8 @@ export type Database = {
       rider_route_fares: {
         Row: {
           created_at: string
+          distance_km: number | null
+          duration_minutes: number | null
           from_location_id: string
           id: string
           is_active: boolean
@@ -220,6 +222,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          distance_km?: number | null
+          duration_minutes?: number | null
           from_location_id: string
           id?: string
           is_active?: boolean
@@ -232,6 +236,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          distance_km?: number | null
+          duration_minutes?: number | null
           from_location_id?: string
           id?: string
           is_active?: boolean

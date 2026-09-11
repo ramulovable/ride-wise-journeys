@@ -14,8 +14,17 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AdminLoginRouteImport } from './routes/admin-login'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin/catalog'
+import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
+import { Route as AuthenticatedAdminRidersRouteImport } from './routes/_authenticated/admin/riders'
+import { Route as AuthenticatedAdminRidesRouteImport } from './routes/_authenticated/admin/rides'
+import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
+import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
+import { Route as AuthenticatedRiderFaresRouteImport } from './routes/_authenticated/rider/fares'
+import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -42,6 +51,39 @@ const AuthenticatedSupportRoute = AuthenticatedSupportRouteImport.update({
   path: '/support',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminCatalogRoute =
+  AuthenticatedAdminCatalogRouteImport.update({
+    id: '/admin/catalog',
+    path: '/admin/catalog',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminQrRoute = AuthenticatedAdminQrRouteImport.update({
+  id: '/admin/qr',
+  path: '/admin/qr',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminRidersRoute =
+  AuthenticatedAdminRidersRouteImport.update({
+    id: '/admin/riders',
+    path: '/admin/riders',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminRidesRoute = AuthenticatedAdminRidesRouteImport.update({
+  id: '/admin/rides',
+  path: '/admin/rides',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminSupportRoute =
+  AuthenticatedAdminSupportRouteImport.update({
+    id: '/admin/support',
+    path: '/admin/support',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/app/',
   path: '/app/',
@@ -52,6 +94,22 @@ const AuthenticatedAppRidesRoute = AuthenticatedAppRidesRouteImport.update({
   path: '/app/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRiderIndexRoute = AuthenticatedRiderIndexRouteImport.update({
+  id: '/rider/',
+  path: '/rider/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRiderFaresRoute = AuthenticatedRiderFaresRouteImport.update({
+  id: '/rider/fares',
+  path: '/rider/fares',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRiderVehicleRoute =
+  AuthenticatedRiderVehicleRouteImport.update({
+    id: '/rider/vehicle',
+    path: '/rider/vehicle',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppRideRideIdRoute =
   AuthenticatedAppRideRideIdRouteImport.update({
     id: '/app/ride/$rideId',
@@ -64,8 +122,17 @@ export interface FileRoutesByFullPath {
   '/admin-login': typeof AdminLoginRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/support': typeof AuthenticatedSupportRoute
+  '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
+  '/admin/qr': typeof AuthenticatedAdminQrRoute
+  '/admin/riders': typeof AuthenticatedAdminRidersRoute
+  '/admin/rides': typeof AuthenticatedAdminRidesRoute
+  '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/rider/fares': typeof AuthenticatedRiderFaresRoute
+  '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/rider/': typeof AuthenticatedRiderIndexRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
 }
 export interface FileRoutesByTo {
@@ -73,8 +140,17 @@ export interface FileRoutesByTo {
   '/admin-login': typeof AdminLoginRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/support': typeof AuthenticatedSupportRoute
+  '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
+  '/admin/qr': typeof AuthenticatedAdminQrRoute
+  '/admin/riders': typeof AuthenticatedAdminRidersRoute
+  '/admin/rides': typeof AuthenticatedAdminRidesRoute
+  '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/rider/fares': typeof AuthenticatedRiderFaresRoute
+  '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/rider': typeof AuthenticatedRiderIndexRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
 }
 export interface FileRoutesById {
@@ -84,8 +160,17 @@ export interface FileRoutesById {
   '/admin-login': typeof AdminLoginRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/support': typeof AuthenticatedSupportRoute
+  '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
+  '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
+  '/_authenticated/admin/riders': typeof AuthenticatedAdminRidersRoute
+  '/_authenticated/admin/rides': typeof AuthenticatedAdminRidesRoute
+  '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
+  '/_authenticated/rider/fares': typeof AuthenticatedRiderFaresRoute
+  '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/rider/': typeof AuthenticatedRiderIndexRoute
   '/_authenticated/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
 }
 export interface FileRouteTypes {
@@ -95,8 +180,17 @@ export interface FileRouteTypes {
     | '/admin-login'
     | '/profile'
     | '/support'
+    | '/admin/catalog'
+    | '/admin/qr'
+    | '/admin/riders'
+    | '/admin/rides'
+    | '/admin/support'
     | '/app/rides'
+    | '/rider/fares'
+    | '/rider/vehicle'
+    | '/admin/'
     | '/app/'
+    | '/rider/'
     | '/app/ride/$rideId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -104,8 +198,17 @@ export interface FileRouteTypes {
     | '/admin-login'
     | '/profile'
     | '/support'
+    | '/admin/catalog'
+    | '/admin/qr'
+    | '/admin/riders'
+    | '/admin/rides'
+    | '/admin/support'
     | '/app/rides'
+    | '/rider/fares'
+    | '/rider/vehicle'
+    | '/admin'
     | '/app'
+    | '/rider'
     | '/app/ride/$rideId'
   id:
     | '__root__'
@@ -114,8 +217,17 @@ export interface FileRouteTypes {
     | '/admin-login'
     | '/_authenticated/profile'
     | '/_authenticated/support'
+    | '/_authenticated/admin/catalog'
+    | '/_authenticated/admin/qr'
+    | '/_authenticated/admin/riders'
+    | '/_authenticated/admin/rides'
+    | '/_authenticated/admin/support'
     | '/_authenticated/app/rides'
+    | '/_authenticated/rider/fares'
+    | '/_authenticated/rider/vehicle'
+    | '/_authenticated/admin/'
     | '/_authenticated/app/'
+    | '/_authenticated/rider/'
     | '/_authenticated/app/ride/$rideId'
   fileRoutesById: FileRoutesById
 }
@@ -162,6 +274,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSupportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/catalog': {
+      id: '/_authenticated/admin/catalog'
+      path: '/admin/catalog'
+      fullPath: '/admin/catalog'
+      preLoaderRoute: typeof AuthenticatedAdminCatalogRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/qr': {
+      id: '/_authenticated/admin/qr'
+      path: '/admin/qr'
+      fullPath: '/admin/qr'
+      preLoaderRoute: typeof AuthenticatedAdminQrRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/riders': {
+      id: '/_authenticated/admin/riders'
+      path: '/admin/riders'
+      fullPath: '/admin/riders'
+      preLoaderRoute: typeof AuthenticatedAdminRidersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/rides': {
+      id: '/_authenticated/admin/rides'
+      path: '/admin/rides'
+      fullPath: '/admin/rides'
+      preLoaderRoute: typeof AuthenticatedAdminRidesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/support': {
+      id: '/_authenticated/admin/support'
+      path: '/admin/support'
+      fullPath: '/admin/support'
+      preLoaderRoute: typeof AuthenticatedAdminSupportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/': {
       id: '/_authenticated/app/'
       path: '/app'
@@ -174,6 +328,27 @@ declare module '@tanstack/react-router' {
       path: '/app/rides'
       fullPath: '/app/rides'
       preLoaderRoute: typeof AuthenticatedAppRidesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rider/': {
+      id: '/_authenticated/rider/'
+      path: '/rider'
+      fullPath: '/rider/'
+      preLoaderRoute: typeof AuthenticatedRiderIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rider/fares': {
+      id: '/_authenticated/rider/fares'
+      path: '/rider/fares'
+      fullPath: '/rider/fares'
+      preLoaderRoute: typeof AuthenticatedRiderFaresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rider/vehicle': {
+      id: '/_authenticated/rider/vehicle'
+      path: '/rider/vehicle'
+      fullPath: '/rider/vehicle'
+      preLoaderRoute: typeof AuthenticatedRiderVehicleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/app/ride/$rideId': {
@@ -189,16 +364,34 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
+  AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
+  AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
+  AuthenticatedAdminRidersRoute: typeof AuthenticatedAdminRidersRoute
+  AuthenticatedAdminRidesRoute: typeof AuthenticatedAdminRidesRoute
+  AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
+  AuthenticatedRiderFaresRoute: typeof AuthenticatedRiderFaresRoute
+  AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedRiderIndexRoute: typeof AuthenticatedRiderIndexRoute
   AuthenticatedAppRideRideIdRoute: typeof AuthenticatedAppRideRideIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSupportRoute: AuthenticatedSupportRoute,
+  AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
+  AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,
+  AuthenticatedAdminRidersRoute: AuthenticatedAdminRidersRoute,
+  AuthenticatedAdminRidesRoute: AuthenticatedAdminRidesRoute,
+  AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
+  AuthenticatedRiderFaresRoute: AuthenticatedRiderFaresRoute,
+  AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedRiderIndexRoute: AuthenticatedRiderIndexRoute,
   AuthenticatedAppRideRideIdRoute: AuthenticatedAppRideRideIdRoute,
 }
 

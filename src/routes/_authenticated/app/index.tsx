@@ -6,7 +6,13 @@ import { ArrowLeftRight, Car, Minus, Plus, Star } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchLocations, fetchRiderOffers, type RiderOffer } from "@/lib/data";
 import { rupees } from "@/lib/format";
@@ -17,9 +23,15 @@ export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({
     meta: [
       { title: "Book a ride — Shahin Travels" },
-      { name: "description", content: "Compare Shahin Travels drivers on your route and book share or reserve." },
+      {
+        name: "description",
+        content: "Compare Shahin Travels drivers on your route and book share or reserve.",
+      },
       { property: "og:title", content: "Book a ride — Shahin Travels" },
-      { property: "og:description", content: "Compare drivers and fares on your route in Darbhanga." },
+      {
+        property: "og:description",
+        content: "Compare drivers and fares on your route in Darbhanga.",
+      },
     ],
   }),
   component: BookPage,
@@ -47,6 +59,7 @@ function BookPage() {
       const res = await createBooking({
         data: {
           riderId: offer.riderId,
+          vehicleId: offer.vehicleId,
           fromLocationId: fromId,
           toLocationId: toId,
           bookingType,
@@ -125,11 +138,19 @@ function BookPage() {
               <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
                 <span className="text-sm text-foreground">Passengers</span>
                 <div className="flex items-center gap-3">
-                  <Button variant="outline" size="icon" onClick={() => setPassengers((p) => Math.max(1, p - 1))}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setPassengers((p) => Math.max(1, p - 1))}
+                  >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
                   <span className="w-6 text-center text-sm font-semibold">{passengers}</span>
-                  <Button variant="outline" size="icon" onClick={() => setPassengers((p) => Math.min(12, p + 1))}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setPassengers((p) => Math.min(12, p + 1))}
+                  >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -146,10 +167,14 @@ function BookPage() {
         </section>
 
         {fromId && toId && fromId === toId ? (
-          <p className="text-center text-xs text-destructive">Pickup and drop cannot be the same.</p>
+          <p className="text-center text-xs text-destructive">
+            Pickup and drop cannot be the same.
+          </p>
         ) : null}
 
-        {offers.isFetching ? <p className="text-center text-xs text-muted-foreground">Finding drivers…</p> : null}
+        {offers.isFetching ? (
+          <p className="text-center text-xs text-muted-foreground">Finding drivers…</p>
+        ) : null}
 
         {offers.isSuccess && offers.data.length === 0 ? (
           <EmptyState

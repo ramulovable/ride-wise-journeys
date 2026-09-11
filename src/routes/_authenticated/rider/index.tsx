@@ -54,8 +54,10 @@ function RiderDashboard() {
   });
   const eligible = subscriptionActive(riderDetails) && !riderDetails?.is_blocked;
   async function toggleOnline() {
-    if (!eligible && !riderDetails?.is_online)
-      return toast.error("Admin approval and an active subscription are required.");
+    if (!eligible && !riderDetails?.is_online) {
+      toast.error("Admin approval and an active subscription are required.");
+      return;
+    }
     const { error } = await supabase
       .from("rider_details")
       .update({ is_online: !riderDetails?.is_online })

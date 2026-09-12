@@ -80,6 +80,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          is_blocked: boolean
           mobile: string
           photo_url: string | null
           updated_at: string
@@ -89,6 +90,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id: string
+          is_blocked?: boolean
           mobile: string
           photo_url?: string | null
           updated_at?: string
@@ -98,6 +100,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_blocked?: boolean
           mobile?: string
           photo_url?: string | null
           updated_at?: string
@@ -328,8 +331,10 @@ export type Database = {
       rides: {
         Row: {
           accepted_at: string | null
+          arrived_at: string | null
           booking_type: Database["public"]["Enums"]["booking_type"]
           cancel_reason: string | null
+          cancelled_at: string | null
           cancelled_by: string | null
           cash_collected: boolean
           completed_at: string | null
@@ -337,6 +342,7 @@ export type Database = {
           customer_id: string
           from_location_id: string
           id: string
+          on_the_way_at: string | null
           passengers: number
           pickup_note: string | null
           rider_id: string | null
@@ -351,8 +357,10 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          arrived_at?: string | null
           booking_type: Database["public"]["Enums"]["booking_type"]
           cancel_reason?: string | null
+          cancelled_at?: string | null
           cancelled_by?: string | null
           cash_collected?: boolean
           completed_at?: string | null
@@ -360,6 +368,7 @@ export type Database = {
           customer_id: string
           from_location_id: string
           id?: string
+          on_the_way_at?: string | null
           passengers?: number
           pickup_note?: string | null
           rider_id?: string | null
@@ -374,8 +383,10 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          arrived_at?: string | null
           booking_type?: Database["public"]["Enums"]["booking_type"]
           cancel_reason?: string | null
+          cancelled_at?: string | null
           cancelled_by?: string | null
           cash_collected?: boolean
           completed_at?: string | null
@@ -383,6 +394,7 @@ export type Database = {
           customer_id?: string
           from_location_id?: string
           id?: string
+          on_the_way_at?: string | null
           passengers?: number
           pickup_note?: string | null
           rider_id?: string | null

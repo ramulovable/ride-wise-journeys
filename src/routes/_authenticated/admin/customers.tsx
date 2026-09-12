@@ -13,9 +13,15 @@ export const Route = createFileRoute("/_authenticated/admin/customers")({
   head: () => ({
     meta: [
       { title: "All Customers | Shahin Travels Admin" },
-      { name: "description", content: "Review Shahin Travels customer accounts and booking totals." },
+      {
+        name: "description",
+        content: "Review Shahin Travels customer accounts and booking totals.",
+      },
       { property: "og:title", content: "All Customers | Shahin Travels Admin" },
-      { property: "og:description", content: "Review Shahin Travels customer accounts and booking totals." },
+      {
+        property: "og:description",
+        content: "Review Shahin Travels customer accounts and booking totals.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -44,7 +50,10 @@ function Customers() {
           {customers.error.message}
         </p>
       ) : customers.isSuccess && customers.data.length === 0 ? (
-        <EmptyState title="No customers" description="Registered customer accounts will appear here." />
+        <EmptyState
+          title="No customers"
+          description="Registered customer accounts will appear here."
+        />
       ) : (
         <div className="space-y-3">
           {customers.data?.map((customer) => (

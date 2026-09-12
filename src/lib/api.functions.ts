@@ -618,15 +618,22 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
     if (!rides?.length) return [];
 
     const profileIds = [
-      ...new Set(rides.flatMap((ride) => [ride.customer_id, ...(ride.rider_id ? [ride.rider_id] : [])])),
+      ...new Set(
+        rides.flatMap((ride) => [ride.customer_id, ...(ride.rider_id ? [ride.rider_id] : [])]),
+      ),
     ];
     const locationIds = [
       ...new Set(rides.flatMap((ride) => [ride.from_location_id, ride.to_location_id])),
     ];
-    const vehicleIds = [...new Set(rides.flatMap((ride) => (ride.vehicle_id ? [ride.vehicle_id] : [])))];
+    const vehicleIds = [
+      ...new Set(rides.flatMap((ride) => (ride.vehicle_id ? [ride.vehicle_id] : []))),
+    ];
     const [profilesResult, locationsResult, vehiclesResult, categoriesResult] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name, mobile").in("id", profileIds),
-      supabaseAdmin.from("locations").select("id, name, formatted_address, area").in("id", locationIds),
+      supabaseAdmin
+        .from("locations")
+        .select("id, name, formatted_address, area")
+        .in("id", locationIds),
       vehicleIds.length
         ? supabaseAdmin
             .from("rider_vehicles")
@@ -644,7 +651,9 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
       throw new Error("Could not load complete booking details.");
     }
     const profiles = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile]));
-    const locations = new Map((locationsResult.data ?? []).map((location) => [location.id, location]));
+    const locations = new Map(
+      (locationsResult.data ?? []).map((location) => [location.id, location]),
+    );
     const vehicles = new Map((vehiclesResult.data ?? []).map((vehicle) => [vehicle.id, vehicle]));
     const categories = new Map(
       (categoriesResult.data ?? []).map((category) => [category.id, category.name]),

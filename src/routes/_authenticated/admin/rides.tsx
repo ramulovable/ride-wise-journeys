@@ -11,9 +11,15 @@ export const Route = createFileRoute("/_authenticated/admin/rides")({
   head: () => ({
     meta: [
       { title: "Ride Audit History | Shahin Travels Admin" },
-      { name: "description", content: "Review complete Shahin Travels booking and ride audit records." },
+      {
+        name: "description",
+        content: "Review complete Shahin Travels booking and ride audit records.",
+      },
       { property: "og:title", content: "Ride Audit History | Shahin Travels Admin" },
-      { property: "og:description", content: "Review complete Shahin Travels booking and ride audit records." },
+      {
+        property: "og:description",
+        content: "Review complete Shahin Travels booking and ride audit records.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -37,7 +43,10 @@ function Rides() {
     queryFn: () => getAdminRideAudit(),
   });
   return (
-    <AdminShell title="Ride & audit history" subtitle="Complete booking, contact, vehicle and timeline records.">
+    <AdminShell
+      title="Ride & audit history"
+      subtitle="Complete booking, contact, vehicle and timeline records."
+    >
       {rides.isError ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {rides.error.message}
@@ -51,7 +60,8 @@ function Rides() {
               <header className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
                 <div className="min-w-0">
                   <p className="font-semibold">
-                    {r.fromLocation?.name ?? "Unknown pickup"} → {r.toLocation?.name ?? "Unknown destination"}
+                    {r.fromLocation?.name ?? "Unknown pickup"} →{" "}
+                    {r.toLocation?.name ?? "Unknown destination"}
                   </p>
                   <p className="mt-1 font-mono text-xs text-muted-foreground">Booking {r.id}</p>
                 </div>
@@ -83,9 +93,18 @@ function Rides() {
                 <section>
                   <h2 className="mb-2 text-sm font-semibold">Route & fare</h2>
                   <dl className="space-y-2">
-                    <Detail label="Boarding" value={r.fromLocation?.address || r.fromLocation?.name || "Unavailable"} />
-                    <Detail label="Destination" value={r.toLocation?.address || r.toLocation?.name || "Unavailable"} />
-                    <Detail label="Ride type" value={r.booking_type === "share" ? "Share" : "Reserve"} />
+                    <Detail
+                      label="Boarding"
+                      value={r.fromLocation?.address || r.fromLocation?.name || "Unavailable"}
+                    />
+                    <Detail
+                      label="Destination"
+                      value={r.toLocation?.address || r.toLocation?.name || "Unavailable"}
+                    />
+                    <Detail
+                      label="Ride type"
+                      value={r.booking_type === "share" ? "Share" : "Reserve"}
+                    />
                     <Detail label="Passengers" value={String(r.passengers)} />
                     <Detail label="Fare" value={rupees(r.total_fare)} />
                   </dl>

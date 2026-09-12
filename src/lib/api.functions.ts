@@ -561,7 +561,7 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [rolesResult, profilesResult, ridesResult] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("user_id").eq("role", "customer"),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
       supabaseAdmin
         .from("profiles")
         .select("id, full_name, mobile, created_at, is_blocked")
@@ -571,13 +571,21 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
     if (rolesResult.error || profilesResult.error || ridesResult.error) {
       throw new Error("Could not load customers.");
     }
-    const customerIds = new Set((rolesResult.data ?? []).map((role) => role.user_id));
+    const rolesByUser = new Map<string, Set<string>>();
+    for (const role of rolesResult.data ?? []) {
+      const roles = rolesByUser.get(role.user_id) ?? new Set<string>();
+      roles.add(role.role);
+      rolesByUser.set(role.user_id, roles);
+    }
     const rideCounts = new Map<string, number>();
     for (const ride of ridesResult.data ?? []) {
       rideCounts.set(ride.customer_id, (rideCounts.get(ride.customer_id) ?? 0) + 1);
     }
     return (profilesResult.data ?? [])
-      .filter((profile) => customerIds.has(profile.id))
+      .filter((profile) => {
+        const roles = rolesByUser.get(profile.id);
+        return roles?.has("customer") && !roles.has("admin") && !roles.has("rider");
+      })
       .map((profile) => ({
         ...profile,
         totalRides: rideCounts.get(profile.id) ?? 0,

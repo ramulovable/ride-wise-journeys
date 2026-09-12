@@ -845,6 +845,10 @@ export type Database = {
         Args: { _ride_id: string; _vehicle_id: string }
         Returns: boolean
       }
+      advance_rider_ride: {
+        Args: { _action: string; _ride_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -374,6 +374,16 @@ export const createBooking = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { data: customerProfile, error: customerError } = await supabase
+      .from("profiles")
+      .select("is_blocked")
+      .eq("id", userId)
+      .single();
+    if (customerError) throw new Error(customerError.message);
+    if (customerProfile.is_blocked) {
+      throw new Error("This customer account is blocked. Please contact support.");
+    }
+
     const { data: rider, error: riderError } = await supabaseAdmin
       .from("rider_details")
       .select("user_id, is_approved, is_blocked, is_online, subscription_valid_until")

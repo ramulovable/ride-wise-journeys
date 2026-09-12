@@ -11,7 +11,11 @@ function AdminDashboard() {
   const stats = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => {
-      const [riders, pending, active, rides, support, completed] = await Promise.all([
+      const [customers, riders, pending, active, rides, support, completed] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("user_id", { count: "exact", head: true })
+          .eq("role", "customer"),
         supabase.from("rider_details").select("user_id", { count: "exact", head: true }),
         supabase
           .from("rider_details")
@@ -29,6 +33,7 @@ function AdminDashboard() {
         supabase.from("rides").select("total_fare").eq("status", "completed"),
       ]);
       return {
+        customers: customers.count ?? 0,
         riders: riders.count ?? 0,
         pending: pending.count ?? 0,
         active: active.count ?? 0,
@@ -39,6 +44,7 @@ function AdminDashboard() {
     },
   });
   const cards = [
+    { label: "Customers", value: stats.data?.customers ?? "—", to: "/admin/customers" },
     { label: "Drivers", value: stats.data?.riders ?? "—", to: "/admin/riders" },
     { label: "Pending approvals", value: stats.data?.pending ?? "—", to: "/admin/riders" },
     { label: "Drivers online", value: stats.data?.active ?? "—", to: "/admin/riders" },

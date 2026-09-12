@@ -11,6 +11,7 @@ import {
   User,
   Users,
   QrCode,
+  UserRound,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 
@@ -33,6 +34,7 @@ const riderNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: icon(<LayoutGrid className="h-4 w-4" />) },
+  { to: "/admin/customers", label: "Customers", icon: icon(<UserRound className="h-4 w-4" />) },
   { to: "/admin/riders", label: "Drivers", icon: icon(<Users className="h-4 w-4" />) },
   { to: "/admin/catalog", label: "Catalog", icon: icon(<MapPin className="h-4 w-4" />) },
   { to: "/admin/rides", label: "Rides", icon: icon(<CalendarClock className="h-4 w-4" />) },

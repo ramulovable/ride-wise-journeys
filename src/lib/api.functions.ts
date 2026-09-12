@@ -374,6 +374,16 @@ export const createBooking = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { data: customerProfile, error: customerError } = await supabase
+      .from("profiles")
+      .select("is_blocked")
+      .eq("id", userId)
+      .single();
+    if (customerError) throw new Error(customerError.message);
+    if (customerProfile.is_blocked) {
+      throw new Error("This customer account is blocked. Please contact support.");
+    }
+
     const { data: rider, error: riderError } = await supabaseAdmin
       .from("rider_details")
       .select("user_id, is_approved, is_blocked, is_online, subscription_valid_until")
@@ -529,6 +539,7 @@ export const updateRiderRide = createServerFn({ method: "POST" })
   });
 
 const adminRiderInput = z.object({ riderId: z.string().uuid() });
+const adminCustomerInput = z.object({ customerId: z.string().uuid() });
 
 async function requireAdmin(context: { supabase: SupabaseClient<Database>; userId: string }) {
   return adminRoleCheck(context.supabase, context.userId);
@@ -543,6 +554,133 @@ async function adminRoleCheck(supabase: SupabaseClient<Database>, userId: string
     .maybeSingle();
   if (!data) throw new Error("Admin access required.");
 }
+
+export const getAdminCustomers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [rolesResult, profilesResult, ridesResult] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("user_id").eq("role", "customer"),
+      supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, mobile, created_at, is_blocked")
+        .order("created_at", { ascending: false }),
+      supabaseAdmin.from("rides").select("customer_id"),
+    ]);
+    if (rolesResult.error || profilesResult.error || ridesResult.error) {
+      throw new Error("Could not load customers.");
+    }
+    const customerIds = new Set((rolesResult.data ?? []).map((role) => role.user_id));
+    const rideCounts = new Map<string, number>();
+    for (const ride of ridesResult.data ?? []) {
+      rideCounts.set(ride.customer_id, (rideCounts.get(ride.customer_id) ?? 0) + 1);
+    }
+    return (profilesResult.data ?? [])
+      .filter((profile) => customerIds.has(profile.id))
+      .map((profile) => ({
+        ...profile,
+        totalRides: rideCounts.get(profile.id) ?? 0,
+      }));
+  });
+
+export const setCustomerBlocked = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminCustomerInput.extend({ blocked: z.boolean() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: customerRole, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", data.customerId)
+      .eq("role", "customer")
+      .maybeSingle();
+    if (roleError || !customerRole) throw new Error("Customer account not found.");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ is_blocked: data.blocked })
+      .eq("id", data.customerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getAdminRideAudit = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rides, error: ridesError } = await supabaseAdmin
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (ridesError) throw new Error("Could not load booking history.");
+    if (!rides?.length) return [];
+
+    const profileIds = [
+      ...new Set(
+        rides.flatMap((ride) => [ride.customer_id, ...(ride.rider_id ? [ride.rider_id] : [])]),
+      ),
+    ];
+    const locationIds = [
+      ...new Set(rides.flatMap((ride) => [ride.from_location_id, ride.to_location_id])),
+    ];
+    const vehicleIds = [
+      ...new Set(rides.flatMap((ride) => (ride.vehicle_id ? [ride.vehicle_id] : []))),
+    ];
+    const [profilesResult, locationsResult, vehiclesResult, categoriesResult] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id, full_name, mobile").in("id", profileIds),
+      supabaseAdmin
+        .from("locations")
+        .select("id, name, formatted_address, area")
+        .in("id", locationIds),
+      vehicleIds.length
+        ? supabaseAdmin
+            .from("rider_vehicles")
+            .select("id, vehicle_category_id, vehicle_number, vehicle_model")
+            .in("id", vehicleIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabaseAdmin.from("vehicle_categories").select("id, name"),
+    ]);
+    if (
+      profilesResult.error ||
+      locationsResult.error ||
+      vehiclesResult.error ||
+      categoriesResult.error
+    ) {
+      throw new Error("Could not load complete booking details.");
+    }
+    const profiles = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile]));
+    const locations = new Map(
+      (locationsResult.data ?? []).map((location) => [location.id, location]),
+    );
+    const vehicles = new Map((vehiclesResult.data ?? []).map((vehicle) => [vehicle.id, vehicle]));
+    const categories = new Map(
+      (categoriesResult.data ?? []).map((category) => [category.id, category.name]),
+    );
+
+    return rides.map((ride) => {
+      const vehicle = ride.vehicle_id ? vehicles.get(ride.vehicle_id) : undefined;
+      const from = locations.get(ride.from_location_id);
+      const to = locations.get(ride.to_location_id);
+      return {
+        ...ride,
+        customer: profiles.get(ride.customer_id) ?? null,
+        rider: ride.rider_id ? (profiles.get(ride.rider_id) ?? null) : null,
+        vehicle: vehicle
+          ? {
+              number: vehicle.vehicle_number,
+              model: vehicle.vehicle_model,
+              type: categories.get(vehicle.vehicle_category_id) ?? "Vehicle",
+            }
+          : null,
+        fromLocation: from
+          ? { name: from.name, address: from.formatted_address || from.area }
+          : null,
+        toLocation: to ? { name: to.name, address: to.formatted_address || to.area } : null,
+      };
+    });
+  });
 
 export const setRiderApproval = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

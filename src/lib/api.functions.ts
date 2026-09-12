@@ -621,51 +621,19 @@ export const acceptRide = createServerFn({ method: "POST" })
 
 const rideActionInput = z.object({
   rideId: z.string().uuid(),
-  action: z.enum(["reject", "on_the_way", "arrived", "started", "completed"]),
+  action: z.enum(["on_the_way", "arrived", "started", "completed"]),
 });
 
 export const updateRiderRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => rideActionInput.parse(data))
   .handler(async ({ data, context }) => {
-    const { data: ride, error: readError } = await context.supabase
-      .from("rides")
-      .select("id, rider_id, status")
-      .eq("id", data.rideId)
-      .eq("rider_id", context.userId)
-      .maybeSingle();
-    if (readError) throw new Error(readError.message);
-    if (!ride) throw new Error("Ride not found.");
-
-    const expected: Record<typeof data.action, string[]> = {
-      reject: ["requested"],
-      on_the_way: ["accepted"],
-      arrived: ["on_the_way"],
-      started: ["arrived"],
-      completed: ["started"],
-    };
-    if (!expected[data.action].includes(ride.status))
-      throw new Error("That ride action is no longer available.");
-
-    const now = new Date().toISOString();
-    const values =
-      data.action === "reject"
-        ? {
-            status: "cancelled" as const,
-            cancel_reason: "Declined by rider",
-            cancelled_by: context.userId,
-          }
-        : data.action === "completed"
-          ? { status: "completed" as const, completed_at: now, cash_collected: true }
-          : data.action === "started"
-            ? { status: "started" as const, started_at: now }
-            : { status: data.action };
-    const { error } = await context.supabase
-      .from("rides")
-      .update(values)
-      .eq("id", data.rideId)
-      .eq("rider_id", context.userId);
+    const { data: updated, error } = await context.supabase.rpc("advance_rider_ride", {
+      _ride_id: data.rideId,
+      _action: data.action,
+    });
     if (error) throw new Error(error.message);
+    if (!updated) throw new Error("That ride action is no longer available.");
     return { ok: true };
   });
 

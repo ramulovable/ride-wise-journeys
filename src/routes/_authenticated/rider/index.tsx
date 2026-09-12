@@ -53,7 +53,7 @@ function RiderDashboard() {
       next,
     }: {
       rideId: string;
-      next: "accept" | "reject" | "on_the_way" | "arrived" | "started" | "completed";
+      next: "accept" | "on_the_way" | "arrived" | "started" | "completed";
     }) =>
       next === "accept"
         ? (() => {
@@ -176,14 +176,6 @@ function RiderDashboard() {
                       : ride.status === "started"
                         ? "Complete · Cash received"
                         : `Mark ${RIDE_STATUS_LABEL[nextAction(ride.status)!]}`}
-                  </Button>
-                ) : null}
-                {ride.status === "requested" && ride.rider_id === user?.id ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => action.mutate({ rideId: ride.id, next: "reject" })}
-                  >
-                    Reject
                   </Button>
                 ) : null}
               </div>

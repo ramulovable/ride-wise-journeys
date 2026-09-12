@@ -17,4 +17,4 @@
 - [x] Verify location search, distance, matching, mobile UI, and clean build
 - [x] Add WhatsApp support shortcut to customer and driver screens only
 - [x] Add admin customer management and complete ride audit history
-- [ ] Replace rider fares with centralized admin fare engine and broadcast dispatch
+- [x] Replace rider fares with centralized admin fare engine and broadcast dispatch

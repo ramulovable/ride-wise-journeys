@@ -62,10 +62,7 @@ function FareManagement() {
         : field === "included_km"
           ? { included_km: numericValue }
           : { extra_km_rate: numericValue };
-    const { error } = await supabase
-      .from("fare_rules")
-      .update(changes)
-      .eq("id", id);
+    const { error } = await supabase.from("fare_rules").update(changes).eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success("Fare rule saved.");

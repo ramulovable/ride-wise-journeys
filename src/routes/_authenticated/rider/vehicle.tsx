@@ -27,8 +27,18 @@ function Vehicles() {
   const [seats, setSeats] = useState(4);
   const [hasAc, setHasAc] = useState(false);
   const categories = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
-  const brands = useQuery({ queryKey: ["vehicle-brands"], queryFn: async () => (await supabase.from("vehicle_brands").select("*").eq("is_active", true).order("name")).data ?? [] });
-  const models = useQuery({ queryKey: ["vehicle-models"], queryFn: async () => (await supabase.from("vehicle_models").select("*").eq("is_active", true).order("name")).data ?? [] });
+  const brands = useQuery({
+    queryKey: ["vehicle-brands"],
+    queryFn: async () =>
+      (await supabase.from("vehicle_brands").select("*").eq("is_active", true).order("name"))
+        .data ?? [],
+  });
+  const models = useQuery({
+    queryKey: ["vehicle-models"],
+    queryFn: async () =>
+      (await supabase.from("vehicle_models").select("*").eq("is_active", true).order("name"))
+        .data ?? [],
+  });
   const selectedCategory = categories.data?.find((item) => item.id === category);
   const vehicles = useQuery({
     queryKey: ["vehicles", user?.id],
@@ -96,21 +106,71 @@ function Vehicles() {
           <select
             className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             value={category}
-            onChange={(e) => { setCategory(e.target.value); setBrand(""); setModelId(""); }}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setBrand("");
+              setModelId("");
+            }}
           >
             <option value="">Select category</option>
-            {categories.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {categories.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </div>
         <div>
           <Label>Brand</Label>
-          <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={brand} onChange={(e) => { setBrand(e.target.value); setModelId(""); }}><option value="">Select brand</option>{brands.data?.filter((item) => item.category_id === category).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+          <select
+            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            value={brand}
+            onChange={(e) => {
+              setBrand(e.target.value);
+              setModelId("");
+            }}
+          >
+            <option value="">Select brand</option>
+            {brands.data
+              ?.filter((item) => item.category_id === category)
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+          </select>
         </div>
         <div>
           <Label>Model</Label>
-          <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={modelId} onChange={(e) => { const id = e.target.value; setModelId(id); const selected = models.data?.find((item) => item.id === id); if (selected) { setModel(selected.name); setSeats(selected.seat_capacity); } }}><option value="">Select model</option>{models.data?.filter((item) => item.brand_id === brand).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+          <select
+            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            value={modelId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setModelId(id);
+              const selected = models.data?.find((item) => item.id === id);
+              if (selected) {
+                setModel(selected.name);
+                setSeats(selected.seat_capacity);
+              }
+            }}
+          >
+            <option value="">Select model</option>
+            {models.data
+              ?.filter((item) => item.brand_id === brand)
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+          </select>
         </div>
-        {selectedCategory?.vehicle_class === "four_wheeler" ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} /> Air conditioned</label> : null}
+        {selectedCategory?.vehicle_class === "four_wheeler" ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} />{" "}
+            Air conditioned
+          </label>
+        ) : null}
         <div>
           <Label>Registration number</Label>
           <Input value={number} onChange={(e) => setNumber(e.target.value)} />

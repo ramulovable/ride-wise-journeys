@@ -17,6 +17,7 @@ import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin/catalog'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
+import { Route as AuthenticatedAdminFaresRouteImport } from './routes/_authenticated/admin/fares'
 import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
 import { Route as AuthenticatedAdminRidersRouteImport } from './routes/_authenticated/admin/riders'
 import { Route as AuthenticatedAdminRidesRouteImport } from './routes/_authenticated/admin/rides'
@@ -24,7 +25,6 @@ import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
-import { Route as AuthenticatedRiderFaresRouteImport } from './routes/_authenticated/rider/fares'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
 
@@ -69,6 +69,11 @@ const AuthenticatedAdminCustomersRoute =
     path: '/admin/customers',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminFaresRoute = AuthenticatedAdminFaresRouteImport.update({
+  id: '/admin/fares',
+  path: '/admin/fares',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminQrRoute = AuthenticatedAdminQrRouteImport.update({
   id: '/admin/qr',
   path: '/admin/qr',
@@ -106,11 +111,6 @@ const AuthenticatedRiderIndexRoute = AuthenticatedRiderIndexRouteImport.update({
   path: '/rider/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedRiderFaresRoute = AuthenticatedRiderFaresRouteImport.update({
-  id: '/rider/fares',
-  path: '/rider/fares',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedRiderVehicleRoute =
   AuthenticatedRiderVehicleRouteImport.update({
     id: '/rider/vehicle',
@@ -131,12 +131,12 @@ export interface FileRoutesByFullPath {
   '/support': typeof AuthenticatedSupportRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/fares': typeof AuthenticatedAdminFaresRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
-  '/rider/fares': typeof AuthenticatedRiderFaresRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
@@ -150,12 +150,12 @@ export interface FileRoutesByTo {
   '/support': typeof AuthenticatedSupportRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/fares': typeof AuthenticatedAdminFaresRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
-  '/rider/fares': typeof AuthenticatedRiderFaresRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
@@ -171,12 +171,12 @@ export interface FileRoutesById {
   '/_authenticated/support': typeof AuthenticatedSupportRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/_authenticated/admin/fares': typeof AuthenticatedAdminFaresRoute
   '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
   '/_authenticated/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/_authenticated/admin/rides': typeof AuthenticatedAdminRidesRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
-  '/_authenticated/rider/fares': typeof AuthenticatedRiderFaresRoute
   '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
@@ -192,12 +192,12 @@ export interface FileRouteTypes {
     | '/support'
     | '/admin/catalog'
     | '/admin/customers'
+    | '/admin/fares'
     | '/admin/qr'
     | '/admin/riders'
     | '/admin/rides'
     | '/admin/support'
     | '/app/rides'
-    | '/rider/fares'
     | '/rider/vehicle'
     | '/admin/'
     | '/app/'
@@ -211,12 +211,12 @@ export interface FileRouteTypes {
     | '/support'
     | '/admin/catalog'
     | '/admin/customers'
+    | '/admin/fares'
     | '/admin/qr'
     | '/admin/riders'
     | '/admin/rides'
     | '/admin/support'
     | '/app/rides'
-    | '/rider/fares'
     | '/rider/vehicle'
     | '/admin'
     | '/app'
@@ -231,12 +231,12 @@ export interface FileRouteTypes {
     | '/_authenticated/support'
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/customers'
+    | '/_authenticated/admin/fares'
     | '/_authenticated/admin/qr'
     | '/_authenticated/admin/riders'
     | '/_authenticated/admin/rides'
     | '/_authenticated/admin/support'
     | '/_authenticated/app/rides'
-    | '/_authenticated/rider/fares'
     | '/_authenticated/rider/vehicle'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
@@ -308,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCustomersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/fares': {
+      id: '/_authenticated/admin/fares'
+      path: '/admin/fares'
+      fullPath: '/admin/fares'
+      preLoaderRoute: typeof AuthenticatedAdminFaresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/qr': {
       id: '/_authenticated/admin/qr'
       path: '/admin/qr'
@@ -357,13 +364,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRiderIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/rider/fares': {
-      id: '/_authenticated/rider/fares'
-      path: '/rider/fares'
-      fullPath: '/rider/fares'
-      preLoaderRoute: typeof AuthenticatedRiderFaresRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/rider/vehicle': {
       id: '/_authenticated/rider/vehicle'
       path: '/rider/vehicle'
@@ -386,12 +386,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
+  AuthenticatedAdminFaresRoute: typeof AuthenticatedAdminFaresRoute
   AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
   AuthenticatedAdminRidersRoute: typeof AuthenticatedAdminRidersRoute
   AuthenticatedAdminRidesRoute: typeof AuthenticatedAdminRidesRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
-  AuthenticatedRiderFaresRoute: typeof AuthenticatedRiderFaresRoute
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -404,12 +404,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSupportRoute: AuthenticatedSupportRoute,
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
+  AuthenticatedAdminFaresRoute: AuthenticatedAdminFaresRoute,
   AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,
   AuthenticatedAdminRidersRoute: AuthenticatedAdminRidersRoute,
   AuthenticatedAdminRidesRoute: AuthenticatedAdminRidesRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
-  AuthenticatedRiderFaresRoute: AuthenticatedRiderFaresRoute,
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,

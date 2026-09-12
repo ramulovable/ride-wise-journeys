@@ -49,7 +49,8 @@ function BookPage() {
   );
   const quote = useQuery({
     queryKey: ["fare-options", fromId, toId, passengers],
-    queryFn: () => getFareOptions({ data: { fromLocationId: fromId, toLocationId: toId, passengers } }),
+    queryFn: () =>
+      getFareOptions({ data: { fromLocationId: fromId, toLocationId: toId, passengers } }),
     enabled: Boolean(fromId && toId && fromId !== toId),
     staleTime: 30 * 60_000,
   });
@@ -62,7 +63,11 @@ function BookPage() {
     else setToId(location.id);
   }
 
-  async function book(categoryId: string, bookingType: "standard" | "share" | "reserve", requestedAc: boolean | null) {
+  async function book(
+    categoryId: string,
+    bookingType: "standard" | "share" | "reserve",
+    requestedAc: boolean | null,
+  ) {
     setBooking(`${categoryId}-${bookingType}-${requestedAc}`);
     try {
       const res = await createBooking({
@@ -199,7 +204,8 @@ function BookPage() {
           <p className="text-center text-xs text-muted-foreground">Calculating fares…</p>
         ) : null}
 
-        {quote.isSuccess && quote.data.options.every((category) => category.fares.every((fare) => !fare.available)) ? (
+        {quote.isSuccess &&
+        quote.data.options.every((category) => category.fares.every((fare) => !fare.available)) ? (
           <EmptyState
             title="No fare available"
             description="No eligible driver and configured fare are available for this journey right now."
@@ -208,23 +214,56 @@ function BookPage() {
 
         <div className="space-y-3">
           {(quote.data?.options ?? []).map((option) => (
-            <article key={option.categoryId} className="rounded-2xl border border-border bg-card p-4">
+            <article
+              key={option.categoryId}
+              className="rounded-2xl border border-border bg-card p-4"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="font-semibold text-foreground">{option.categoryName}</p>
+                  <p className="font-semibold text-foreground">{option.categoryName}</p>
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Car className="h-3.5 w-3.5" />
                     {option.vehicleClass.replaceAll("_", " ")}
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground">Up to {option.seatCapacity} seats</span>
+                <span className="text-xs text-muted-foreground">
+                  Up to {option.seatCapacity} seats
+                </span>
               </div>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {option.fares.map((fare) => (
-                  <Button key={`${fare.journeyType}-${fare.requestedAc}`} variant="outline" className="h-auto min-h-20 justify-between p-3 text-left" disabled={!fare.available || booking !== null || passengers > option.seatCapacity} onClick={() => book(option.categoryId, fare.journeyType as "standard" | "share" | "reserve", fare.requestedAc)}>
-                    <span><span className="block text-xs capitalize text-muted-foreground">{fare.journeyType}{fare.requestedAc == null ? "" : fare.requestedAc ? " · AC" : " · Non-AC"}</span><span className="block text-xs text-muted-foreground">{fare.available ? fare.journeyType === "share" ? `${rupees(fare.unitFare ?? 0)} × ${passengers}` : "Cash on completion" : fare.reason}</span></span>
-                    <strong className="text-lg text-primary">{fare.available ? rupees(fare.fare ?? 0) : "—"}</strong>
+                  <Button
+                    key={`${fare.journeyType}-${fare.requestedAc}`}
+                    variant="outline"
+                    className="h-auto min-h-20 justify-between p-3 text-left"
+                    disabled={
+                      !fare.available || booking !== null || passengers > option.seatCapacity
+                    }
+                    onClick={() =>
+                      book(
+                        option.categoryId,
+                        fare.journeyType as "standard" | "share" | "reserve",
+                        fare.requestedAc,
+                      )
+                    }
+                  >
+                    <span>
+                      <span className="block text-xs capitalize text-muted-foreground">
+                        {fare.journeyType}
+                        {fare.requestedAc == null ? "" : fare.requestedAc ? " · AC" : " · Non-AC"}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {fare.available
+                          ? fare.journeyType === "share"
+                            ? `${rupees(fare.unitFare ?? 0)} × ${passengers}`
+                            : "Cash on completion"
+                          : fare.reason}
+                      </span>
+                    </span>
+                    <strong className="text-lg text-primary">
+                      {fare.available ? rupees(fare.fare ?? 0) : "—"}
+                    </strong>
                   </Button>
                 ))}
               </div>

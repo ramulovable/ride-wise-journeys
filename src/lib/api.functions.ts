@@ -5,11 +5,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 
 const bookingInput = z.object({
-  riderId: z.string().uuid(),
-  vehicleId: z.string().uuid(),
+  categoryId: z.string().uuid(),
   fromLocationId: z.string().uuid(),
   toLocationId: z.string().uuid(),
-  bookingType: z.enum(["share", "reserve"]),
+  bookingType: z.enum(["standard", "share", "reserve"]),
+  requestedAc: z.boolean().optional(),
   passengers: z.number().int().min(1).max(20),
   pickupNote: z.string().max(300).optional(),
 });
@@ -18,6 +18,16 @@ const riderOfferInput = z
   .object({
     fromLocationId: z.string().uuid(),
     toLocationId: z.string().uuid(),
+  })
+  .refine((value) => value.fromLocationId !== value.toLocationId, {
+    message: "Pickup and drop locations must be different.",
+  });
+
+const fareOptionsInput = z
+  .object({
+    fromLocationId: z.string().uuid(),
+    toLocationId: z.string().uuid(),
+    passengers: z.number().int().min(1).max(20),
   })
   .refine((value) => value.fromLocationId !== value.toLocationId, {
     message: "Pickup and drop locations must be different.",
@@ -248,39 +258,187 @@ export const getDrivingDistance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => routeDistanceInput.parse(data))
   .handler(async ({ data }) => {
-    const cacheKey = `${data.fromLocationId}:${data.toLocationId}`;
-    const cached = drivingDistanceCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) return cached.result;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [origin, destination] = await Promise.all([
-      getLocationCoordinates(data.fromLocationId, supabaseAdmin),
-      getLocationCoordinates(data.toLocationId, supabaseAdmin),
-    ]);
-    const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/routes/directions/v2:computeRoutes`, {
-      method: "POST",
-      headers: googleHeaders("routes.distanceMeters,routes.duration"),
-      body: JSON.stringify({
-        origin: { location: { latLng: origin } },
-        destination: { location: { latLng: destination } },
-        travelMode: "DRIVE",
-        routingPreference: "TRAFFIC_UNAWARE",
-      }),
-    });
-    if (!response.ok) await throwGoogleError(response);
-    const payload = (await response.json()) as {
-      routes?: Array<{ distanceMeters?: number; duration?: string }>;
-    };
-    const route = payload.routes?.[0];
-    if (!route?.distanceMeters) throw new Error("No driving route was found between these places.");
-    const result = {
-      distanceKm: Math.round((route.distanceMeters / 1000) * 10) / 10,
-      durationMinutes: route.duration
-        ? Math.max(1, Math.round(Number.parseFloat(route.duration.replace("s", "")) / 60))
-        : null,
-    };
-    drivingDistanceCache.set(cacheKey, { expiresAt: Date.now() + 60 * 60_000, result });
-    return result;
+    return calculateDrivingDistance(data.fromLocationId, data.toLocationId);
   });
+
+async function calculateDrivingDistance(fromLocationId: string, toLocationId: string) {
+  const cacheKey = `${fromLocationId}:${toLocationId}`;
+  const cached = drivingDistanceCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.result;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [origin, destination] = await Promise.all([
+    getLocationCoordinates(fromLocationId, supabaseAdmin),
+    getLocationCoordinates(toLocationId, supabaseAdmin),
+  ]);
+  const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/routes/directions/v2:computeRoutes`, {
+    method: "POST",
+    headers: googleHeaders("routes.distanceMeters,routes.duration"),
+    body: JSON.stringify({
+      origin: { location: { latLng: origin } },
+      destination: { location: { latLng: destination } },
+      travelMode: "DRIVE",
+      routingPreference: "TRAFFIC_UNAWARE",
+    }),
+  });
+  if (!response.ok) await throwGoogleError(response);
+  const payload = (await response.json()) as {
+    routes?: Array<{ distanceMeters?: number; duration?: string }>;
+  };
+  const route = payload.routes?.[0];
+  if (!route?.distanceMeters) throw new Error("No driving route was found between these places.");
+  const result = {
+    distanceKm: Math.round((route.distanceMeters / 1000) * 10) / 10,
+    durationMinutes: route.duration
+      ? Math.max(1, Math.round(Number.parseFloat(route.duration.replace("s", "")) / 60))
+      : null,
+  };
+  drivingDistanceCache.set(cacheKey, { expiresAt: Date.now() + 60 * 60_000, result });
+  return result;
+}
+
+type FareRuleRow = Database["public"]["Tables"]["fare_rules"]["Row"];
+type FareSlabRow = Database["public"]["Tables"]["fare_slabs"]["Row"];
+
+function calculateRuleFare(
+  rule: FareRuleRow,
+  slabs: FareSlabRow[],
+  distanceKm: number,
+  passengers: number,
+) {
+  if (rule.rate_per_km != null) {
+    const includedKm = Number(rule.included_km ?? distanceKm);
+    const regularKm = Math.min(distanceKm, includedKm);
+    const extraKm = Math.max(0, distanceKm - includedKm);
+    const unitFare =
+      Number(rule.rate_per_km) * regularKm +
+      Number(rule.extra_km_rate ?? rule.rate_per_km) * extraKm;
+    return { unitFare, totalFare: unitFare, pricingMode: "per_km", slab: null };
+  }
+  const active = slabs
+    .filter((slab) => slab.is_active)
+    .sort((a, b) => Number(a.min_km) - Number(b.min_km));
+  const slab = active.find(
+    (item) => distanceKm >= Number(item.min_km) && distanceKm <= Number(item.max_km),
+  );
+  if (slab) {
+    const unitFare =
+      slab.pricing_mode === "per_km" ? Number(slab.rate) * distanceKm : Number(slab.rate);
+    return {
+      unitFare,
+      totalFare: rule.journey_type === "share" ? unitFare * passengers : unitFare,
+      pricingMode: slab.pricing_mode,
+      slab: { minKm: Number(slab.min_km), maxKm: Number(slab.max_km), rate: Number(slab.rate) },
+    };
+  }
+  const last = active.at(-1);
+  if (!last || distanceKm <= Number(last.max_km) || rule.extra_km_rate == null) return null;
+  const base =
+    last.pricing_mode === "per_km" ? Number(last.rate) * Number(last.max_km) : Number(last.rate);
+  const unitFare = base + (distanceKm - Number(last.max_km)) * Number(rule.extra_km_rate);
+  return {
+    unitFare,
+    totalFare: rule.journey_type === "share" ? unitFare * passengers : unitFare,
+    pricingMode: `${last.pricing_mode}_plus_extra`,
+    slab: { minKm: Number(last.min_km), maxKm: Number(last.max_km), rate: Number(last.rate) },
+  };
+}
+
+async function loadFareOptions(fromLocationId: string, toLocationId: string, passengers: number) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const route = await calculateDrivingDistance(fromLocationId, toLocationId);
+  const today = new Date().toISOString().slice(0, 10);
+  const [categoriesResult, rulesResult, slabsResult, ridersResult, vehiclesResult] =
+    await Promise.all([
+      supabaseAdmin
+        .from("vehicle_categories")
+        .select("id, name, seat_capacity, vehicle_class")
+        .eq("is_active", true),
+      supabaseAdmin.from("fare_rules").select("*").eq("is_active", true),
+      supabaseAdmin.from("fare_slabs").select("*").eq("is_active", true),
+      supabaseAdmin
+        .from("rider_details")
+        .select("user_id")
+        .eq("is_approved", true)
+        .eq("is_blocked", false)
+        .eq("is_online", true)
+        .gte("subscription_valid_until", today),
+      supabaseAdmin
+        .from("rider_vehicles")
+        .select("id, rider_id, vehicle_category_id, seat_capacity, has_ac")
+        .eq("is_active", true),
+    ]);
+  if (
+    categoriesResult.error ||
+    rulesResult.error ||
+    slabsResult.error ||
+    ridersResult.error ||
+    vehiclesResult.error
+  )
+    throw new Error("Could not calculate available fares.");
+  const eligibleRiders = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
+  const rules = rulesResult.data ?? [];
+  const slabs = slabsResult.data ?? [];
+  return {
+    ...route,
+    options: (categoriesResult.data ?? []).map((category) => {
+      const matchingVehicles = (vehiclesResult.data ?? []).filter(
+        (vehicle) =>
+          vehicle.vehicle_category_id === category.id &&
+          eligibleRiders.has(vehicle.rider_id) &&
+          passengers <= vehicle.seat_capacity,
+      );
+      const journeyTypes =
+        category.vehicle_class === "three_wheeler" ? ["share", "reserve"] : ["standard"];
+      const acOptions = category.vehicle_class === "four_wheeler" ? [true, false] : [null];
+      const fares = journeyTypes.flatMap((journeyType) =>
+        acOptions.map((requestedAc) => {
+          const acOption = requestedAc == null ? "any" : requestedAc ? "ac" : "non_ac";
+          const rule = rules.find(
+            (item) =>
+              item.vehicle_class === category.vehicle_class &&
+              item.journey_type === journeyType &&
+              item.ac_option === acOption,
+          );
+          const hasVehicle = matchingVehicles.some(
+            (vehicle) => requestedAc == null || vehicle.has_ac === requestedAc,
+          );
+          const calculated = rule
+            ? calculateRuleFare(
+                rule,
+                slabs.filter((slab) => slab.fare_rule_id === rule.id),
+                route.distanceKm,
+                passengers,
+              )
+            : null;
+          return {
+            journeyType,
+            requestedAc,
+            available: Boolean(hasVehicle && calculated),
+            fare: calculated?.totalFare ?? null,
+            unitFare: calculated?.unitFare ?? null,
+            reason: hasVehicle ? "Fare currently unavailable" : "No driver available",
+            ruleId: rule?.id ?? null,
+            calculation: calculated,
+          };
+        }),
+      );
+      return {
+        categoryId: category.id,
+        categoryName: category.name,
+        vehicleClass: category.vehicle_class,
+        seatCapacity: category.seat_capacity,
+        fares,
+      };
+    }),
+  };
+}
+
+export const getFareOptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => fareOptionsInput.parse(data))
+  .handler(async ({ data }) =>
+    loadFareOptions(data.fromLocationId, data.toLocationId, data.passengers),
+  );
 
 /** Returns only the non-sensitive fields needed to compare currently available rides. */
 export const getRiderOffers = createServerFn({ method: "GET" })
@@ -366,7 +524,7 @@ export const getRiderOffers = createServerFn({ method: "GET" })
     });
   });
 
-/** Creates a ride. The fare is always recalculated on the server from the rider's own route fares. */
+/** Creates an unassigned broadcast ride with an immutable server-calculated fare snapshot. */
 export const createBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => bookingInput.parse(data))
@@ -384,79 +542,63 @@ export const createBooking = createServerFn({ method: "POST" })
       throw new Error("This customer account is blocked. Please contact support.");
     }
 
-    const { data: rider, error: riderError } = await supabaseAdmin
-      .from("rider_details")
-      .select("user_id, is_approved, is_blocked, is_online, subscription_valid_until")
-      .eq("user_id", data.riderId)
-      .maybeSingle();
-    if (riderError) throw new Error(riderError.message);
-    if (!rider) throw new Error("This rider is no longer available.");
-
-    const today = new Date().toISOString().slice(0, 10);
-    if (
-      !rider.is_approved ||
-      rider.is_blocked ||
-      !rider.subscription_valid_until ||
-      rider.subscription_valid_until < today
-    ) {
-      throw new Error("This rider's subscription is not active.");
-    }
-    const { data: vehicle, error: vehicleError } = await supabaseAdmin
-      .from("rider_vehicles")
-      .select("id, rider_id, vehicle_category_id, seat_capacity, is_active")
-      .eq("id", data.vehicleId)
-      .eq("rider_id", data.riderId)
-      .maybeSingle();
-    if (vehicleError) throw new Error(vehicleError.message);
-    if (!vehicle?.is_active) throw new Error("This vehicle is no longer available.");
-    if (!rider.is_online) throw new Error("This rider is offline right now.");
-
-    const { data: fare, error: fareError } = await supabaseAdmin
-      .from("rider_route_fares")
-      .select("share_fare, reserve_fare, is_active")
-      .eq("rider_id", data.riderId)
-      .eq("vehicle_id", data.vehicleId)
-      .eq("from_location_id", data.fromLocationId)
-      .eq("to_location_id", data.toLocationId)
-      .maybeSingle();
-    if (fareError) throw new Error(fareError.message);
-    if (!fare || !fare.is_active) throw new Error("This rider does not serve that route.");
-
-    const passengers = data.passengers;
-    if (passengers > vehicle.seat_capacity)
-      throw new Error("Too many passengers for this vehicle.");
-
-    const unitFare = Number(data.bookingType === "share" ? fare.share_fare : fare.reserve_fare);
-    // Reserve is a fixed one-trip price and is never multiplied by passenger count.
-    const totalFare = data.bookingType === "share" ? unitFare * passengers : unitFare;
+    const quote = await loadFareOptions(data.fromLocationId, data.toLocationId, data.passengers);
+    const category = quote.options.find((item) => item.categoryId === data.categoryId);
+    const option = category?.fares.find(
+      (item) =>
+        item.journeyType === data.bookingType && item.requestedAc === (data.requestedAc ?? null),
+    );
+    if (!category || !option?.available || option.fare == null || option.unitFare == null)
+      throw new Error(option?.reason ?? "Fare currently unavailable");
+    const snapshot = {
+      ruleId: option.ruleId,
+      vehicleClass: category.vehicleClass,
+      categoryName: category.categoryName,
+      journeyType: data.bookingType,
+      requestedAc: data.requestedAc ?? null,
+      distanceKm: quote.distanceKm,
+      durationMinutes: quote.durationMinutes,
+      unitFare: option.unitFare,
+      totalFare: option.fare,
+      passengers: data.passengers,
+      calculation: option.calculation,
+    };
 
     const { data: ride, error } = await supabase
       .from("rides")
       .insert({
         customer_id: userId,
-        rider_id: data.riderId,
+        rider_id: null,
         from_location_id: data.fromLocationId,
         to_location_id: data.toLocationId,
-        vehicle_category_id: vehicle.vehicle_category_id,
-        vehicle_id: vehicle.id,
+        vehicle_category_id: data.categoryId,
+        vehicle_id: null,
+        requested_category_id: data.categoryId,
+        requested_vehicle_class: category.vehicleClass,
+        requested_ac: data.requestedAc ?? null,
+        distance_km: quote.distanceKm,
+        duration_minutes: quote.durationMinutes,
+        fare_snapshot: snapshot,
         booking_type: data.bookingType,
-        passengers,
-        unit_fare: unitFare,
-        total_fare: totalFare,
-        status: "requested",
+        passengers: data.passengers,
+        unit_fare: option.unitFare,
+        total_fare: option.fare,
+        status: "searching",
         pickup_note: data.pickupNote ?? null,
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
 
-    return { rideId: ride.id as string, totalFare };
+    return { rideId: ride.id as string, totalFare: option.fare };
   });
 
 /** A rider accepts a pending ride. Blocked unless approved with an active subscription and online. */
 export const acceptRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: unknown) => z.object({ rideId: z.string().uuid() }).parse(data))
+  .validator((data: unknown) =>
+    z.object({ rideId: z.string().uuid(), vehicleId: z.string().uuid() }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const today = new Date().toISOString().slice(0, 10);
@@ -476,65 +618,30 @@ export const acceptRide = createServerFn({ method: "POST" })
     }
     if (!rider.is_online) throw new Error("Go online before accepting rides.");
 
-    const { data: updated, error } = await supabase
-      .from("rides")
-      .update({ rider_id: userId, status: "accepted", accepted_at: new Date().toISOString() })
-      .eq("id", data.rideId)
-      .eq("rider_id", userId)
-      .eq("status", "requested")
-      .select("id");
+    const { data: updated, error } = await supabase.rpc("accept_broadcast_ride", {
+      _ride_id: data.rideId,
+      _vehicle_id: data.vehicleId,
+    });
     if (error) throw new Error(error.message);
-    if (!updated || updated.length === 0) throw new Error("This ride was already taken.");
+    if (!updated) throw new Error("Booking is no longer available");
     return { ok: true };
   });
 
 const rideActionInput = z.object({
   rideId: z.string().uuid(),
-  action: z.enum(["reject", "on_the_way", "arrived", "started", "completed"]),
+  action: z.enum(["on_the_way", "arrived", "started", "completed"]),
 });
 
 export const updateRiderRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => rideActionInput.parse(data))
   .handler(async ({ data, context }) => {
-    const { data: ride, error: readError } = await context.supabase
-      .from("rides")
-      .select("id, rider_id, status")
-      .eq("id", data.rideId)
-      .eq("rider_id", context.userId)
-      .maybeSingle();
-    if (readError) throw new Error(readError.message);
-    if (!ride) throw new Error("Ride not found.");
-
-    const expected: Record<typeof data.action, string[]> = {
-      reject: ["requested"],
-      on_the_way: ["accepted"],
-      arrived: ["on_the_way"],
-      started: ["arrived"],
-      completed: ["started"],
-    };
-    if (!expected[data.action].includes(ride.status))
-      throw new Error("That ride action is no longer available.");
-
-    const now = new Date().toISOString();
-    const values =
-      data.action === "reject"
-        ? {
-            status: "cancelled" as const,
-            cancel_reason: "Declined by rider",
-            cancelled_by: context.userId,
-          }
-        : data.action === "completed"
-          ? { status: "completed" as const, completed_at: now, cash_collected: true }
-          : data.action === "started"
-            ? { status: "started" as const, started_at: now }
-            : { status: data.action };
-    const { error } = await context.supabase
-      .from("rides")
-      .update(values)
-      .eq("id", data.rideId)
-      .eq("rider_id", context.userId);
+    const { data: updated, error } = await context.supabase.rpc("advance_rider_ride", {
+      _ride_id: data.rideId,
+      _action: data.action,
+    });
     if (error) throw new Error(error.message);
+    if (!updated) throw new Error("That ride action is no longer available.");
     return { ok: true };
   });
 
@@ -636,25 +743,35 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
     const vehicleIds = [
       ...new Set(rides.flatMap((ride) => (ride.vehicle_id ? [ride.vehicle_id] : []))),
     ];
-    const [profilesResult, locationsResult, vehiclesResult, categoriesResult] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id, full_name, mobile").in("id", profileIds),
-      supabaseAdmin
-        .from("locations")
-        .select("id, name, formatted_address, area")
-        .in("id", locationIds),
-      vehicleIds.length
-        ? supabaseAdmin
-            .from("rider_vehicles")
-            .select("id, vehicle_category_id, vehicle_number, vehicle_model")
-            .in("id", vehicleIds)
-        : Promise.resolve({ data: [], error: null }),
-      supabaseAdmin.from("vehicle_categories").select("id, name"),
-    ]);
+    const [profilesResult, locationsResult, vehiclesResult, categoriesResult, historyResult] =
+      await Promise.all([
+        supabaseAdmin.from("profiles").select("id, full_name, mobile").in("id", profileIds),
+        supabaseAdmin
+          .from("locations")
+          .select("id, name, formatted_address, area")
+          .in("id", locationIds),
+        vehicleIds.length
+          ? supabaseAdmin
+              .from("rider_vehicles")
+              .select("id, vehicle_category_id, vehicle_number, vehicle_model")
+              .in("id", vehicleIds)
+          : Promise.resolve({ data: [], error: null }),
+        supabaseAdmin.from("vehicle_categories").select("id, name"),
+        supabaseAdmin
+          .from("ride_status_history")
+          .select("ride_id, from_status, to_status, actor_id, reason, created_at")
+          .in(
+            "ride_id",
+            rides.map((ride) => ride.id),
+          )
+          .order("created_at"),
+      ]);
     if (
       profilesResult.error ||
       locationsResult.error ||
       vehiclesResult.error ||
-      categoriesResult.error
+      categoriesResult.error ||
+      historyResult.error
     ) {
       throw new Error("Could not load complete booking details.");
     }
@@ -686,6 +803,7 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
           ? { name: from.name, address: from.formatted_address || from.area }
           : null,
         toLocation: to ? { name: to.name, address: to.formatted_address || to.area } : null,
+        history: (historyResult.data ?? []).filter((entry) => entry.ride_id === ride.id),
       };
     });
   });

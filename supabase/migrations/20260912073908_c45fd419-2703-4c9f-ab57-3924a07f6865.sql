@@ -1,0 +1,1 @@
+ALTER FUNCTION public.accept_broadcast_ride(uuid, uuid) SECURITY INVOKER;

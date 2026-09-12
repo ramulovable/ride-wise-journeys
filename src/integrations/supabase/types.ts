@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           description: string | null
@@ -34,6 +64,89 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      fare_rules: {
+        Row: {
+          ac_option: string
+          created_at: string
+          extra_km_rate: number | null
+          id: string
+          included_km: number | null
+          is_active: boolean
+          journey_type: string
+          rate_per_km: number | null
+          updated_at: string
+          vehicle_class: string
+        }
+        Insert: {
+          ac_option?: string
+          created_at?: string
+          extra_km_rate?: number | null
+          id?: string
+          included_km?: number | null
+          is_active?: boolean
+          journey_type: string
+          rate_per_km?: number | null
+          updated_at?: string
+          vehicle_class: string
+        }
+        Update: {
+          ac_option?: string
+          created_at?: string
+          extra_km_rate?: number | null
+          id?: string
+          included_km?: number | null
+          is_active?: boolean
+          journey_type?: string
+          rate_per_km?: number | null
+          updated_at?: string
+          vehicle_class?: string
+        }
+        Relationships: []
+      }
+      fare_slabs: {
+        Row: {
+          created_at: string
+          fare_rule_id: string
+          id: string
+          is_active: boolean
+          max_km: number
+          min_km: number
+          pricing_mode: string
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fare_rule_id: string
+          id?: string
+          is_active?: boolean
+          max_km: number
+          min_km: number
+          pricing_mode: string
+          rate: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fare_rule_id?: string
+          id?: string
+          is_active?: boolean
+          max_km?: number
+          min_km?: number
+          pricing_mode?: string
+          rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fare_slabs_fare_rule_id_fkey"
+            columns: ["fare_rule_id"]
+            isOneToOne: false
+            referencedRelation: "fare_rules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       locations: {
         Row: {
@@ -140,6 +253,44 @@ export type Database = {
             foreignKeyName: "ratings_ride_id_fkey"
             columns: ["ride_id"]
             isOneToOne: true
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ride_status_history: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          from_status: Database["public"]["Enums"]["ride_status"] | null
+          id: string
+          reason: string | null
+          ride_id: string
+          to_status: Database["public"]["Enums"]["ride_status"]
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["ride_status"] | null
+          id?: string
+          reason?: string | null
+          ride_id: string
+          to_status: Database["public"]["Enums"]["ride_status"]
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["ride_status"] | null
+          id?: string
+          reason?: string | null
+          ride_id?: string
+          to_status?: Database["public"]["Enums"]["ride_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_status_history_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
             referencedRelation: "rides"
             referencedColumns: ["id"]
           },
@@ -277,11 +428,14 @@ export type Database = {
       }
       rider_vehicles: {
         Row: {
+          brand_id: string | null
           created_at: string
+          has_ac: boolean
           id: string
           is_active: boolean
           is_primary: boolean
           license_number: string | null
+          model_id: string | null
           qr_token: string
           rider_id: string
           seat_capacity: number
@@ -291,11 +445,14 @@ export type Database = {
           vehicle_number: string
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
+          has_ac?: boolean
           id?: string
           is_active?: boolean
           is_primary?: boolean
           license_number?: string | null
+          model_id?: string | null
           qr_token?: string
           rider_id: string
           seat_capacity?: number
@@ -305,11 +462,14 @@ export type Database = {
           vehicle_number: string
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
+          has_ac?: boolean
           id?: string
           is_active?: boolean
           is_primary?: boolean
           license_number?: string | null
+          model_id?: string | null
           qr_token?: string
           rider_id?: string
           seat_capacity?: number
@@ -319,6 +479,20 @@ export type Database = {
           vehicle_number?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rider_vehicles_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_vehicles_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_models"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rider_vehicles_vehicle_category_id_fkey"
             columns: ["vehicle_category_id"]
@@ -340,11 +514,17 @@ export type Database = {
           completed_at: string | null
           created_at: string
           customer_id: string
+          distance_km: number | null
+          duration_minutes: number | null
+          fare_snapshot: Json | null
           from_location_id: string
           id: string
           on_the_way_at: string | null
           passengers: number
           pickup_note: string | null
+          requested_ac: boolean | null
+          requested_category_id: string | null
+          requested_vehicle_class: string | null
           rider_id: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["ride_status"]
@@ -366,11 +546,17 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           customer_id: string
+          distance_km?: number | null
+          duration_minutes?: number | null
+          fare_snapshot?: Json | null
           from_location_id: string
           id?: string
           on_the_way_at?: string | null
           passengers?: number
           pickup_note?: string | null
+          requested_ac?: boolean | null
+          requested_category_id?: string | null
+          requested_vehicle_class?: string | null
           rider_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ride_status"]
@@ -392,11 +578,17 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           customer_id?: string
+          distance_km?: number | null
+          duration_minutes?: number | null
+          fare_snapshot?: Json | null
           from_location_id?: string
           id?: string
           on_the_way_at?: string | null
           passengers?: number
           pickup_note?: string | null
+          requested_ac?: boolean | null
+          requested_category_id?: string | null
+          requested_vehicle_class?: string | null
           rider_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ride_status"]
@@ -413,6 +605,13 @@ export type Database = {
             columns: ["from_location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rides_requested_category_id_fkey"
+            columns: ["requested_category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
             referencedColumns: ["id"]
           },
           {
@@ -528,6 +727,41 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_brands: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_brands_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_categories: {
         Row: {
           created_at: string
@@ -537,6 +771,7 @@ export type Database = {
           name: string
           seat_capacity: number
           sort_order: number
+          vehicle_class: string
         }
         Insert: {
           created_at?: string
@@ -546,6 +781,7 @@ export type Database = {
           name: string
           seat_capacity?: number
           sort_order?: number
+          vehicle_class: string
         }
         Update: {
           created_at?: string
@@ -555,14 +791,64 @@ export type Database = {
           name?: string
           seat_capacity?: number
           sort_order?: number
+          vehicle_class?: string
         }
         Relationships: []
+      }
+      vehicle_models: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          seat_capacity: number
+          supports_ac: boolean
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          seat_capacity?: number
+          supports_ac?: boolean
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          seat_capacity?: number
+          supports_ac?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_models_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      accept_broadcast_ride: {
+        Args: { _ride_id: string; _vehicle_id: string }
+        Returns: boolean
+      }
+      advance_rider_ride: {
+        Args: { _action: string; _ride_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -574,7 +860,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "rider" | "customer"
-      booking_type: "share" | "reserve"
+      booking_type: "share" | "reserve" | "standard"
       ride_status:
         | "requested"
         | "searching"
@@ -712,7 +998,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "rider", "customer"],
-      booking_type: ["share", "reserve"],
+      booking_type: ["share", "reserve", "standard"],
       ride_status: [
         "requested",
         "searching",

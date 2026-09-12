@@ -92,6 +92,17 @@ function Vehicles() {
     <RiderShell title="My vehicles" subtitle="Add vehicles and download printable QR codes.">
       <section className="grid gap-3 rounded-2xl border bg-card p-4 sm:grid-cols-2">
         <div>
+          <Label>Category</Label>
+          <select
+            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            value={category}
+            onChange={(e) => { setCategory(e.target.value); setBrand(""); setModelId(""); }}
+          >
+            <option value="">Select category</option>
+            {categories.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
           <Label>Brand</Label>
           <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={brand} onChange={(e) => { setBrand(e.target.value); setModelId(""); }}><option value="">Select brand</option>{brands.data?.filter((item) => item.category_id === category).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
         </div>
@@ -101,26 +112,11 @@ function Vehicles() {
         </div>
         {selectedCategory?.vehicle_class === "four_wheeler" ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} /> Air conditioned</label> : null}
         <div>
-          <Label>Category</Label>
-          <select
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">Select</option>
-            {categories.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
           <Label>Registration number</Label>
           <Input value={number} onChange={(e) => setNumber(e.target.value)} />
         </div>
         <div>
-          <Label>Model</Label>
+          <Label>Model details</Label>
           <Input value={model} onChange={(e) => setModel(e.target.value)} />
         </div>
         <div>

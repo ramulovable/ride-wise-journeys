@@ -679,7 +679,7 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
     const vehicleIds = [
       ...new Set(rides.flatMap((ride) => (ride.vehicle_id ? [ride.vehicle_id] : []))),
     ];
-    const [profilesResult, locationsResult, vehiclesResult, categoriesResult] = await Promise.all([
+    const [profilesResult, locationsResult, vehiclesResult, categoriesResult, historyResult] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name, mobile").in("id", profileIds),
       supabaseAdmin
         .from("locations")
@@ -692,12 +692,14 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
             .in("id", vehicleIds)
         : Promise.resolve({ data: [], error: null }),
       supabaseAdmin.from("vehicle_categories").select("id, name"),
+      supabaseAdmin.from("ride_status_history").select("ride_id, from_status, to_status, actor_id, reason, created_at").in("ride_id", rides.map((ride) => ride.id)).order("created_at"),
     ]);
     if (
       profilesResult.error ||
       locationsResult.error ||
       vehiclesResult.error ||
       categoriesResult.error
+      || historyResult.error
     ) {
       throw new Error("Could not load complete booking details.");
     }
@@ -729,6 +731,7 @@ export const getAdminRideAudit = createServerFn({ method: "GET" })
           ? { name: from.name, address: from.formatted_address || from.area }
           : null,
         toLocation: to ? { name: to.name, address: to.formatted_address || to.area } : null,
+        history: (historyResult.data ?? []).filter((entry) => entry.ride_id === ride.id),
       };
     });
   });

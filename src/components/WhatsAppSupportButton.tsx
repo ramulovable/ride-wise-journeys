@@ -7,7 +7,7 @@ export function WhatsAppSupportButton() {
     <Button
       asChild
       size="icon"
-      className="fixed bottom-20 right-4 z-40 size-12 rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg hover:bg-whatsapp/90 focus-visible:ring-whatsapp sm:bottom-6 sm:right-6"
+      className="fixed bottom-20 right-4 z-40 size-12 rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg hover:bg-whatsapp/90 focus-visible:ring-whatsapp sm:right-6"
     >
       <a
         href={WHATSAPP_SUPPORT_URL}

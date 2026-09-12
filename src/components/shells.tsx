@@ -50,7 +50,12 @@ export function CustomerShell({
   children: ReactNode;
 }) {
   return (
-    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={customerNav}>
+    <AppShell
+      title={title}
+      {...(subtitle === undefined ? {} : { subtitle })}
+      nav={customerNav}
+      showWhatsAppSupport
+    >
       {children}
     </AppShell>
   );
@@ -66,7 +71,12 @@ export function RiderShell({
   children: ReactNode;
 }) {
   return (
-    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={riderNav}>
+    <AppShell
+      title={title}
+      {...(subtitle === undefined ? {} : { subtitle })}
+      nav={riderNav}
+      showWhatsAppSupport
+    >
       {children}
     </AppShell>
   );

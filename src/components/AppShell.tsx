@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
+import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 
 export type NavItem = { to: string; label: string; icon: ReactNode };
 
@@ -12,11 +13,13 @@ export function AppShell({
   title,
   subtitle,
   nav,
+  showWhatsAppSupport = false,
   children,
 }: {
   title: string;
   subtitle?: string;
   nav: NavItem[];
+  showWhatsAppSupport?: boolean;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
@@ -42,6 +45,8 @@ export function AppShell({
         }
       />
       <main className="mx-auto w-full max-w-3xl px-4 py-4">{children}</main>
+
+      {showWhatsAppSupport ? <WhatsAppSupportButton /> : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card">
         <div className="mx-auto flex max-w-3xl">

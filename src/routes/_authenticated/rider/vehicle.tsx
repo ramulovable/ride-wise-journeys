@@ -19,11 +19,17 @@ function Vehicles() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [category, setCategory] = useState("");
+  const [brand, setBrand] = useState("");
+  const [modelId, setModelId] = useState("");
   const [number, setNumber] = useState("");
   const [model, setModel] = useState("");
   const [license, setLicense] = useState("");
   const [seats, setSeats] = useState(4);
+  const [hasAc, setHasAc] = useState(false);
   const categories = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
+  const brands = useQuery({ queryKey: ["vehicle-brands"], queryFn: async () => (await supabase.from("vehicle_brands").select("*").eq("is_active", true).order("name")).data ?? [] });
+  const models = useQuery({ queryKey: ["vehicle-models"], queryFn: async () => (await supabase.from("vehicle_models").select("*").eq("is_active", true).order("name")).data ?? [] });
+  const selectedCategory = categories.data?.find((item) => item.id === category);
   const vehicles = useQuery({
     queryKey: ["vehicles", user?.id],
     enabled: Boolean(user),
@@ -45,11 +51,14 @@ function Vehicles() {
     const { error } = await supabase.from("rider_vehicles").insert({
       rider_id: user!.id,
       vehicle_category_id: category,
+      brand_id: brand || null,
+      model_id: modelId || null,
       vehicle_number: number.trim().toUpperCase(),
       vehicle_model: model.trim() || null,
       license_number: license.trim() || null,
       seat_capacity: seats,
       is_primary: !vehicles.data?.length,
+      has_ac: selectedCategory?.vehicle_class === "four_wheeler" && hasAc,
     });
     if (error) toast.error(error.message);
     else {
@@ -82,6 +91,15 @@ function Vehicles() {
   return (
     <RiderShell title="My vehicles" subtitle="Add vehicles and download printable QR codes.">
       <section className="grid gap-3 rounded-2xl border bg-card p-4 sm:grid-cols-2">
+        <div>
+          <Label>Brand</Label>
+          <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={brand} onChange={(e) => { setBrand(e.target.value); setModelId(""); }}><option value="">Select brand</option>{brands.data?.filter((item) => item.category_id === category).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        </div>
+        <div>
+          <Label>Model</Label>
+          <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={modelId} onChange={(e) => { const id = e.target.value; setModelId(id); const selected = models.data?.find((item) => item.id === id); if (selected) { setModel(selected.name); setSeats(selected.seat_capacity); } }}><option value="">Select model</option>{models.data?.filter((item) => item.brand_id === brand).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        </div>
+        {selectedCategory?.vehicle_class === "four_wheeler" ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={hasAc} onChange={(e) => setHasAc(e.target.checked)} /> Air conditioned</label> : null}
         <div>
           <Label>Category</Label>
           <select
@@ -127,7 +145,7 @@ function Vehicles() {
         {vehicles.isSuccess && vehicles.data.length === 0 ? (
           <EmptyState
             title="No vehicles"
-            description="Add your first vehicle to create routes and fares."
+            description="Add your first vehicle to receive matching booking requests."
           />
         ) : (
           vehicles.data?.map((v) => (

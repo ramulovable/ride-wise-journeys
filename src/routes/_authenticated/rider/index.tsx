@@ -29,11 +29,16 @@ function RiderDashboard() {
       const { data, error } = await supabase
         .from("rides")
         .select("*")
-        .eq("rider_id", user!.id)
+        .or(`rider_id.eq.${user!.id},and(rider_id.is.null,status.eq.searching)`)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
       return data ?? [];
     },
+  });
+  const vehicles = useQuery({
+    queryKey: ["vehicles", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => (await supabase.from("rider_vehicles").select("id, vehicle_category_id, vehicle_number, has_ac").eq("rider_id", user!.id).eq("is_active", true)).data ?? [],
   });
   const action = useMutation({
     mutationFn: async ({
@@ -44,7 +49,7 @@ function RiderDashboard() {
       next: "accept" | "reject" | "on_the_way" | "arrived" | "started" | "completed";
     }) =>
       next === "accept"
-        ? acceptRide({ data: { rideId } })
+        ? (() => { const ride = rides.data?.find((item) => item.id === rideId); const vehicle = vehicles.data?.find((item) => item.vehicle_category_id === ride?.requested_category_id && (ride?.requested_ac == null || item.has_ac === ride.requested_ac)); if (!vehicle) throw new Error("No eligible active vehicle for this booking."); return acceptRide({ data: { rideId, vehicleId: vehicle.id } }); })()
         : updateRiderRide({ data: { rideId, action: next } }),
     onSuccess: () => {
       toast.success("Ride updated.");
@@ -69,12 +74,13 @@ function RiderDashboard() {
     }
   }
   const place = (id: string) => locations.data?.find((x) => x.id === id)?.name ?? "—";
-  const active = (rides.data ?? []).filter((r) => !["completed", "cancelled"].includes(r.status));
+  const active = (rides.data ?? []).filter((r) => !["completed", "cancelled"].includes(r.status) && (r.rider_id === user?.id || (r.rider_id === null && vehicles.data?.some((vehicle) => vehicle.vehicle_category_id === r.requested_category_id && (r.requested_ac == null || vehicle.has_ac === r.requested_ac)))));
   const history = (rides.data ?? []).filter((r) => ["completed", "cancelled"].includes(r.status));
   const nextAction = (status: string) =>
     (
       ({
         requested: "accept",
+        searching: "accept",
         accepted: "on_the_way",
         on_the_way: "arrived",
         arrived: "started",
@@ -139,14 +145,14 @@ function RiderDashboard() {
                       action.mutate({ rideId: ride.id, next: nextAction(ride.status)! })
                     }
                   >
-                    {ride.status === "requested"
+                    {ride.status === "requested" || ride.status === "searching"
                       ? "Accept"
                       : ride.status === "started"
                         ? "Complete · Cash received"
                         : `Mark ${RIDE_STATUS_LABEL[nextAction(ride.status)!]}`}
                   </Button>
                 ) : null}
-                {ride.status === "requested" ? (
+                {ride.status === "requested" && ride.rider_id === user?.id ? (
                   <Button
                     variant="outline"
                     onClick={() => action.mutate({ rideId: ride.id, next: "reject" })}

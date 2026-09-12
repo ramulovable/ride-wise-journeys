@@ -2,15 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeftRight, Car, MapPin, Minus, Plus, RouteIcon, Star } from "lucide-react";
+import { ArrowLeftRight, Car, MapPin, Minus, Plus, RouteIcon } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { LocationPicker } from "@/components/LocationPicker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLocations, fetchRiderOffers, type Location, type RiderOffer } from "@/lib/data";
+import { fetchLocations, type Location } from "@/lib/data";
 import { rupees } from "@/lib/format";
-import { createBooking, getDrivingDistance } from "@/lib/api.functions";
+import { createBooking, getFareOptions } from "@/lib/api.functions";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
 export const Route = createFileRoute("/_authenticated/app/")({
@@ -47,14 +47,9 @@ function BookPage() {
   const allLocations = [...(locations.data ?? []), ...selectedLocations].filter(
     (location, index, values) => values.findIndex((item) => item.id === location.id) === index,
   );
-  const offers = useQuery({
-    queryKey: ["offers", fromId, toId],
-    queryFn: () => fetchRiderOffers(fromId, toId),
-    enabled: Boolean(fromId && toId && fromId !== toId),
-  });
-  const distance = useQuery({
-    queryKey: ["driving-distance", fromId, toId],
-    queryFn: () => getDrivingDistance({ data: { fromLocationId: fromId, toLocationId: toId } }),
+  const quote = useQuery({
+    queryKey: ["fare-options", fromId, toId, passengers],
+    queryFn: () => getFareOptions({ data: { fromLocationId: fromId, toLocationId: toId, passengers } }),
     enabled: Boolean(fromId && toId && fromId !== toId),
     staleTime: 30 * 60_000,
   });
@@ -67,16 +62,16 @@ function BookPage() {
     else setToId(location.id);
   }
 
-  async function book(offer: RiderOffer, bookingType: "share" | "reserve") {
-    setBooking(`${offer.riderId}-${bookingType}`);
+  async function book(categoryId: string, bookingType: "standard" | "share" | "reserve", requestedAc: boolean | null) {
+    setBooking(`${categoryId}-${bookingType}-${requestedAc}`);
     try {
       const res = await createBooking({
         data: {
-          riderId: offer.riderId,
-          vehicleId: offer.vehicleId,
+          categoryId,
           fromLocationId: fromId,
           toLocationId: toId,
           bookingType,
+          ...(requestedAc == null ? {} : { requestedAc }),
           passengers,
           pickupNote: note.trim() || undefined,
         },
@@ -144,19 +139,19 @@ function BookPage() {
               {fromId && toId && fromId !== toId ? (
                 <div className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm">
                   <RouteIcon className="size-4 shrink-0 text-primary" />
-                  {distance.isFetching ? (
+                  {quote.isFetching ? (
                     <span className="text-muted-foreground">Calculating driving distance…</span>
-                  ) : distance.data ? (
+                  ) : quote.data ? (
                     <span>
-                      <strong>{distance.data.distanceKm} km</strong>
-                      {distance.data.durationMinutes
-                        ? ` · about ${distance.data.durationMinutes} min by road`
+                      <strong>{quote.data.distanceKm} km</strong>
+                      {quote.data.durationMinutes
+                        ? ` · about ${quote.data.durationMinutes} min by road`
                         : " by road"}
                     </span>
                   ) : (
                     <span className="text-destructive">
-                      {distance.error instanceof Error
-                        ? distance.error.message
+                      {quote.error instanceof Error
+                        ? quote.error.message
                         : "Driving distance unavailable."}
                     </span>
                   )}
@@ -200,62 +195,42 @@ function BookPage() {
           </p>
         ) : null}
 
-        {offers.isFetching ? (
-          <p className="text-center text-xs text-muted-foreground">Finding drivers…</p>
+        {quote.isFetching ? (
+          <p className="text-center text-xs text-muted-foreground">Calculating fares…</p>
         ) : null}
 
-        {offers.isSuccess && offers.data.length === 0 ? (
+        {quote.isSuccess && quote.data.options.every((category) => category.fares.every((fare) => !fare.available)) ? (
           <EmptyState
-            title="No driver available on this route"
-            description="No online driver has set a fare for this direction yet. Try another route or check again shortly."
+            title="No fare available"
+            description="No eligible driver and configured fare are available for this journey right now."
           />
         ) : null}
 
         <div className="space-y-3">
-          {(offers.data ?? []).map((offer) => (
-            <article key={offer.riderId} className="rounded-2xl border border-border bg-card p-4">
+          {(quote.data?.options ?? []).map((option) => (
+            <article key={option.categoryId} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-foreground">{offer.name}</p>
+                    <p className="font-semibold text-foreground">{option.categoryName}</p>
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Car className="h-3.5 w-3.5" />
-                    {offer.vehicleName}
-                    {offer.vehicleNumber ? ` • ${offer.vehicleNumber}` : ""}
+                    {option.vehicleClass.replaceAll("_", " ")}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Star className="h-3.5 w-3.5 fill-accent text-accent" />
-                  {offer.rating ? `${offer.rating.toFixed(1)} (${offer.trips})` : "New"}
-                </div>
+                <span className="text-xs text-muted-foreground">Up to {option.seatCapacity} seats</span>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={booking !== null || passengers > offer.seatCapacity}
-                  onClick={() => book(offer, "share")}
-                  className="rounded-xl border border-border p-3 text-left transition hover:border-primary disabled:opacity-50"
-                >
-                  <p className="text-xs text-muted-foreground">Share (per seat)</p>
-                  <p className="text-lg font-bold text-primary">{rupees(offer.shareFare)}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Total {rupees(offer.shareFare * passengers)} for {passengers}
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  disabled={booking !== null || passengers > offer.seatCapacity}
-                  onClick={() => book(offer, "reserve")}
-                  className="rounded-xl border border-border p-3 text-left transition hover:border-accent disabled:opacity-50"
-                >
-                  <p className="text-xs text-muted-foreground">Reserve (whole trip)</p>
-                  <p className="text-lg font-bold text-accent">{rupees(offer.reserveFare)}</p>
-                  <p className="text-[11px] text-muted-foreground">Fixed price, any passengers</p>
-                </button>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {option.fares.map((fare) => (
+                  <Button key={`${fare.journeyType}-${fare.requestedAc}`} variant="outline" className="h-auto min-h-20 justify-between p-3 text-left" disabled={!fare.available || booking !== null || passengers > option.seatCapacity} onClick={() => book(option.categoryId, fare.journeyType as "standard" | "share" | "reserve", fare.requestedAc)}>
+                    <span><span className="block text-xs capitalize text-muted-foreground">{fare.journeyType}{fare.requestedAc == null ? "" : fare.requestedAc ? " · AC" : " · Non-AC"}</span><span className="block text-xs text-muted-foreground">{fare.available ? fare.journeyType === "share" ? `${rupees(fare.unitFare ?? 0)} × ${passengers}` : "Cash on completion" : fare.reason}</span></span>
+                    <strong className="text-lg text-primary">{fare.available ? rupees(fare.fare ?? 0) : "—"}</strong>
+                  </Button>
+                ))}
               </div>
-              {passengers > offer.seatCapacity ? (
+              {passengers > option.seatCapacity ? (
                 <p className="mt-2 text-[11px] text-destructive">
-                  This vehicle seats {offer.seatCapacity}. Reduce passengers to book.
+                  This vehicle seats {option.seatCapacity}. Reduce passengers to book.
                 </p>
               ) : null}
               <p className="mt-2 text-[11px] text-muted-foreground">Cash payment on completion.</p>

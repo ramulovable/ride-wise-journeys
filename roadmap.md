@@ -15,3 +15,4 @@
 - [x] Persist canonical selected places and preserve exact route matching
 - [x] Show Google driving distance in customer booking and rider fare screens
 - [x] Verify location search, distance, matching, mobile UI, and clean build
+- [x] Add WhatsApp support shortcut to customer and driver screens only

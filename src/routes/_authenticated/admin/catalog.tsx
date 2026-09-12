@@ -15,7 +15,9 @@ function Catalog() {
   const qc = useQueryClient();
   const [category, setCategory] = useState("");
   const [seats, setSeats] = useState(4);
-  const [vehicleClass, setVehicleClass] = useState<"two_wheeler" | "three_wheeler" | "four_wheeler">("three_wheeler");
+  const [vehicleClass, setVehicleClass] = useState<
+    "two_wheeler" | "three_wheeler" | "four_wheeler"
+  >("three_wheeler");
   const [brand, setBrand] = useState("");
   const [brandCategory, setBrandCategory] = useState("");
   const [model, setModel] = useState("");
@@ -30,8 +32,16 @@ function Catalog() {
     queryKey: ["locations", "all"],
     queryFn: () => fetchLocations(false),
   });
-  const brands = useQuery({ queryKey: ["vehicle-brands", "all"], queryFn: async () => (await supabase.from("vehicle_brands").select("*").order("name")).data ?? [] });
-  const models = useQuery({ queryKey: ["vehicle-models", "all"], queryFn: async () => (await supabase.from("vehicle_models").select("*").order("name")).data ?? [] });
+  const brands = useQuery({
+    queryKey: ["vehicle-brands", "all"],
+    queryFn: async () =>
+      (await supabase.from("vehicle_brands").select("*").order("name")).data ?? [],
+  });
+  const models = useQuery({
+    queryKey: ["vehicle-models", "all"],
+    queryFn: async () =>
+      (await supabase.from("vehicle_models").select("*").order("name")).data ?? [],
+  });
   async function addCategory() {
     const { error } = await supabase
       .from("vehicle_categories")
@@ -42,8 +52,26 @@ function Catalog() {
       void qc.invalidateQueries({ queryKey: ["categories"] });
     }
   }
-  async function addBrand() { const { error } = await supabase.from("vehicle_brands").insert({ name: brand.trim(), category_id: brandCategory }); if (error) toast.error(error.message); else { setBrand(""); void qc.invalidateQueries({ queryKey: ["vehicle-brands"] }); } }
-  async function addModel() { const { error } = await supabase.from("vehicle_models").insert({ name: model.trim(), brand_id: modelBrand, seat_capacity: seats }); if (error) toast.error(error.message); else { setModel(""); void qc.invalidateQueries({ queryKey: ["vehicle-models"] }); } }
+  async function addBrand() {
+    const { error } = await supabase
+      .from("vehicle_brands")
+      .insert({ name: brand.trim(), category_id: brandCategory });
+    if (error) toast.error(error.message);
+    else {
+      setBrand("");
+      void qc.invalidateQueries({ queryKey: ["vehicle-brands"] });
+    }
+  }
+  async function addModel() {
+    const { error } = await supabase
+      .from("vehicle_models")
+      .insert({ name: model.trim(), brand_id: modelBrand, seat_capacity: seats });
+    if (error) toast.error(error.message);
+    else {
+      setModel("");
+      void qc.invalidateQueries({ queryKey: ["vehicle-models"] });
+    }
+  }
   async function addLocation() {
     const { error } = await supabase
       .from("locations")
@@ -55,7 +83,11 @@ function Catalog() {
       void qc.invalidateQueries({ queryKey: ["locations"] });
     }
   }
-  async function toggle(table: "locations" | "vehicle_categories" | "vehicle_brands" | "vehicle_models", id: string, value: boolean) {
+  async function toggle(
+    table: "locations" | "vehicle_categories" | "vehicle_brands" | "vehicle_models",
+    id: string,
+    value: boolean,
+  ) {
     const { error } = await supabase.from(table).update({ is_active: value }).eq("id", id);
     if (error) toast.error(error.message);
     else void qc.invalidateQueries();
@@ -74,7 +106,15 @@ function Catalog() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             />
-            <select className="h-9 rounded-md border bg-background px-2 text-sm" value={vehicleClass} onChange={(e) => setVehicleClass(e.target.value as typeof vehicleClass)}><option value="two_wheeler">Two Wheeler</option><option value="three_wheeler">Three Wheeler</option><option value="four_wheeler">Four Wheeler</option></select>
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={vehicleClass}
+              onChange={(e) => setVehicleClass(e.target.value as typeof vehicleClass)}
+            >
+              <option value="two_wheeler">Two Wheeler</option>
+              <option value="three_wheeler">Three Wheeler</option>
+              <option value="four_wheeler">Four Wheeler</option>
+            </select>
             <Input
               className="w-20"
               type="number"
@@ -104,8 +144,82 @@ function Catalog() {
           </div>
         </section>
         <section className="space-y-4">
-          <div><h2 className="mb-2 font-semibold">Vehicle brands</h2><div className="mb-3 flex gap-2"><select className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm" value={brandCategory} onChange={(e) => setBrandCategory(e.target.value)}><option value="">Category</option>{categories.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><Input placeholder="Brand" value={brand} onChange={(e) => setBrand(e.target.value)} /><Button disabled={!brand.trim() || !brandCategory} onClick={addBrand}>Add</Button></div><div className="space-y-2">{brands.data?.map((item) => <div key={item.id} className="flex justify-between rounded-xl border bg-card p-3 text-sm"><span>{item.name}</span><Button size="sm" variant="outline" onClick={() => toggle("vehicle_brands", item.id, !item.is_active)}>{item.is_active ? "Disable" : "Enable"}</Button></div>)}</div></div>
-          <div><h2 className="mb-2 font-semibold">Vehicle models</h2><div className="mb-3 flex gap-2"><select className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm" value={modelBrand} onChange={(e) => setModelBrand(e.target.value)}><option value="">Brand</option>{brands.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><Input placeholder="Model" value={model} onChange={(e) => setModel(e.target.value)} /><Button disabled={!model.trim() || !modelBrand} onClick={addModel}>Add</Button></div><div className="space-y-2">{models.data?.map((item) => <div key={item.id} className="flex justify-between rounded-xl border bg-card p-3 text-sm"><span>{item.name}</span><Button size="sm" variant="outline" onClick={() => toggle("vehicle_models", item.id, !item.is_active)}>{item.is_active ? "Disable" : "Enable"}</Button></div>)}</div></div>
+          <div>
+            <h2 className="mb-2 font-semibold">Vehicle brands</h2>
+            <div className="mb-3 flex gap-2">
+              <select
+                className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
+                value={brandCategory}
+                onChange={(e) => setBrandCategory(e.target.value)}
+              >
+                <option value="">Category</option>
+                {categories.data?.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <Input placeholder="Brand" value={brand} onChange={(e) => setBrand(e.target.value)} />
+              <Button disabled={!brand.trim() || !brandCategory} onClick={addBrand}>
+                Add
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {brands.data?.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between rounded-xl border bg-card p-3 text-sm"
+                >
+                  <span>{item.name}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggle("vehicle_brands", item.id, !item.is_active)}
+                  >
+                    {item.is_active ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="mb-2 font-semibold">Vehicle models</h2>
+            <div className="mb-3 flex gap-2">
+              <select
+                className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
+                value={modelBrand}
+                onChange={(e) => setModelBrand(e.target.value)}
+              >
+                <option value="">Brand</option>
+                {brands.data?.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <Input placeholder="Model" value={model} onChange={(e) => setModel(e.target.value)} />
+              <Button disabled={!model.trim() || !modelBrand} onClick={addModel}>
+                Add
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {models.data?.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between rounded-xl border bg-card p-3 text-sm"
+                >
+                  <span>{item.name}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggle("vehicle_models", item.id, !item.is_active)}
+                  >
+                    {item.is_active ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
         <section>
           <h2 className="mb-2 font-semibold">Locations ({locations.data?.length ?? 0})</h2>

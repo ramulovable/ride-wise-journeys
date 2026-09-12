@@ -68,15 +68,13 @@ function FareManagement() {
   async function addSlab() {
     const rule = rules.data?.find((item) => item.id === ruleId);
     if (!rule || !minKm || !maxKm || !rate) return toast.error("Complete the slab details.");
-    const { error } = await supabase
-      .from("fare_slabs")
-      .insert({
-        fare_rule_id: ruleId,
-        min_km: Number(minKm),
-        max_km: Number(maxKm),
-        rate: Number(rate),
-        pricing_mode: rule.journey_type === "share" ? "flat_per_passenger" : "per_km",
-      });
+    const { error } = await supabase.from("fare_slabs").insert({
+      fare_rule_id: ruleId,
+      min_km: Number(minKm),
+      max_km: Number(maxKm),
+      rate: Number(rate),
+      pricing_mode: rule.journey_type === "share" ? "flat_per_passenger" : "per_km",
+    });
     if (error) toast.error(error.message);
     else {
       setMinKm("");

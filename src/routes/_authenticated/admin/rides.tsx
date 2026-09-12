@@ -103,11 +103,20 @@ function Rides() {
                     />
                     <Detail
                       label="Ride type"
-                      value={r.booking_type === "share" ? "Share" : r.booking_type === "reserve" ? "Reserve" : "Standard"}
+                      value={
+                        r.booking_type === "share"
+                          ? "Share"
+                          : r.booking_type === "reserve"
+                            ? "Reserve"
+                            : "Standard"
+                      }
                     />
                     <Detail label="Passengers" value={String(r.passengers)} />
                     <Detail label="Fare" value={rupees(r.total_fare)} />
-                    <Detail label="Driving distance" value={r.distance_km == null ? "Unavailable" : `${r.distance_km} km`} />
+                    <Detail
+                      label="Driving distance"
+                      value={r.distance_km == null ? "Unavailable" : `${r.distance_km} km`}
+                    />
                   </dl>
                 </section>
                 <section>
@@ -129,7 +138,22 @@ function Rides() {
                   <strong>Cancellation reason:</strong> {r.cancel_reason}
                 </p>
               ) : null}
-              {r.history.length ? <section className="border-t px-4 py-3"><h2 className="mb-2 text-sm font-semibold">Recorded status events</h2><ol className="space-y-1 text-xs text-muted-foreground">{r.history.map((event, index) => <li key={`${event.created_at}-${index}`}>{formatDateTime(event.created_at)} · {event.from_status ? `${RIDE_STATUS_LABEL[event.from_status] ?? event.from_status} → ` : ""}{RIDE_STATUS_LABEL[event.to_status] ?? event.to_status}</li>)}</ol></section> : null}
+              {r.history.length ? (
+                <section className="border-t px-4 py-3">
+                  <h2 className="mb-2 text-sm font-semibold">Recorded status events</h2>
+                  <ol className="space-y-1 text-xs text-muted-foreground">
+                    {r.history.map((event, index) => (
+                      <li key={`${event.created_at}-${index}`}>
+                        {formatDateTime(event.created_at)} ·{" "}
+                        {event.from_status
+                          ? `${RIDE_STATUS_LABEL[event.from_status] ?? event.from_status} → `
+                          : ""}
+                        {RIDE_STATUS_LABEL[event.to_status] ?? event.to_status}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              ) : null}
             </article>
           ))}
         </div>

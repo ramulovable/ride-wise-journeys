@@ -11,12 +11,18 @@ function AdminDashboard() {
   const stats = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => {
-      const [customerRoles, adminRoles, riderRoles, riders, pending, active, rides, support, completed] =
-        await Promise.all([
-        supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "customer"),
+      const [
+        customerRoles,
+        adminRoles,
+        riderRoles,
+        riders,
+        pending,
+        active,
+        rides,
+        support,
+        completed,
+      ] = await Promise.all([
+        supabase.from("user_roles").select("user_id").eq("role", "customer"),
         supabase.from("user_roles").select("user_id").eq("role", "admin"),
         supabase.from("user_roles").select("user_id").eq("role", "rider"),
         supabase.from("rider_details").select("user_id", { count: "exact", head: true }),
@@ -34,7 +40,7 @@ function AdminDashboard() {
           .select("id", { count: "exact", head: true })
           .eq("status", "open"),
         supabase.from("rides").select("total_fare").eq("status", "completed"),
-        ]);
+      ]);
       const nonCustomerIds = new Set([
         ...(adminRoles.data ?? []).map((role) => role.user_id),
         ...(riderRoles.data ?? []).map((role) => role.user_id),

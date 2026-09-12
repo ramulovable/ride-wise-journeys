@@ -23,7 +23,15 @@ const riderOfferInput = z
     message: "Pickup and drop locations must be different.",
   });
 
-const fareOptionsInput = riderOfferInput.extend({ passengers: z.number().int().min(1).max(20) });
+const fareOptionsInput = z
+  .object({
+    fromLocationId: z.string().uuid(),
+    toLocationId: z.string().uuid(),
+    passengers: z.number().int().min(1).max(20),
+  })
+  .refine((value) => value.fromLocationId !== value.toLocationId, {
+    message: "Pickup and drop locations must be different.",
+  });
 
 const placeSearchInput = z.object({
   query: z.string().trim().min(2).max(120),

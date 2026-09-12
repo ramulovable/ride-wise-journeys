@@ -55,9 +55,16 @@ function FareManagement() {
     field: "rate_per_km" | "included_km" | "extra_km_rate",
     value: string,
   ) {
+    const numericValue = value === "" ? null : Number(value);
+    const changes =
+      field === "rate_per_km"
+        ? { rate_per_km: numericValue }
+        : field === "included_km"
+          ? { included_km: numericValue }
+          : { extra_km_rate: numericValue };
     const { error } = await supabase
       .from("fare_rules")
-      .update({ [field]: value === "" ? null : Number(value) })
+      .update(changes)
       .eq("id", id);
     if (error) toast.error(error.message);
     else {
@@ -67,7 +74,10 @@ function FareManagement() {
   }
   async function addSlab() {
     const rule = rules.data?.find((item) => item.id === ruleId);
-    if (!rule || !minKm || !maxKm || !rate) return toast.error("Complete the slab details.");
+    if (!rule || !minKm || !maxKm || !rate) {
+      toast.error("Complete the slab details.");
+      return;
+    }
     const { error } = await supabase.from("fare_slabs").insert({
       fare_rule_id: ruleId,
       min_km: Number(minKm),

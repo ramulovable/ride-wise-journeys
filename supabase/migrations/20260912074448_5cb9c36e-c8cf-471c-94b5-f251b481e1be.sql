@@ -1,0 +1,6 @@
+ALTER POLICY fare_rules_admin_write ON public.fare_rules USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+ALTER POLICY fare_slabs_admin_write ON public.fare_slabs USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+ALTER POLICY vehicle_brands_admin_write ON public.vehicle_brands USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+ALTER POLICY vehicle_models_admin_write ON public.vehicle_models USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+ALTER POLICY admin_audit_logs_admin_read ON public.admin_audit_logs USING (private.has_role(auth.uid(), 'admin'::public.app_role));
+ALTER POLICY fares_admin_legacy_write ON public.rider_route_fares USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));

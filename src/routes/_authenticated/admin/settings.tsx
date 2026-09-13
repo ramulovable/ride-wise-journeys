@@ -63,6 +63,12 @@ function SettingsPage() {
     setQrUrl(settings.data.qrBaseUrl);
     setPushTitle(settings.data.pushTitle);
     setPushBody(settings.data.pushBody);
+    setReferralEnabled(settings.data.referralEnabled);
+    setReferralMax(String(settings.data.referralMaxPerUser));
+    setReferralCondition(settings.data.referralCondition);
+    setInviteUrl(settings.data.referralInviteUrl);
+    setInviteMessage(settings.data.referralInviteMessage);
+    setCopyToast(settings.data.referralCopyToast);
   }, [settings.data]);
 
   async function save() {

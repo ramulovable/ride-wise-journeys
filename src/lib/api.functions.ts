@@ -649,8 +649,57 @@ export const dismissRide = createServerFn({ method: "POST" })
         { onConflict: "rider_id,ride_id", ignoreDuplicates: true },
       );
     if (error) throw new Error(error.message);
-    return { ok: true };
+
+    const remaining = await countEligibleRiders(data.rideId);
+    if (remaining === 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin
+        .from("rides")
+        .update({ status: "no_rider_available" })
+        .eq("id", data.rideId)
+        .is("rider_id", null)
+        .in("status", ["requested", "searching"]);
+      return { ok: true, redispatched: false };
+    }
+    return { ok: true, redispatched: true };
   });
+
+/** Counts online, eligible drivers with a matching vehicle who have not declined this booking. */
+async function countEligibleRiders(rideId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: ride } = await supabaseAdmin
+    .from("rides")
+    .select("requested_category_id, requested_ac, passengers")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (!ride?.requested_category_id) return 0;
+
+  const [ridersResult, vehiclesResult, dismissalsResult] = await Promise.all([
+    supabaseAdmin
+      .from("rider_details")
+      .select("user_id")
+      .eq("is_approved", true)
+      .eq("is_blocked", false)
+      .eq("is_online", true)
+      .gte("subscription_valid_until", today),
+    supabaseAdmin
+      .from("rider_vehicles")
+      .select("rider_id, has_ac, seat_capacity")
+      .eq("is_active", true)
+      .eq("vehicle_category_id", ride.requested_category_id),
+    supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
+  ]);
+  const eligible = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
+  const declined = new Set((dismissalsResult.data ?? []).map((row) => row.rider_id));
+  return (vehiclesResult.data ?? []).filter(
+    (vehicle) =>
+      eligible.has(vehicle.rider_id) &&
+      !declined.has(vehicle.rider_id) &&
+      (ride.requested_ac == null || vehicle.has_ac === ride.requested_ac) &&
+      ride.passengers <= vehicle.seat_capacity,
+  ).length;
+}
 
 const rideActionInput = z.object({
   rideId: z.string().uuid(),

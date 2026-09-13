@@ -126,6 +126,10 @@ function SettingsPage() {
       ["qr_base_url", qrUrl.trim().replace(/\/$/, "")],
       ["push_title_template", pushTitle.trim()],
       ["push_body_template", pushBody.trim()],
+      ["referral_reward_condition", referralCondition.trim()],
+      ["referral_invite_url", inviteUrl.trim().replace(/\/$/, "")],
+      ["referral_invite_message", inviteMessage.trim()],
+      ["referral_copy_toast", copyToast.trim()],
     ];
     const results = await Promise.all([
       ...numbers.map(([key, value]) =>

@@ -10,6 +10,13 @@ export const DEFAULT_WITHDRAWAL_MAX = 10000;
 export const DEFAULT_QR_BASE_URL = "https://shahintravels.app/vehicle";
 export const DEFAULT_PUSH_TITLE = "New ride request";
 export const DEFAULT_PUSH_BODY = "{pickup} to {drop} · {distance} km · Rs {fare}";
+export const DEFAULT_REFERRAL_ENABLED = true;
+export const DEFAULT_REFERRAL_MAX_PER_USER = 0;
+export const DEFAULT_REFERRAL_CONDITION = "first_ride";
+export const DEFAULT_REFERRAL_INVITE_URL = "https://shahintravels.app";
+export const DEFAULT_REFERRAL_INVITE_MESSAGE =
+  "Book rides with Shahin Travels. Use my referral code {code} and we both earn {reward}. {link}";
+export const DEFAULT_REFERRAL_COPY_TOAST = "Referral code copied.";
 
 export type AppSettings = {
   supportPhone: string;
@@ -21,6 +28,12 @@ export type AppSettings = {
   qrBaseUrl: string;
   pushTitle: string;
   pushBody: string;
+  referralEnabled: boolean;
+  referralMaxPerUser: number;
+  referralCondition: string;
+  referralInviteUrl: string;
+  referralInviteMessage: string;
+  referralCopyToast: string;
 };
 
 export async function fetchAppSettings(): Promise<AppSettings> {

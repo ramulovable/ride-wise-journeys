@@ -38,6 +38,7 @@ export async function fetchLocations(activeOnly = true): Promise<Location[]> {
     latitude: location.latitude,
     longitude: location.longitude,
     source: location.source as "preset" | "google",
+    pinCode: location.pin_code,
     isActive: location.is_active,
     label:
       location.source === "google"

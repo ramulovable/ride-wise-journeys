@@ -140,8 +140,11 @@ async function sendSms(mobile: string, code: string): Promise<void> {
   if (!result.ok) {
     console.error("[fast2sms] send failed", result.status, result.text.slice(0, 300));
     const message = gatewayMessage(result.body);
-    if (/insufficient|balance|wallet/i.test(message)) {
-      throw new Error("SMS service is temporarily unavailable. Please log in with your password.");
+    const status = result.body.status_code;
+    if (status === 999 || status === 996 || /insufficient|balance|wallet/i.test(message)) {
+      throw new Error(
+        "SMS verification is not active on the SMS account yet. Please log in with your password.",
+      );
     }
     throw new Error(
       message
@@ -149,6 +152,7 @@ async function sendSms(mobile: string, code: string): Promise<void> {
         : "We couldn't send the code right now. Please try again in a moment.",
     );
   }
+
 }
 
 

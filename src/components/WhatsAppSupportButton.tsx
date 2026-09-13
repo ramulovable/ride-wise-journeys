@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
-
-const WHATSAPP_SUPPORT_URL = "https://wa.me/919334039007";
+import { DEFAULT_SUPPORT_PHONE, useAppSettings, whatsappLink } from "@/lib/settings";
 
 export function WhatsAppSupportButton() {
+  const settings = useAppSettings();
+  const supportUrl = whatsappLink(settings.data?.supportPhone ?? DEFAULT_SUPPORT_PHONE);
   return (
     <Button
       asChild

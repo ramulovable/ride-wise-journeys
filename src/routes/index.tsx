@@ -290,6 +290,35 @@ function SignupForm() {
           placeholder="At least 6 characters"
         />
       </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="su-address">Address</Label>
+        <Input
+          id="su-address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="House, area, city"
+          maxLength={200}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="su-referral">Referral code (optional)</Label>
+        <Input
+          id="su-referral"
+          value={referral}
+          onChange={(e) => setReferral(e.target.value.toUpperCase())}
+          placeholder="SHAHIN123"
+          maxLength={20}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="su-photo">Profile photo (optional)</Label>
+        <Input
+          id="su-photo"
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+        />
+      </div>
       <Button type="submit" className="w-full" disabled={busy}>
         {busy ? "Creating…" : "Create account"}
       </Button>

@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RiderShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
+import { EnablePushButton } from "@/components/EnablePushButton";
+import { resolveVehicleImage, useVehicleImages } from "@/lib/vehicleImages";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";

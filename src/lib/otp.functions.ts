@@ -85,41 +85,72 @@ async function ticketIsValid(mobile: string, ticket: string): Promise<boolean> {
   return timingSafeEqual(expected, signature);
 }
 
+type Fast2SmsBody = { return?: boolean; message?: unknown; status_code?: number };
+
+async function postFast2Sms(
+  apiKey: string,
+  payload: Record<string, string>,
+): Promise<{ ok: boolean; body: Fast2SmsBody; text: string; status: number }> {
+  const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+    method: "POST",
+    headers: { authorization: apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let body: Fast2SmsBody = {};
+  try {
+    body = JSON.parse(text) as Fast2SmsBody;
+  } catch {
+    body = {};
+  }
+  return { ok: response.ok && body.return !== false, body, text, status: response.status };
+}
+
+function gatewayMessage(body: Fast2SmsBody): string {
+  return Array.isArray(body.message)
+    ? String(body.message[0] ?? "")
+    : String(body.message ?? "");
+}
+
 async function sendSms(mobile: string, code: string): Promise<void> {
   const apiKey = process.env["FAST2SMS_API_KEY"];
   if (!apiKey) throw new Error("SMS service is not configured. Please log in with your password.");
 
-  let response: Response;
+  let result: Awaited<ReturnType<typeof postFast2Sms>>;
   try {
-    response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-      method: "POST",
-      headers: { authorization: apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ route: "otp", variables_values: code, numbers: mobile }),
+    result = await postFast2Sms(apiKey, {
+      route: "otp",
+      variables_values: code,
+      numbers: mobile,
     });
+    // status_code 996 = OTP route needs website/DLT verification on the account.
+    if (!result.ok && result.body.status_code === 996) {
+      result = await postFast2Sms(apiKey, {
+        route: "q",
+        message: `${code} is your Shahin Travels verification code. It expires in 5 minutes.`,
+        language: "english",
+        numbers: mobile,
+      });
+    }
   } catch (error) {
     console.error("[fast2sms] network error", error);
     throw new Error("We couldn't send the code right now. Please try again in a moment.");
   }
 
-  const text = await response.text();
-  let body: { return?: boolean; message?: unknown; status_code?: number } = {};
-  try {
-    body = JSON.parse(text) as typeof body;
-  } catch {
-    body = {};
-  }
-
-  if (!response.ok || body.return === false) {
-    console.error("[fast2sms] send failed", response.status, text.slice(0, 300));
-    const message = Array.isArray(body.message)
-      ? String(body.message[0] ?? "")
-      : String(body.message ?? "");
+  if (!result.ok) {
+    console.error("[fast2sms] send failed", result.status, result.text.slice(0, 300));
+    const message = gatewayMessage(result.body);
     if (/insufficient|balance|wallet/i.test(message)) {
       throw new Error("SMS service is temporarily unavailable. Please log in with your password.");
     }
-    throw new Error("We couldn't send the code right now. Please try again in a moment.");
+    throw new Error(
+      message
+        ? `SMS could not be sent: ${message}`
+        : "We couldn't send the code right now. Please try again in a moment.",
+    );
   }
 }
+
 
 export const sendOtp = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sendInput.parse(input))

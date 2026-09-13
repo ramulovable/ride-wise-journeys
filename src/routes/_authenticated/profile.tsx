@@ -127,7 +127,10 @@ function RiderReviews({
             {reviews.length} {reviews.length === 1 ? "customer review" : "customer reviews"}
           </p>
         </div>
-        <div className="flex items-center gap-1 text-lg font-bold" aria-label={`${average.toFixed(1)} out of 5 stars`}>
+        <div
+          className="flex items-center gap-1 text-lg font-bold"
+          aria-label={`${average.toFixed(1)} out of 5 stars`}
+        >
           <Star className="fill-primary text-primary" aria-hidden="true" />
           {reviews.length ? average.toFixed(1) : "—"}
         </div>
@@ -141,14 +144,21 @@ function RiderReviews({
             <article key={review.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="font-medium">{review.customerName}</span>
-                <span className="flex items-center gap-1" aria-label={`${review.stars} out of 5 stars`}>
+                <span
+                  className="flex items-center gap-1"
+                  aria-label={`${review.stars} out of 5 stars`}
+                >
                   <Star className="fill-primary text-primary" aria-hidden="true" />
                   {review.stars.toFixed(1)}
                 </span>
               </div>
-              {review.comment ? <p className="text-sm text-muted-foreground">{review.comment}</p> : null}
+              {review.comment ? (
+                <p className="text-sm text-muted-foreground">{review.comment}</p>
+              ) : null}
               <time className="block text-xs text-muted-foreground" dateTime={review.created_at}>
-                {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(review.created_at))}
+                {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(
+                  new Date(review.created_at),
+                )}
               </time>
             </article>
           ))}

@@ -642,10 +642,12 @@ export const dismissRide = createServerFn({ method: "POST" })
       throw new Error("Booking is no longer available");
     }
 
-    const { error } = await context.supabase.from("ride_dismissals").upsert(
-      { rider_id: context.userId, ride_id: data.rideId },
-      { onConflict: "rider_id,ride_id", ignoreDuplicates: true },
-    );
+    const { error } = await context.supabase
+      .from("ride_dismissals")
+      .upsert(
+        { rider_id: context.userId, ride_id: data.rideId },
+        { onConflict: "rider_id,ride_id", ignoreDuplicates: true },
+      );
     if (error) throw new Error(error.message);
     return { ok: true };
   });

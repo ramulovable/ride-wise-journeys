@@ -91,11 +91,11 @@ function Withdrawals() {
 
   async function update(id: string, status: string) {
     setBusy(id);
+    const reference = utr[id]?.trim();
     const { error } = await supabase.rpc("admin_update_withdrawal", {
       _id: id,
       _status: status as never,
-      _utr: utr[id]?.trim() || undefined,
-      _note: undefined,
+      ...(reference ? { _utr: reference } : {}),
     });
     setBusy(null);
     if (error) {

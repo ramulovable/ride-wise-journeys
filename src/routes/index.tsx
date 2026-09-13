@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import banner from "@/assets/shahin-welcome.png.asset.json";
 import { BrandMark } from "@/components/BrandHeader";
+import { InstallAppBar } from "@/components/InstallAppBar";
 
 export const Route = createFileRoute("/")({
   head: () => ({

@@ -44,6 +44,12 @@ function SettingsPage() {
   const [qrUrl, setQrUrl] = useState("");
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
+  const [referralEnabled, setReferralEnabled] = useState(true);
+  const [referralMax, setReferralMax] = useState("");
+  const [referralCondition, setReferralCondition] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [copyToast, setCopyToast] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {

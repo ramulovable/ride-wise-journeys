@@ -134,18 +134,20 @@ function RiderDashboard() {
   }
   const place = (id: string) => locations.data?.find((x) => x.id === id)?.name ?? "—";
   const dismissedRideIds = new Set((dismissals.data ?? []).map((item) => item.ride_id));
-  const active = (rides.data ?? []).filter(
-    (r) =>
-      !["completed", "cancelled"].includes(r.status) &&
-      (r.rider_id === user?.id ||
-        (r.rider_id === null &&
-          !dismissedRideIds.has(r.id) &&
-          vehicles.data?.some(
-            (vehicle) =>
-              vehicle.vehicle_category_id === r.requested_category_id &&
-              (r.requested_ac == null || vehicle.has_ac === r.requested_ac),
-          ))),
-  ).sort((a, b) => Number(b.id === bookingId) - Number(a.id === bookingId));
+  const active = (rides.data ?? [])
+    .filter(
+      (r) =>
+        !["completed", "cancelled"].includes(r.status) &&
+        (r.rider_id === user?.id ||
+          (r.rider_id === null &&
+            !dismissedRideIds.has(r.id) &&
+            vehicles.data?.some(
+              (vehicle) =>
+                vehicle.vehicle_category_id === r.requested_category_id &&
+                (r.requested_ac == null || vehicle.has_ac === r.requested_ac),
+            ))),
+    )
+    .sort((a, b) => Number(b.id === bookingId) - Number(a.id === bookingId));
   const history = (rides.data ?? []).filter((r) => ["completed", "cancelled"].includes(r.status));
   const nextAction = (status: string) =>
     (

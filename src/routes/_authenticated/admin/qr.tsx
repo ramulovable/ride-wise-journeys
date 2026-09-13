@@ -15,7 +15,10 @@ export const Route = createFileRoute("/_authenticated/admin/qr")({
   head: () => ({
     meta: [
       { title: "Vehicle QR codes | Shahin Travels Admin" },
-      { name: "description", content: "View, print and regenerate Shahin Travels vehicle QR codes." },
+      {
+        name: "description",
+        content: "View, print and regenerate Shahin Travels vehicle QR codes.",
+      },
       { property: "og:title", content: "Vehicle QR codes | Shahin Travels Admin" },
       {
         property: "og:description",
@@ -105,10 +108,16 @@ function Qr() {
               </div>
               <div>
                 <p className="font-semibold">{v.vehicle_number}</p>
-                <p className="text-xs text-muted-foreground">{v.vehicle_model || "Model not set"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {v.vehicle_model || "Model not set"}
+                </p>
                 <p className="text-xs">{v.is_active ? "Active" : "Inactive"}</p>
                 <div className="mt-2 flex flex-wrap gap-2 print:hidden">
-                  <Button size="sm" variant="outline" onClick={() => download(v.id, v.vehicle_number)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => download(v.id, v.vehicle_number)}
+                  >
                     Download
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => window.print()}>

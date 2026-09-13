@@ -3,19 +3,15 @@ import { getMessaging, getToken, isSupported } from "firebase/messaging";
 import { supabase } from "@/integrations/supabase/client";
 
 const appId = import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_APP_ID"] as
-  | string
-  | undefined;
+  string | undefined;
 const vapidKey = import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_VAPID_KEY"] as
-  | string
-  | undefined;
+  string | undefined;
 
 const firebaseConfig = {
   apiKey: import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY"] as
-    | string
-    | undefined,
+    string | undefined,
   projectId: import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_PROJECT_ID"] as
-    | string
-    | undefined,
+    string | undefined,
   appId,
   messagingSenderId: appId?.split(":")[1] ?? "",
 };

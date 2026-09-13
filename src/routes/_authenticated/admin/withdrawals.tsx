@@ -133,7 +133,10 @@ function Withdrawals() {
       ) : (
         <div className="space-y-3">
           {rows.map((row) => (
-            <article key={row.id} className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <article
+              key={row.id}
+              className="space-y-3 rounded-2xl border border-border bg-card p-4"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">

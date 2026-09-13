@@ -635,9 +635,7 @@ async function notifyEligibleRiders(
         .replaceAll("{fare}", String(info.fare))
         .replaceAll("{category}", info.categoryName);
     const title = fill(text.get("push_title") || "New ride request");
-    const body = fill(
-      text.get("push_body") || "{pickup} to {drop} · {distance} km · Rs {fare}",
-    );
+    const body = fill(text.get("push_body") || "{pickup} to {drop} · {distance} km · Rs {fare}");
     const path = `/rider?bookingId=${rideId}`;
     const payloadData = {
       bookingId: rideId,

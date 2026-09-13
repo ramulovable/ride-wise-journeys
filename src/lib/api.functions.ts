@@ -788,6 +788,11 @@ export const dismissRide = createServerFn({ method: "POST" })
 
 /** Counts online, eligible drivers with a matching vehicle who have not declined this booking. */
 async function countEligibleRiders(rideId: string) {
+  return (await eligibleRiderIds(rideId)).length;
+}
+
+/** Online, approved, subscribed drivers with a matching vehicle who have not declined. */
+async function eligibleRiderIds(rideId: string): Promise<string[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const today = new Date().toISOString().slice(0, 10);
   const { data: ride } = await supabaseAdmin

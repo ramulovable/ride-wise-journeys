@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QRCodeCanvas } from "qrcode.react";
 import { Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useAppSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -96,6 +98,7 @@ function ProfilePage() {
           {busy ? "Saving…" : "Save profile"}
         </Button>
       </section>
+      {role === "rider" ? <RiderVehicleQr /> : null}
       {role === "rider" ? <RiderReviews reviews={reviews.data ?? []} /> : null}
     </div>
   );
@@ -103,6 +106,43 @@ function ProfilePage() {
   if (role === "admin") return <AdminShell title="My profile">{body}</AdminShell>;
   if (role === "rider") return <RiderShell title="My profile">{body}</RiderShell>;
   return <CustomerShell title="My profile">{body}</CustomerShell>;
+}
+
+function RiderVehicleQr() {
+  const { user } = useAuth();
+  const settings = useAppSettings();
+  const vehicles = useQuery({
+    queryKey: ["my-vehicle-qr", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("rider_vehicles")
+        .select("id, vehicle_number, qr_token")
+        .eq("rider_id", user!.id)
+        .eq("is_active", true);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+  const base = settings.data?.qrBaseUrl ?? "";
+
+  return (
+    <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+      <h2 className="font-semibold">My vehicle QR codes</h2>
+      {vehicles.data?.length ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {vehicles.data.map((vehicle) => (
+            <div key={vehicle.id} className="flex items-center gap-3 rounded-xl border p-3">
+              <QRCodeCanvas value={`${base}/${vehicle.qr_token}`} size={88} />
+              <p className="text-sm font-medium">{vehicle.vehicle_number}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Add an active vehicle to get a QR code.</p>
+      )}
+    </section>
+  );
 }
 
 function RiderReviews({

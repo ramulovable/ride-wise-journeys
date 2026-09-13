@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RiderShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
+import { EnablePushButton } from "@/components/EnablePushButton";
+import { resolveVehicleImage, useVehicleImages } from "@/lib/vehicleImages";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,13 +28,18 @@ export const Route = createFileRoute("/_authenticated/rider/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    bookingId: typeof search["bookingId"] === "string" ? search["bookingId"] : undefined,
+  }),
   component: RiderDashboard,
 });
 
 function RiderDashboard() {
   useRoleGuard("rider");
+  const { bookingId } = Route.useSearch();
   const { user, riderDetails, refresh } = useAuth();
   const qc = useQueryClient();
+  const vehicleImages = useVehicleImages();
   const locations = useQuery({
     queryKey: ["locations", "all"],
     queryFn: () => fetchLocations(false),
@@ -127,18 +134,20 @@ function RiderDashboard() {
   }
   const place = (id: string) => locations.data?.find((x) => x.id === id)?.name ?? "—";
   const dismissedRideIds = new Set((dismissals.data ?? []).map((item) => item.ride_id));
-  const active = (rides.data ?? []).filter(
-    (r) =>
-      !["completed", "cancelled"].includes(r.status) &&
-      (r.rider_id === user?.id ||
-        (r.rider_id === null &&
-          !dismissedRideIds.has(r.id) &&
-          vehicles.data?.some(
-            (vehicle) =>
-              vehicle.vehicle_category_id === r.requested_category_id &&
-              (r.requested_ac == null || vehicle.has_ac === r.requested_ac),
-          ))),
-  );
+  const active = (rides.data ?? [])
+    .filter(
+      (r) =>
+        !["completed", "cancelled"].includes(r.status) &&
+        (r.rider_id === user?.id ||
+          (r.rider_id === null &&
+            !dismissedRideIds.has(r.id) &&
+            vehicles.data?.some(
+              (vehicle) =>
+                vehicle.vehicle_category_id === r.requested_category_id &&
+                (r.requested_ac == null || vehicle.has_ac === r.requested_ac),
+            ))),
+    )
+    .sort((a, b) => Number(b.id === bookingId) - Number(a.id === bookingId));
   const history = (rides.data ?? []).filter((r) => ["completed", "cancelled"].includes(r.status));
   const nextAction = (status: string) =>
     (
@@ -183,6 +192,9 @@ function RiderDashboard() {
             {riderDetails?.is_online ? "Go offline" : "Go online"}
           </Button>
         </div>
+        <div className="mt-3">
+          <EnablePushButton />
+        </div>
       </section>
       <h2 className="mb-2 font-semibold">Active requests</h2>
       {rides.isSuccess && active.length === 0 ? (
@@ -193,9 +205,22 @@ function RiderDashboard() {
       ) : (
         <div className="space-y-3">
           {active.map((ride) => (
-            <article key={ride.id} className="rounded-2xl border bg-card p-4">
+            <article
+              key={ride.id}
+              className={`rounded-2xl border bg-card p-4 ${
+                ride.id === bookingId ? "border-primary ring-2 ring-primary/40" : ""
+              }`}
+            >
               <div className="flex justify-between gap-3">
-                <div>
+                <img
+                  src={resolveVehicleImage(vehicleImages.data, {
+                    categoryId: ride.requested_category_id,
+                  })}
+                  alt=""
+                  className="h-12 w-16 shrink-0 rounded-lg object-cover"
+                  loading="lazy"
+                />
+                <div className="flex-1">
                   <p className="font-semibold">
                     {place(ride.from_location_id)} → {place(ride.to_location_id)}
                   </p>

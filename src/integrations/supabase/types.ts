@@ -44,6 +44,44 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          note: string | null
+          withdrawal_request_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          note?: string | null
+          withdrawal_request_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          note?: string | null
+          withdrawal_request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_wallet_transactions_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: false
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           description: string | null
@@ -85,6 +123,38 @@ export type Database = {
           value?: string
         }
         Relationships: []
+      }
+      earning_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          ride_id: string
+          rider_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          ride_id: string
+          rider_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          ride_id?: string
+          rider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "earning_transactions_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: true
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fare_rule_history: {
         Row: {
@@ -244,6 +314,80 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_devices: {
+        Row: {
+          created_at: string
+          device_type: string
+          id: string
+          is_active: boolean
+          push_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_type?: string
+          id?: string
+          is_active?: boolean
+          push_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_type?: string
+          id?: string
+          is_active?: boolean
+          push_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string
+          data: Json
+          delivered: boolean
+          id: string
+          ride_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          channel?: string
+          created_at?: string
+          data?: Json
+          delivered?: boolean
+          id?: string
+          ride_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string
+          data?: Json
+          delivered?: boolean
+          id?: string
+          ride_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
@@ -252,6 +396,7 @@ export type Database = {
           id: string
           is_blocked: boolean
           mobile: string
+          my_referral_code: string | null
           photo_url: string | null
           referral_code: string | null
           updated_at: string
@@ -263,6 +408,7 @@ export type Database = {
           id: string
           is_blocked?: boolean
           mobile: string
+          my_referral_code?: string | null
           photo_url?: string | null
           referral_code?: string | null
           updated_at?: string
@@ -274,6 +420,7 @@ export type Database = {
           id?: string
           is_blocked?: boolean
           mobile?: string
+          my_referral_code?: string | null
           photo_url?: string | null
           referral_code?: string | null
           updated_at?: string
@@ -317,6 +464,68 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      referral_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          referral_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          referral_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          referral_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_transactions_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          referred_id: string
+          referrer_id: string
+          rewarded_at: string | null
+          status: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          referred_id: string
+          referrer_id: string
+          rewarded_at?: string | null
+          status?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+          rewarded_at?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       ride_dismissals: {
         Row: {
@@ -902,6 +1111,74 @@ export type Database = {
           },
         ]
       }
+      vehicle_images: {
+        Row: {
+          brand_id: string | null
+          category_id: string | null
+          created_at: string
+          id: string
+          image_path: string
+          is_active: boolean
+          is_primary: boolean
+          model_id: string | null
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          image_path: string
+          is_active?: boolean
+          is_primary?: boolean
+          model_id?: string | null
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          image_path?: string
+          is_active?: boolean
+          is_primary?: boolean
+          model_id?: string | null
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_images_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_images_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_images_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_images_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_models: {
         Row: {
           brand_id: string
@@ -1014,6 +1291,96 @@ export type Database = {
           },
         ]
       }
+      wallet_accounts: {
+        Row: {
+          created_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          note: string | null
+          reference_id: string | null
+          type: Database["public"]["Enums"]["wallet_txn_type"]
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          type: Database["public"]["Enums"]["wallet_txn_type"]
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          type?: Database["public"]["Enums"]["wallet_txn_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      withdrawal_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          reference_utr: string | null
+          status: Database["public"]["Enums"]["withdrawal_status"]
+          updated_at: string
+          upi_id: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reference_utr?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          updated_at?: string
+          upi_id: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reference_utr?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          updated_at?: string
+          upi_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1023,10 +1390,25 @@ export type Database = {
         Args: { _ride_id: string; _vehicle_id: string }
         Returns: boolean
       }
+      admin_adjust_wallet: {
+        Args: { _amount: number; _note: string; _user_id: string }
+        Returns: boolean
+      }
+      admin_update_withdrawal: {
+        Args: {
+          _id: string
+          _note?: string
+          _status: Database["public"]["Enums"]["withdrawal_status"]
+          _utr?: string
+        }
+        Returns: boolean
+      }
       advance_rider_ride: {
         Args: { _action: string; _ride_id: string }
         Returns: boolean
       }
+      ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
+      generate_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1034,7 +1416,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      request_withdrawal: {
+        Args: { _amount: number; _upi: string }
+        Returns: string
+      }
       shares_ride_with: { Args: { _other: string }; Returns: boolean }
+      wallet_balance: { Args: { _user_id: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "rider" | "customer"
@@ -1049,6 +1436,21 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_rider_available"
+      wallet_txn_type:
+        | "REFERRAL_REWARD"
+        | "RIDE_EARNING"
+        | "WITHDRAWAL_HOLD"
+        | "WITHDRAWAL_DEBIT"
+        | "WITHDRAWAL_REVERSAL"
+        | "ADMIN_ADJUSTMENT"
+      withdrawal_status:
+        | "PENDING"
+        | "APPROVED"
+        | "PROCESSING"
+        | "PAID"
+        | "REJECTED"
+        | "FAILED"
+        | "REVERSED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1188,6 +1590,23 @@ export const Constants = {
         "completed",
         "cancelled",
         "no_rider_available",
+      ],
+      wallet_txn_type: [
+        "REFERRAL_REWARD",
+        "RIDE_EARNING",
+        "WITHDRAWAL_HOLD",
+        "WITHDRAWAL_DEBIT",
+        "WITHDRAWAL_REVERSAL",
+        "ADMIN_ADJUSTMENT",
+      ],
+      withdrawal_status: [
+        "PENDING",
+        "APPROVED",
+        "PROCESSING",
+        "PAID",
+        "REJECTED",
+        "FAILED",
+        "REVERSED",
       ],
     },
   },

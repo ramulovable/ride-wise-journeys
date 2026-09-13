@@ -344,6 +344,25 @@ function SignupForm() {
     );
   }
 
+  if (verifying) {
+    return (
+      <div className="space-y-4">
+        <OtpField
+          mobile={mobile}
+          purpose="signup"
+          onChangeNumber={() => setVerifying(false)}
+          onVerified={async (result) => {
+            if (!result.ticket) throw new Error("Verification failed. Please try again.");
+            await createAccount(result.ticket);
+          }}
+        />
+        {busy ? (
+          <p className="text-center text-xs text-muted-foreground">Creating your account…</p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-2">

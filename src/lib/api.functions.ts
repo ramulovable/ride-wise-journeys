@@ -789,13 +789,13 @@ async function notifyCustomerRideUpdate(rideId: string, stage: string) {
       ride.vehicle_id
         ? supabaseAdmin
             .from("rider_vehicles")
-            .select("vehicle_number, model_name")
+            .select("vehicle_number, vehicle_model")
             .eq("id", ride.vehicle_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
     const driverName = driver?.full_name ?? "Your driver";
-    const vehicleLabel = [vehicle?.model_name, vehicle?.vehicle_number]
+    const vehicleLabel = [vehicle?.vehicle_model, vehicle?.vehicle_number]
       .filter(Boolean)
       .join(" · ");
     const copy: Record<string, { title: string; body: string }> = {

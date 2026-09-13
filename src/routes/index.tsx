@@ -71,6 +71,7 @@ function WelcomePage() {
           </p>
         </section>
       </div>
+      <InstallAppBar offsetNav={false} />
     </main>
   );
 }

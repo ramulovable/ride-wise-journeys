@@ -41,6 +41,18 @@ function FareManagement() {
       return data ?? [];
     },
   });
+  const history = useQuery({
+    queryKey: ["fare-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fare_rule_history")
+        .select("id, table_name, action, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
   const slabs = useQuery({
     queryKey: ["fare-slabs"],
     queryFn: async () => {

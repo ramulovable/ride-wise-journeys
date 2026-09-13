@@ -102,7 +102,7 @@ export function OtpField({
         <InputOTP
           maxLength={6}
           value={code}
-          disabled={busy}
+          disabled={busy || !sent}
           onChange={(value) => {
             setCode(value);
             setError(null);
@@ -122,7 +122,7 @@ export function OtpField({
       <Button
         type="button"
         className="h-10 w-full"
-        disabled={busy || code.length !== 6}
+        disabled={busy || !sent || code.length !== 6}
         onClick={() => void submit(code)}
       >
         {busy ? "Please wait…" : "Verify"}

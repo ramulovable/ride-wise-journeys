@@ -229,10 +229,14 @@ function Catalog() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
+            <Input placeholder="Area" value={area} onChange={(e) => setArea(e.target.value)} />
             <Input
-              placeholder="Area / PIN"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
+              className="w-24"
+              placeholder="PIN"
+              inputMode="numeric"
+              maxLength={6}
+              value={pinCode}
+              onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ""))}
             />
             <Button onClick={addLocation}>Add</Button>
           </div>

@@ -590,8 +590,130 @@ export const createBooking = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
+    await notifyEligibleRiders(ride.id as string, {
+      distanceKm: quote.distanceKm,
+      fare: option.fare,
+      categoryName: category.categoryName,
+    });
+
     return { rideId: ride.id as string, totalFare: option.fare };
   });
+
+/** Sends and records ride alerts for every eligible driver. Never blocks the booking. */
+async function notifyEligibleRiders(
+  rideId: string,
+  info: { distanceKm: number | null; fare: number; categoryName: string },
+) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const riderIds = await eligibleRiderIds(rideId);
+    if (riderIds.length === 0) return;
+
+    const { data: ride } = await supabaseAdmin
+      .from("rides")
+      .select("from_location_id, to_location_id")
+      .eq("id", rideId)
+      .maybeSingle();
+    const { data: places } = await supabaseAdmin
+      .from("locations")
+      .select("id, name")
+      .in("id", [ride?.from_location_id, ride?.to_location_id].filter(Boolean) as string[]);
+    const nameOf = (id: string | null | undefined) =>
+      places?.find((place) => place.id === id)?.name ?? "—";
+
+    const [{ data: textRows }] = await Promise.all([
+      supabaseAdmin.from("app_text_settings").select("key, value"),
+    ]);
+    const text = new Map((textRows ?? []).map((row) => [row.key, row.value]));
+    const pickup = nameOf(ride?.from_location_id);
+    const drop = nameOf(ride?.to_location_id);
+    const fill = (template: string) =>
+      template
+        .replaceAll("{pickup}", pickup)
+        .replaceAll("{drop}", drop)
+        .replaceAll("{distance}", info.distanceKm == null ? "—" : String(info.distanceKm))
+        .replaceAll("{fare}", String(info.fare))
+        .replaceAll("{category}", info.categoryName);
+    const title = fill(text.get("push_title") || "New ride request");
+    const body = fill(
+      text.get("push_body") || "{pickup} to {drop} · {distance} km · Rs {fare}",
+    );
+    const path = `/rider?bookingId=${rideId}`;
+    const payloadData = {
+      bookingId: rideId,
+      pickup,
+      drop,
+      distanceKm: info.distanceKm,
+      fare: info.fare,
+      category: info.categoryName,
+      path,
+    };
+
+    await supabaseAdmin.from("notifications").insert(
+      riderIds.map((userId) => ({
+        user_id: userId,
+        ride_id: rideId,
+        title,
+        body,
+        channel: "push",
+        data: payloadData,
+        delivered: false,
+      })),
+    );
+
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"];
+    if (!lovableKey || !fcmKey) return;
+
+    const { data: devices } = await supabaseAdmin
+      .from("notification_devices")
+      .select("user_id, push_token")
+      .eq("is_active", true)
+      .in("user_id", riderIds);
+    if (!devices?.length) return;
+
+    await Promise.all(
+      devices.map(async (device) => {
+        const response = await fetch(
+          "https://connector-gateway.lovable.dev/firebase_messaging/v1/projects/_/messages:send",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${lovableKey}`,
+              "X-Connection-Api-Key": fcmKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: {
+                token: device.push_token,
+                notification: { title, body },
+                data: { path, bookingId: rideId },
+              },
+            }),
+          },
+        );
+        if (response.ok) {
+          await supabaseAdmin
+            .from("notifications")
+            .update({ delivered: true })
+            .eq("ride_id", rideId)
+            .eq("user_id", device.user_id);
+          return;
+        }
+        const errorBody = await response.text();
+        console.error(`Push send failed [${response.status}]: ${errorBody}`);
+        if (response.status === 404 || response.status === 400) {
+          await supabaseAdmin
+            .from("notification_devices")
+            .update({ is_active: false })
+            .eq("push_token", device.push_token);
+        }
+      }),
+    );
+  } catch (pushError) {
+    console.error("Ride alert dispatch failed", pushError);
+  }
+}
 
 /** A rider accepts a pending ride. Blocked unless approved with an active subscription and online. */
 export const acceptRide = createServerFn({ method: "POST" })

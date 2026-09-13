@@ -55,6 +55,12 @@ export async function fetchAppSettings(): Promise<AppSettings> {
     qrBaseUrl: text.get("qr_base_url") || DEFAULT_QR_BASE_URL,
     pushTitle: text.get("push_title_template") || DEFAULT_PUSH_TITLE,
     pushBody: text.get("push_body_template") || DEFAULT_PUSH_BODY,
+    referralEnabled: (numeric.get("referral_program_enabled") ?? 1) === 1,
+    referralMaxPerUser: numeric.get("referral_max_per_user") ?? DEFAULT_REFERRAL_MAX_PER_USER,
+    referralCondition: text.get("referral_reward_condition") || DEFAULT_REFERRAL_CONDITION,
+    referralInviteUrl: text.get("referral_invite_url") || DEFAULT_REFERRAL_INVITE_URL,
+    referralInviteMessage: text.get("referral_invite_message") || DEFAULT_REFERRAL_INVITE_MESSAGE,
+    referralCopyToast: text.get("referral_copy_toast") || DEFAULT_REFERRAL_COPY_TOAST,
   };
 }
 

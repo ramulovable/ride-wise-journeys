@@ -7,6 +7,7 @@ import { CustomerShell } from "@/components/shells";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { EmptyState } from "@/components/EmptyState";
 import { LocationPicker } from "@/components/LocationPicker";
+import { PromoCarousel } from "@/components/PromoCarousel";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchLocations, type Location } from "@/lib/data";
@@ -96,6 +97,7 @@ function BookPage() {
   return (
     <CustomerShell title="Book a ride" subtitle="आपकी यात्रा, हमारी जिम्मेदारी">
       <div className="space-y-4">
+        <PromoCarousel />
         <div className="flex justify-end">
           <EnablePushButton label="Turn on ride updates" doneLabel="Ride updates on" />
         </div>

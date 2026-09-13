@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
+import { InstallAppBar } from "@/components/InstallAppBar";
 
 export type NavItem = { to: string; label: string; icon: ReactNode };
 
@@ -47,6 +48,7 @@ export function AppShell({
       <main className="mx-auto w-full max-w-3xl px-4 py-4">{children}</main>
 
       {showWhatsAppSupport ? <WhatsAppSupportButton /> : null}
+      {showWhatsAppSupport ? <InstallAppBar /> : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card">
         <div className="mx-auto flex max-w-3xl overflow-x-auto">

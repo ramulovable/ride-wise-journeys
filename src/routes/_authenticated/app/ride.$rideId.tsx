@@ -53,16 +53,9 @@ function RideDetail() {
   });
 
   const driver = useQuery({
-    queryKey: ["driver", ride.data?.rider_id],
+    queryKey: ["driver-details", rideId, ride.data?.rider_id],
     enabled: Boolean(ride.data?.rider_id),
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, mobile")
-        .eq("id", ride.data!.rider_id!)
-        .maybeSingle();
-      return data;
-    },
+    queryFn: () => getRideDriverDetails({ data: { rideId } }),
   });
 
   const rating = useQuery({

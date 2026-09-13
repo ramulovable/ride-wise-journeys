@@ -78,7 +78,18 @@ function BannersPage() {
     refresh();
   }
 
-  async function patch(id: string, values: Record<string, unknown>) {
+  async function patch(
+    id: string,
+    values: Partial<{
+      title: string;
+      subtitle: string;
+      badge_text: string | null;
+      action_url: string | null;
+      image_url: string | null;
+      display_order: number;
+      is_active: boolean;
+    }>,
+  ) {
     const { error } = await supabase.from("promotional_banners").update(values).eq("id", id);
     if (error) toast.error(error.message);
     else refresh();

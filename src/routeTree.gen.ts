@@ -25,6 +25,7 @@ import { Route as AuthenticatedAdminRidersRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminRidesRouteImport } from './routes/_authenticated/admin/rides'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
+import { Route as AuthenticatedAdminWithdrawalsRouteImport } from './routes/_authenticated/admin/withdrawals'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
@@ -115,6 +116,12 @@ const AuthenticatedAdminSupportRoute =
     path: '/admin/support',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminWithdrawalsRoute =
+  AuthenticatedAdminWithdrawalsRouteImport.update({
+    id: '/admin/withdrawals',
+    path: '/admin/withdrawals',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/app/',
   path: '/app/',
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
+  '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
+  '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/rides': typeof AuthenticatedAdminRidesRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
+  '/_authenticated/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
   '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/admin/rides'
     | '/admin/settings'
     | '/admin/support'
+    | '/admin/withdrawals'
     | '/app/rides'
     | '/rider/vehicle'
     | '/admin/'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/admin/rides'
     | '/admin/settings'
     | '/admin/support'
+    | '/admin/withdrawals'
     | '/app/rides'
     | '/rider/vehicle'
     | '/admin'
@@ -273,6 +285,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/rides'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/support'
+    | '/_authenticated/admin/withdrawals'
     | '/_authenticated/app/rides'
     | '/_authenticated/rider/vehicle'
     | '/_authenticated/admin/'
@@ -401,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSupportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/withdrawals': {
+      id: '/_authenticated/admin/withdrawals'
+      path: '/admin/withdrawals'
+      fullPath: '/admin/withdrawals'
+      preLoaderRoute: typeof AuthenticatedAdminWithdrawalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/': {
       id: '/_authenticated/app/'
       path: '/app'
@@ -452,6 +472,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRidesRoute: typeof AuthenticatedAdminRidesRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
+  AuthenticatedAdminWithdrawalsRoute: typeof AuthenticatedAdminWithdrawalsRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -473,6 +494,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRidesRoute: AuthenticatedAdminRidesRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
+  AuthenticatedAdminWithdrawalsRoute: AuthenticatedAdminWithdrawalsRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

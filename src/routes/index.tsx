@@ -307,6 +307,7 @@ function SignupForm() {
     });
     if (error) {
       setBusy(false);
+      setVerifying(false);
       toast.error(
         error.message.includes("already")
           ? "This mobile number is already registered."

@@ -76,11 +76,16 @@ function Catalog() {
   async function addLocation() {
     const { error } = await supabase
       .from("locations")
-      .insert({ name: location.trim(), area: area.trim() || null });
+      .insert({
+        name: location.trim(),
+        area: area.trim() || null,
+        pin_code: pinCode.trim() || null,
+      });
     if (error) toast.error(error.message);
     else {
       setLocation("");
       setArea("");
+      setPinCode("");
       void qc.invalidateQueries({ queryKey: ["locations"] });
     }
   }

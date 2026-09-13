@@ -223,35 +223,45 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { mobile, code, purpose } = data;
 
-    const { data: record } = await supabaseAdmin
+    // Accept any code that was sent recently and not yet used, so an earlier
+    // SMS still works after the user taps "Resend code".
+    const { data: records } = await supabaseAdmin
       .from("mobile_otps")
-      .select("id, code_hash, attempts, expires_at")
+      .select("id, code_hash, attempts, expires_at, status")
       .eq("mobile", mobile)
       .eq("purpose", purpose)
-      .eq("status", "pending")
+      .neq("status", "verified")
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(3);
 
-    if (!record) throw new Error("Please request a new code.");
+    const candidates = records ?? [];
+    if (candidates.length === 0) throw new Error("Please request a new code.");
 
-    if (new Date(record.expires_at).getTime() < Date.now()) {
-      await supabaseAdmin.from("mobile_otps").update({ status: "expired" }).eq("id", record.id);
+    const live = candidates.filter((row) => new Date(row.expires_at).getTime() >= Date.now());
+    if (live.length === 0) {
       throw new Error("This code has expired. Please request a new one.");
     }
-    if (record.attempts >= MAX_ATTEMPTS) {
-      await supabaseAdmin.from("mobile_otps").update({ status: "expired" }).eq("id", record.id);
+    if (live.every((row) => row.attempts >= MAX_ATTEMPTS)) {
       throw new Error("Too many incorrect attempts. Please request a new code.");
     }
 
-    const matches = timingSafeEqual(record.code_hash, await sha256(`${mobile}:${code}`));
-    if (!matches) {
-      await supabaseAdmin
-        .from("mobile_otps")
-        .update({ attempts: record.attempts + 1 })
-        .eq("id", record.id);
-      throw new Error("Incorrect code. Please try again.");
+    const codeHash = await sha256(`${mobile}:${code}`);
+    const record = live.find(
+      (row) => row.attempts < MAX_ATTEMPTS && timingSafeEqual(row.code_hash, codeHash),
+    );
+
+    if (!record) {
+      const newest = live[0]!;
+      const attempts = newest.attempts + 1;
+      await supabaseAdmin.from("mobile_otps").update({ attempts }).eq("id", newest.id);
+      const left = Math.max(MAX_ATTEMPTS - attempts, 0);
+      throw new Error(
+        left > 0
+          ? `Incorrect code. Please try again (${left} attempt${left === 1 ? "" : "s"} left).`
+          : "Too many incorrect attempts. Please request a new code.",
+      );
     }
+
 
     await supabaseAdmin
       .from("mobile_otps")

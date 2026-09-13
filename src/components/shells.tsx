@@ -50,6 +50,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/fares", label: "Fares", icon: icon(<BadgeIndianRupee className="h-4 w-4" />) },
   { to: "/admin/rides", label: "Rides", icon: icon(<CalendarClock className="h-4 w-4" />) },
   { to: "/admin/withdrawals", label: "Payouts", icon: icon(<Wallet className="h-4 w-4" />) },
+  { to: "/admin/referrals", label: "Referrals", icon: icon(<Gift className="h-4 w-4" />) },
   { to: "/admin/notifications", label: "Alerts", icon: icon(<Bell className="h-4 w-4" />) },
   { to: "/admin/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
   { to: "/admin/qr", label: "QR", icon: icon(<QrCode className="h-4 w-4" />) },

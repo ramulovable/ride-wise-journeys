@@ -218,6 +218,31 @@ function FareManagement() {
             </div>
           </div>
         </section>
+
+        <section>
+          <h2 className="mb-2 font-semibold">Fare change history</h2>
+          {history.isSuccess && history.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No fare changes recorded yet.</p>
+          ) : (
+            <ol className="max-h-80 space-y-2 overflow-auto text-xs">
+              {history.data?.map((entry) => (
+                <li key={entry.id} className="rounded-lg border bg-card p-2">
+                  <span className="font-medium">
+                    {entry.table_name === "fare_rules" ? "Fare rule" : "Distance slab"}{" "}
+                    {entry.action === "insert"
+                      ? "added"
+                      : entry.action === "update"
+                        ? "changed"
+                        : "removed"}
+                  </span>
+                  <span className="ml-1 text-muted-foreground">
+                    {formatDateTime(entry.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
     </AdminShell>
   );

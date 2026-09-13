@@ -94,8 +94,8 @@ function Withdrawals() {
     const { error } = await supabase.rpc("admin_update_withdrawal", {
       _id: id,
       _status: status as never,
-      _utr: utr[id]?.trim() || null,
-      _note: null,
+      _utr: utr[id]?.trim() || undefined,
+      _note: undefined,
     });
     setBusy(null);
     if (error) {

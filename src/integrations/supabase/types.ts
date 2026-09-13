@@ -65,6 +65,60 @@ export type Database = {
         }
         Relationships: []
       }
+      app_text_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      fare_rule_history: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          id: string
+          table_name: string
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          table_name: string
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          table_name?: string
+          target_id?: string | null
+        }
+        Relationships: []
+      }
       fare_rules: {
         Row: {
           ac_option: string
@@ -158,6 +212,7 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           name: string
+          pin_code: string | null
           provider_place_id: string | null
           source: string
         }
@@ -170,6 +225,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name: string
+          pin_code?: string | null
           provider_place_id?: string | null
           source?: string
         }
@@ -182,6 +238,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name?: string
+          pin_code?: string | null
           provider_place_id?: string | null
           source?: string
         }
@@ -196,6 +253,7 @@ export type Database = {
           is_blocked: boolean
           mobile: string
           photo_url: string | null
+          referral_code: string | null
           updated_at: string
         }
         Insert: {
@@ -206,6 +264,7 @@ export type Database = {
           is_blocked?: boolean
           mobile: string
           photo_url?: string | null
+          referral_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -216,6 +275,7 @@ export type Database = {
           is_blocked?: boolean
           mobile?: string
           photo_url?: string | null
+          referral_code?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -466,6 +526,7 @@ export type Database = {
           rider_id: string
           seat_capacity: number
           updated_at: string
+          variant_id: string | null
           vehicle_category_id: string
           vehicle_model: string | null
           vehicle_number: string
@@ -483,6 +544,7 @@ export type Database = {
           rider_id: string
           seat_capacity?: number
           updated_at?: string
+          variant_id?: string | null
           vehicle_category_id: string
           vehicle_model?: string | null
           vehicle_number: string
@@ -500,6 +562,7 @@ export type Database = {
           rider_id?: string
           seat_capacity?: number
           updated_at?: string
+          variant_id?: string | null
           vehicle_category_id?: string
           vehicle_model?: string | null
           vehicle_number?: string
@@ -517,6 +580,13 @@ export type Database = {
             columns: ["model_id"]
             isOneToOne: false
             referencedRelation: "vehicle_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_vehicles_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_variants"
             referencedColumns: ["id"]
           },
           {
@@ -796,6 +866,7 @@ export type Database = {
           is_active: boolean
           name: string
           seat_capacity: number
+          segment_id: string | null
           sort_order: number
           vehicle_class: string
         }
@@ -806,6 +877,7 @@ export type Database = {
           is_active?: boolean
           name: string
           seat_capacity?: number
+          segment_id?: string | null
           sort_order?: number
           vehicle_class: string
         }
@@ -816,10 +888,19 @@ export type Database = {
           is_active?: boolean
           name?: string
           seat_capacity?: number
+          segment_id?: string | null
           sort_order?: number
           vehicle_class?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_categories_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_segments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicle_models: {
         Row: {
@@ -862,6 +943,77 @@ export type Database = {
           },
         ]
       }
+      vehicle_segments: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+          vehicle_class: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+          vehicle_class: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          vehicle_class?: string
+        }
+        Relationships: []
+      }
+      vehicle_variants: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          model_id: string
+          name: string
+          seat_capacity: number
+          supports_ac: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_id: string
+          name: string
+          seat_capacity?: number
+          supports_ac?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_id?: string
+          name?: string
+          seat_capacity?: number
+          supports_ac?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_variants_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -896,6 +1048,7 @@ export type Database = {
         | "started"
         | "completed"
         | "cancelled"
+        | "no_rider_available"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1034,6 +1187,7 @@ export const Constants = {
         "started",
         "completed",
         "cancelled",
+        "no_rider_available",
       ],
     },
   },

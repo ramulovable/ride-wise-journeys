@@ -94,6 +94,32 @@ function AuthCard() {
 }
 
 function LoginForm() {
+  const [mode, setMode] = useState<"password" | "otp">("password");
+
+  return (
+    <div className="space-y-3.5">
+      <div className="grid grid-cols-2 gap-2">
+        {(["password", "otp"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setMode(value)}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              mode === value
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            {value === "password" ? "Login with password" : "Login with OTP"}
+          </button>
+        ))}
+      </div>
+      {mode === "password" ? <PasswordLoginForm /> : <OtpLoginForm />}
+    </div>
+  );
+}
+
+function PasswordLoginForm() {
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -140,6 +166,62 @@ function LoginForm() {
       </div>
       <Button type="submit" className="h-10 w-full" disabled={busy}>
         {busy ? "Signing in…" : "Login"}
+      </Button>
+    </form>
+  );
+}
+
+function OtpLoginForm() {
+  const [mobile, setMobile] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
+  if (verifying) {
+    return (
+      <OtpField
+        mobile={mobile}
+        purpose="login"
+        onChangeNumber={() => setVerifying(false)}
+        onVerified={async (result) => {
+          if (!result.tokenHash) throw new Error("We couldn't sign you in. Please try again.");
+          const { error } = await supabase.auth.verifyOtp({
+            type: "magiclink",
+            token_hash: result.tokenHash,
+          });
+          if (error) throw new Error("We couldn't sign you in. Please try again.");
+        }}
+      />
+    );
+  }
+
+  return (
+    <form
+      className="space-y-3.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!isValidMobile(mobile)) {
+          toast.error("Enter a valid 10-digit mobile number starting with 6-9.");
+          return;
+        }
+        setVerifying(true);
+      }}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="otp-mobile">Mobile number</Label>
+        <Input
+          id="otp-mobile"
+          inputMode="numeric"
+          maxLength={10}
+          placeholder="9876543210"
+          value={mobile}
+          onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
+          className="h-10"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        We will send a 6-digit code by SMS to this number.
+      </p>
+      <Button type="submit" className="h-10 w-full">
+        Send code
       </Button>
     </form>
   );

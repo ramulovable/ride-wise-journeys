@@ -96,6 +96,7 @@ function ProfilePage() {
           {busy ? "Saving…" : "Save profile"}
         </Button>
       </section>
+      {role === "rider" ? <RiderVehicleQr /> : null}
       {role === "rider" ? <RiderReviews reviews={reviews.data ?? []} /> : null}
     </div>
   );

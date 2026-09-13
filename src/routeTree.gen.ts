@@ -20,6 +20,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin/catalog'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
 import { Route as AuthenticatedAdminFaresRouteImport } from './routes/_authenticated/admin/fares'
+import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
 import { Route as AuthenticatedAdminRidersRouteImport } from './routes/_authenticated/admin/riders'
 import { Route as AuthenticatedAdminRidesRouteImport } from './routes/_authenticated/admin/rides'
@@ -89,6 +90,12 @@ const AuthenticatedAdminFaresRoute = AuthenticatedAdminFaresRouteImport.update({
   path: '/admin/fares',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminNotificationsRoute =
+  AuthenticatedAdminNotificationsRouteImport.update({
+    id: '/admin/notifications',
+    path: '/admin/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminQrRoute = AuthenticatedAdminQrRouteImport.update({
   id: '/admin/qr',
   path: '/admin/qr',
@@ -167,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
@@ -217,6 +226,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
   '/_authenticated/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/_authenticated/admin/rides': typeof AuthenticatedAdminRidesRoute
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/customers'
     | '/admin/fares'
+    | '/admin/notifications'
     | '/admin/qr'
     | '/admin/riders'
     | '/admin/rides'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/customers'
     | '/admin/fares'
+    | '/admin/notifications'
     | '/admin/qr'
     | '/admin/riders'
     | '/admin/rides'
@@ -292,6 +304,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/fares'
+    | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/qr'
     | '/_authenticated/admin/riders'
     | '/_authenticated/admin/rides'
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminFaresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/notifications': {
+      id: '/_authenticated/admin/notifications'
+      path: '/admin/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/qr': {
       id: '/_authenticated/admin/qr'
       path: '/admin/qr'
@@ -487,6 +507,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminFaresRoute: typeof AuthenticatedAdminFaresRoute
+  AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
   AuthenticatedAdminRidersRoute: typeof AuthenticatedAdminRidersRoute
   AuthenticatedAdminRidesRoute: typeof AuthenticatedAdminRidesRoute
@@ -510,6 +531,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminFaresRoute: AuthenticatedAdminFaresRoute,
+  AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,
   AuthenticatedAdminRidersRoute: AuthenticatedAdminRidersRoute,
   AuthenticatedAdminRidesRoute: AuthenticatedAdminRidesRoute,

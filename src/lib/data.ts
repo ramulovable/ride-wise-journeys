@@ -8,6 +8,7 @@ export type Location = {
   latitude: number | null;
   longitude: number | null;
   source: "preset" | "google";
+  pinCode: string | null;
   isActive: boolean;
   label: string;
 };

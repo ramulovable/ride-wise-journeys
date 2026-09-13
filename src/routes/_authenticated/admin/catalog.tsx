@@ -255,6 +255,7 @@ function Catalog() {
                 <span>
                   {x.name}
                   {x.area ? ` · ${x.area}` : ""}
+                  {x.pinCode ? ` · PIN ${x.pinCode}` : ""}
                 </span>
                 <Button
                   size="sm"

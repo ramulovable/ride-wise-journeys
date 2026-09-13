@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminFaresRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
 import { Route as AuthenticatedAdminRidersRouteImport } from './routes/_authenticated/admin/riders'
 import { Route as AuthenticatedAdminRidesRouteImport } from './routes/_authenticated/admin/rides'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
@@ -90,6 +91,12 @@ const AuthenticatedAdminRidesRoute = AuthenticatedAdminRidesRouteImport.update({
   path: '/admin/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/admin/settings',
+    path: '/admin/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminSupportRoute =
   AuthenticatedAdminSupportRouteImport.update({
     id: '/admin/support',
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
@@ -154,6 +162,7 @@ export interface FileRoutesByTo {
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/admin/rides': typeof AuthenticatedAdminRidesRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
@@ -175,6 +184,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
   '/_authenticated/admin/riders': typeof AuthenticatedAdminRidersRoute
   '/_authenticated/admin/rides': typeof AuthenticatedAdminRidesRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
   '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/admin/qr'
     | '/admin/riders'
     | '/admin/rides'
+    | '/admin/settings'
     | '/admin/support'
     | '/app/rides'
     | '/rider/vehicle'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/admin/qr'
     | '/admin/riders'
     | '/admin/rides'
+    | '/admin/settings'
     | '/admin/support'
     | '/app/rides'
     | '/rider/vehicle'
@@ -235,6 +247,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/qr'
     | '/_authenticated/admin/riders'
     | '/_authenticated/admin/rides'
+    | '/_authenticated/admin/settings'
     | '/_authenticated/admin/support'
     | '/_authenticated/app/rides'
     | '/_authenticated/rider/vehicle'
@@ -336,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRidesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/support': {
       id: '/_authenticated/admin/support'
       path: '/admin/support'
@@ -390,6 +410,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
   AuthenticatedAdminRidersRoute: typeof AuthenticatedAdminRidersRoute
   AuthenticatedAdminRidesRoute: typeof AuthenticatedAdminRidesRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
@@ -408,6 +429,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,
   AuthenticatedAdminRidersRoute: AuthenticatedAdminRidersRoute,
   AuthenticatedAdminRidesRoute: AuthenticatedAdminRidesRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,

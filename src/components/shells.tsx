@@ -40,6 +40,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/rides", label: "Rides", icon: icon(<CalendarClock className="h-4 w-4" />) },
   { to: "/admin/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
   { to: "/admin/qr", label: "QR", icon: icon(<QrCode className="h-4 w-4" />) },
+  { to: "/admin/settings", label: "Settings", icon: icon(<Settings className="h-4 w-4" />) },
 ];
 
 export function CustomerShell({

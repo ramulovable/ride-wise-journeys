@@ -24,6 +24,7 @@ function Catalog() {
   const [modelBrand, setModelBrand] = useState("");
   const [location, setLocation] = useState("");
   const [area, setArea] = useState("");
+  const [pinCode, setPinCode] = useState("");
   const categories = useQuery({
     queryKey: ["categories", "all"],
     queryFn: () => fetchCategories(false),

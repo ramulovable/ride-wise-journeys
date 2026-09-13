@@ -800,7 +800,7 @@ async function eligibleRiderIds(rideId: string): Promise<string[]> {
     .select("requested_category_id, requested_ac, passengers")
     .eq("id", rideId)
     .maybeSingle();
-  if (!ride?.requested_category_id) return 0;
+  if (!ride?.requested_category_id) return [];
 
   const [ridersResult, vehiclesResult, dismissalsResult] = await Promise.all([
     supabaseAdmin

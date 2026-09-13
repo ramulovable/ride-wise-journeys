@@ -190,6 +190,9 @@ function RiderDashboard() {
             {riderDetails?.is_online ? "Go offline" : "Go online"}
           </Button>
         </div>
+        <div className="mt-3">
+          <EnablePushButton />
+        </div>
       </section>
       <h2 className="mb-2 font-semibold">Active requests</h2>
       {rides.isSuccess && active.length === 0 ? (

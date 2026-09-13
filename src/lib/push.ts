@@ -2,18 +2,24 @@ import { initializeApp, getApps } from "firebase/app";
 import { getMessaging, getToken, isSupported } from "firebase/messaging";
 import { supabase } from "@/integrations/supabase/client";
 
-const appId = import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_APP_ID"] as
-  string | undefined;
-const vapidKey = import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_VAPID_KEY"] as
-  string | undefined;
+const appId =
+  (import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_APP_ID"] as string | undefined) ||
+  "1:1094301147309:web:5519ecad0b83d784846624";
+const vapidKey =
+  (import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_VAPID_KEY"] as string | undefined) ||
+  "BI914Ju0HPfsSKRIfnBol4K9nxQdRnxwisdNoSRU071j5Nod-joJQ071NbaaVaaeQwU7mrnUax12QJyt8ct5NWA";
 
 const firebaseConfig = {
-  apiKey: import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY"] as
-    string | undefined,
-  projectId: import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_PROJECT_ID"] as
-    string | undefined,
+  apiKey:
+    (import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY"] as
+      | string
+      | undefined) || "AIzaSyBamK-2kcrdWsYhReWOp1Gybqs8SD1j0cI",
+  projectId:
+    (import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_PROJECT_ID"] as
+      | string
+      | undefined) || "shahin-travels",
   appId,
-  messagingSenderId: appId?.split(":")[1] ?? "",
+  messagingSenderId: appId.split(":")[1] ?? "1094301147309",
 };
 
 export type PushResult =

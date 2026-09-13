@@ -28,13 +28,18 @@ export const Route = createFileRoute("/_authenticated/rider/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    bookingId: typeof search["bookingId"] === "string" ? search["bookingId"] : undefined,
+  }),
   component: RiderDashboard,
 });
 
 function RiderDashboard() {
   useRoleGuard("rider");
+  const { bookingId } = Route.useSearch();
   const { user, riderDetails, refresh } = useAuth();
   const qc = useQueryClient();
+  const vehicleImages = useVehicleImages();
   const locations = useQuery({
     queryKey: ["locations", "all"],
     queryFn: () => fetchLocations(false),

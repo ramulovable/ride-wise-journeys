@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { getRideDriverDetails } from "@/lib/api.functions";
 import { formatDateTime, RIDE_FLOW, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 

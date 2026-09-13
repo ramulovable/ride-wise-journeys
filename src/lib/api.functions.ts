@@ -970,6 +970,7 @@ export const updateRiderRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("That ride action is no longer available.");
+    await notifyCustomerRideUpdate(data.rideId, data.action);
     return { ok: true };
   });
 

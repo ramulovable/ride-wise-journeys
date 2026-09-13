@@ -649,71 +649,192 @@ async function notifyEligibleRiders(
       path,
     };
 
-    await supabaseAdmin.from("notifications").insert(
-      riderIds.map((userId) => ({
+    await deliverPush({
+      userIds: riderIds,
+      rideId,
+      title,
+      body,
+      path,
+      payloadData,
+    });
+  } catch (pushError) {
+    console.error("Ride alert dispatch failed", pushError);
+  }
+}
+
+/**
+ * Records notifications and delivers high-priority background pushes through the
+ * Firebase Cloud Messaging connector gateway. Inactive/unknown tokens are deactivated.
+ */
+async function deliverPush(args: {
+  userIds: string[];
+  rideId: string;
+  title: string;
+  body: string;
+  path: string;
+  payloadData: Record<string, unknown>;
+}) {
+  const { userIds, rideId, title, body, path, payloadData } = args;
+  if (userIds.length === 0) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: inserted } = await supabaseAdmin
+    .from("notifications")
+    .insert(
+      userIds.map((userId) => ({
         user_id: userId,
         ride_id: rideId,
         title,
         body,
         channel: "push",
-        data: payloadData,
+        data: payloadData as never,
         delivered: false,
       })),
-    );
+    )
+    .select("id, user_id");
 
-    const lovableKey = process.env["LOVABLE_API_KEY"];
-    const fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"];
-    if (!lovableKey || !fcmKey) return;
+  const lovableKey = process.env["LOVABLE_API_KEY"];
+  const fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"];
+  if (!lovableKey || !fcmKey) return;
 
-    const { data: devices } = await supabaseAdmin
-      .from("notification_devices")
-      .select("user_id, push_token")
-      .eq("is_active", true)
-      .in("user_id", riderIds);
-    if (!devices?.length) return;
+  const { data: devices } = await supabaseAdmin
+    .from("notification_devices")
+    .select("user_id, push_token")
+    .eq("is_active", true)
+    .in("user_id", userIds);
+  if (!devices?.length) return;
 
-    await Promise.all(
-      devices.map(async (device) => {
-        const response = await fetch(
-          "https://connector-gateway.lovable.dev/firebase_messaging/v1/projects/_/messages:send",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${lovableKey}`,
-              "X-Connection-Api-Key": fcmKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message: {
-                token: device.push_token,
-                notification: { title, body },
-                data: { path, bookingId: rideId },
-              },
-            }),
+  await Promise.all(
+    devices.map(async (device) => {
+      const response = await fetch(
+        "https://connector-gateway.lovable.dev/firebase_messaging/v1/projects/_/messages:send",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableKey}`,
+            "X-Connection-Api-Key": fcmKey,
+            "Content-Type": "application/json",
           },
-        );
-        if (response.ok) {
-          await supabaseAdmin
-            .from("notifications")
-            .update({ delivered: true })
-            .eq("ride_id", rideId)
-            .eq("user_id", device.user_id);
-          return;
+          body: JSON.stringify({
+            message: {
+              token: device.push_token,
+              notification: { title, body },
+              data: { path, bookingId: rideId, title, body },
+              android: {
+                priority: "HIGH",
+                notification: {
+                  sound: "default",
+                  default_vibrate_timings: false,
+                  vibrate_timings: ["0s", "0.5s", "0.3s", "0.5s"],
+                  channel_id: "ride_alerts",
+                  notification_priority: "PRIORITY_MAX",
+                },
+              },
+              apns: {
+                headers: { "apns-priority": "10" },
+                payload: { aps: { sound: "default", "interruption-level": "time-sensitive" } },
+              },
+              webpush: {
+                headers: { Urgency: "high", TTL: "600" },
+                notification: {
+                  title,
+                  body,
+                  icon: "/favicon.png",
+                  badge: "/favicon.png",
+                  vibrate: [0, 500, 300, 500],
+                  requireInteraction: true,
+                  renotify: true,
+                  tag: `ride-${rideId}`,
+                },
+                fcm_options: { link: path },
+              },
+            },
+          }),
+        },
+      );
+      if (response.ok) {
+        const row = inserted?.find((item) => item.user_id === device.user_id);
+        if (row) {
+          await supabaseAdmin.from("notifications").update({ delivered: true }).eq("id", row.id);
         }
-        const errorBody = await response.text();
-        console.error(`Push send failed [${response.status}]: ${errorBody}`);
-        if (response.status === 404 || response.status === 400) {
-          await supabaseAdmin
-            .from("notification_devices")
-            .update({ is_active: false })
-            .eq("push_token", device.push_token);
-        }
-      }),
-    );
-  } catch (pushError) {
-    console.error("Ride alert dispatch failed", pushError);
+        return;
+      }
+      const errorBody = await response.text();
+      console.error(`Push send failed [${response.status}]: ${errorBody}`);
+      if (response.status === 404 || response.status === 400) {
+        await supabaseAdmin
+          .from("notification_devices")
+          .update({ is_active: false })
+          .eq("push_token", device.push_token);
+      }
+    }),
+  );
+}
+
+/** Sends the customer a background alert whenever their ride moves to a new stage. */
+async function notifyCustomerRideUpdate(rideId: string, stage: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ride } = await supabaseAdmin
+      .from("rides")
+      .select("customer_id, rider_id, vehicle_id")
+      .eq("id", rideId)
+      .maybeSingle();
+    if (!ride?.customer_id) return;
+
+    const [{ data: driver }, { data: vehicle }] = await Promise.all([
+      ride.rider_id
+        ? supabaseAdmin.from("profiles").select("full_name").eq("id", ride.rider_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      ride.vehicle_id
+        ? supabaseAdmin
+            .from("rider_vehicles")
+            .select("vehicle_number, vehicle_model")
+            .eq("id", ride.vehicle_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    const driverName = driver?.full_name ?? "Your driver";
+    const vehicleLabel = [vehicle?.vehicle_model, vehicle?.vehicle_number]
+      .filter(Boolean)
+      .join(" · ");
+    const copy: Record<string, { title: string; body: string }> = {
+      accepted: {
+        title: "Ride Accepted! 🚗",
+        body: `Driver ${driverName} has accepted your ride.${
+          vehicleLabel ? ` Vehicle: ${vehicleLabel}.` : ""
+        }`,
+      },
+      on_the_way: {
+        title: "Driver on the way 🛣️",
+        body: `${driverName} is heading to your pickup point.`,
+      },
+      arrived: {
+        title: "Driver has arrived 📍",
+        body: `${driverName} is waiting at your pickup point.`,
+      },
+      started: { title: "Ride started 🚀", body: "Your trip has begun. Have a safe journey!" },
+      completed: {
+        title: "Ride completed ✅",
+        body: "Cash payment received. Thanks for riding with Shahin Travels!",
+      },
+    };
+    const message = copy[stage];
+    if (!message) return;
+    const path = `/app/ride/${rideId}`;
+    await deliverPush({
+      userIds: [ride.customer_id],
+      rideId,
+      title: message.title,
+      body: message.body,
+      path,
+      payloadData: { bookingId: rideId, stage, driverName, vehicle: vehicleLabel, path },
+    });
+  } catch (error) {
+    console.error("Customer ride alert failed", error);
   }
 }
+
 
 /** A rider accepts a pending ride. Blocked unless approved with an active subscription and online. */
 export const acceptRide = createServerFn({ method: "POST" })
@@ -746,6 +867,7 @@ export const acceptRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("Booking is no longer available");
+    await notifyCustomerRideUpdate(data.rideId, "accepted");
     return { ok: true };
   });
 
@@ -849,6 +971,7 @@ export const updateRiderRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("That ride action is no longer available.");
+    await notifyCustomerRideUpdate(data.rideId, data.action);
     return { ok: true };
   });
 

@@ -203,9 +203,22 @@ function RiderDashboard() {
       ) : (
         <div className="space-y-3">
           {active.map((ride) => (
-            <article key={ride.id} className="rounded-2xl border bg-card p-4">
+            <article
+              key={ride.id}
+              className={`rounded-2xl border bg-card p-4 ${
+                ride.id === bookingId ? "border-primary ring-2 ring-primary/40" : ""
+              }`}
+            >
               <div className="flex justify-between gap-3">
-                <div>
+                <img
+                  src={resolveVehicleImage(vehicleImages.data, {
+                    categoryId: ride.requested_category_id,
+                  })}
+                  alt=""
+                  className="h-12 w-16 shrink-0 rounded-lg object-cover"
+                  loading="lazy"
+                />
+                <div className="flex-1">
                   <p className="font-semibold">
                     {place(ride.from_location_id)} → {place(ride.to_location_id)}
                   </p>

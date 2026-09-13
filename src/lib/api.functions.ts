@@ -995,7 +995,9 @@ export const getRideDriverDetails = createServerFn({ method: "GET" })
       ride.vehicle_id
         ? supabaseAdmin
             .from("rider_vehicles")
-            .select("vehicle_number, vehicle_model, has_ac, seat_capacity, vehicle_category_id, brand_id, model_id")
+            .select(
+              "vehicle_number, vehicle_model, has_ac, seat_capacity, vehicle_category_id, brand_id, model_id",
+            )
             .eq("id", ride.vehicle_id)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -1010,10 +1012,18 @@ export const getRideDriverDetails = createServerFn({ method: "GET" })
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       vehicle?.brand_id
-        ? supabaseAdmin.from("vehicle_brands").select("name").eq("id", vehicle.brand_id).maybeSingle()
+        ? supabaseAdmin
+            .from("vehicle_brands")
+            .select("name")
+            .eq("id", vehicle.brand_id)
+            .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       vehicle?.model_id
-        ? supabaseAdmin.from("vehicle_models").select("name").eq("id", vehicle.model_id).maybeSingle()
+        ? supabaseAdmin
+            .from("vehicle_models")
+            .select("name")
+            .eq("id", vehicle.model_id)
+            .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ]);
 

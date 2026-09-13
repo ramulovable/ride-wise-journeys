@@ -152,8 +152,9 @@ function signupThrottled() {
   const now = Date.now();
   let attempts: number[] = [];
   try {
-    attempts = (JSON.parse(window.localStorage.getItem(SIGNUP_ATTEMPT_KEY) ?? "[]") as number[])
-      .filter((time) => typeof time === "number" && now - time < SIGNUP_WINDOW_MS);
+    attempts = (
+      JSON.parse(window.localStorage.getItem(SIGNUP_ATTEMPT_KEY) ?? "[]") as number[]
+    ).filter((time) => typeof time === "number" && now - time < SIGNUP_WINDOW_MS);
   } catch {
     attempts = [];
   }

@@ -104,12 +104,7 @@ function SettingsPage() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="email">Support email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <Button className="w-full" onClick={() => void save()} disabled={busy}>
           {busy ? "Saving…" : "Save settings"}

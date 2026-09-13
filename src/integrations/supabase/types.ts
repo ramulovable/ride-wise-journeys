@@ -314,6 +314,45 @@ export type Database = {
         }
         Relationships: []
       }
+      mobile_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          mobile: string
+          purpose: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          mobile: string
+          purpose: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mobile?: string
+          purpose?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_devices: {
         Row: {
           created_at: string

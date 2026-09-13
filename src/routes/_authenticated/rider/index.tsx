@@ -12,7 +12,22 @@ import { fetchLocations } from "@/lib/data";
 import { formatDateTime, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
-export const Route = createFileRoute("/_authenticated/rider/")({ component: RiderDashboard });
+export const Route = createFileRoute("/_authenticated/rider/")({
+  head: () => ({
+    meta: [
+      { title: "Driver dashboard — Shahin Travels" },
+      { name: "description", content: "Manage Shahin Travels ride requests and trips." },
+      { property: "og:title", content: "Driver dashboard — Shahin Travels" },
+      {
+        property: "og:description",
+        content: "Manage Shahin Travels ride requests and trips.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: RiderDashboard,
+});
 
 function RiderDashboard() {
   useRoleGuard("rider");
@@ -136,6 +151,13 @@ function RiderDashboard() {
         started: "completed",
       }) as const
     )[status as "requested"];
+  const nextActionLabel = (status: string) => {
+    const next = nextAction(status);
+    if (!next) return "";
+    if (status === "requested" || status === "searching") return "Accept";
+    if (status === "started") return "Complete · Cash received";
+    return `Mark ${RIDE_STATUS_LABEL[next]}`;
+  };
 
   return (
     <RiderShell
@@ -191,15 +213,12 @@ function RiderDashboard() {
                   <Button
                     className={ride.rider_id === null ? "flex-1" : undefined}
                     disabled={action.isPending}
-                    onClick={() =>
-                      action.mutate({ rideId: ride.id, next: nextAction(ride.status)! })
-                    }
+                    onClick={() => {
+                      const next = nextAction(ride.status);
+                      if (next) action.mutate({ rideId: ride.id, next });
+                    }}
                   >
-                    {ride.status === "requested" || ride.status === "searching"
-                      ? "Accept"
-                      : ride.status === "started"
-                        ? "Complete · Cash received"
-                        : `Mark ${RIDE_STATUS_LABEL[nextAction(ride.status)!]}`}
+                    {nextActionLabel(ride.status)}
                   </Button>
                 ) : null}
                 {ride.rider_id === null && ["requested", "searching"].includes(ride.status) ? (

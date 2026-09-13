@@ -18,6 +18,8 @@ export const Route = createFileRoute("/_authenticated/profile")({
       { name: "description", content: "Update your Shahin Travels profile details." },
       { property: "og:title", content: "My profile — Shahin Travels" },
       { property: "og:description", content: "Update your Shahin Travels profile details." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ProfilePage,

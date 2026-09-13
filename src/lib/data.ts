@@ -25,7 +25,7 @@ export type VehicleCategory = {
 export async function fetchLocations(activeOnly = true): Promise<Location[]> {
   let q = supabase
     .from("locations")
-    .select("id, name, area, formatted_address, latitude, longitude, source, is_active")
+    .select("id, name, area, formatted_address, latitude, longitude, source, pin_code, is_active")
     .order("name");
   if (activeOnly) q = q.eq("is_active", true);
   const { data, error } = await q;

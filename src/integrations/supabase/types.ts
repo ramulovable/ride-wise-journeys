@@ -465,6 +465,33 @@ export type Database = {
           },
         ]
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       referral_transactions: {
         Row: {
           amount: number
@@ -501,31 +528,51 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          eligible_at: string | null
           id: string
-          referred_id: string
-          referrer_id: string
+          referral_code_id: string | null
+          referred_user_id: string
+          referrer_user_id: string
+          reward_amount: number
           rewarded_at: string | null
           status: string
+          updated_at: string
         }
         Insert: {
           code: string
           created_at?: string
+          eligible_at?: string | null
           id?: string
-          referred_id: string
-          referrer_id: string
+          referral_code_id?: string | null
+          referred_user_id: string
+          referrer_user_id: string
+          reward_amount?: number
           rewarded_at?: string | null
           status?: string
+          updated_at?: string
         }
         Update: {
           code?: string
           created_at?: string
+          eligible_at?: string | null
           id?: string
-          referred_id?: string
-          referrer_id?: string
+          referral_code_id?: string | null
+          referred_user_id?: string
+          referrer_user_id?: string
+          reward_amount?: number
           rewarded_at?: string | null
           status?: string
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referral_code_id_fkey"
+            columns: ["referral_code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ride_dismissals: {
         Row: {
@@ -1407,6 +1454,7 @@ export type Database = {
         Args: { _action: string; _ride_id: string }
         Returns: boolean
       }
+      ensure_referral_code: { Args: { _user_id?: string }; Returns: string }
       ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
       generate_referral_code: { Args: never; Returns: string }
       has_role: {

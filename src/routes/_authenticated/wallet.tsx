@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AdminShell, CustomerShell, RiderShell } from "@/components/shells";
+import { ReferralCard } from "@/components/ReferralCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime, rupees } from "@/lib/format";
+import { REFERRAL_STATUS_LABEL, fetchMyReferrals } from "@/lib/referrals";
 import { useAppSettings } from "@/lib/settings";
 import {
   WALLET_TXN_LABEL,
@@ -25,12 +27,12 @@ export const Route = createFileRoute("/_authenticated/wallet")({
       { title: "My wallet — Shahin Travels" },
       {
         name: "description",
-        content: "See your Shahin Travels balance, earnings and withdrawal history.",
+        content: "See your Shahin Travels balance, referral rewards and withdrawal history.",
       },
       { property: "og:title", content: "My wallet — Shahin Travels" },
       {
         property: "og:description",
-        content: "See your Shahin Travels balance, earnings and withdrawal history.",
+        content: "See your Shahin Travels balance, referral rewards and withdrawal history.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -57,15 +59,31 @@ function WalletPage() {
     enabled: Boolean(user),
     queryFn: () => fetchWithdrawals(user!.id),
   });
+  const referrals = useQuery({
+    queryKey: ["my-referrals", user?.id],
+    enabled: Boolean(user),
+    queryFn: () => fetchMyReferrals(user!.id),
+  });
 
   const totals = walletTotals(txns.data ?? [], withdrawals.data ?? []);
   const min = settings.data?.withdrawalMin ?? 100;
   const max = settings.data?.withdrawalMax ?? 10000;
 
+  const referralEarnings = (txns.data ?? [])
+    .filter((txn) => txn.type === "REFERRAL_REWARD")
+    .reduce((total, txn) => total + txn.amount, 0);
+  const successfulReferrals = (referrals.data ?? []).filter(
+    (row) => row.status === "rewarded",
+  ).length;
+
   async function withdraw() {
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) {
       toast.error("Enter the amount you want to withdraw.");
+      return;
+    }
+    if (value > totals.balance) {
+      toast.error("You do not have that much balance available.");
       return;
     }
     setBusy(true);
@@ -97,6 +115,46 @@ function WalletPage() {
         </div>
       </section>
 
+      <ReferralCard />
+
+      <section className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Referral earnings</p>
+          <p className="text-2xl font-bold">{rupees(referralEarnings)}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Successful referrals</p>
+          <p className="text-2xl font-bold">{successfulReferrals}</p>
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+        <h2 className="font-semibold">Referral history</h2>
+        {referrals.data?.length ? (
+          <div className="divide-y divide-border">
+            {referrals.data.map((row) => (
+              <article key={row.id} className="flex items-center justify-between gap-3 py-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    {REFERRAL_STATUS_LABEL[row.status] ?? row.status}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Joined {formatDateTime(row.created_at)}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold">
+                  {row.status === "rewarded" ? rupees(row.reward_amount) : "—"}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No one has joined with your code yet. Share it to start earning.
+          </p>
+        )}
+      </section>
+
       <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
         <div>
           <h2 className="font-semibold">Withdraw to UPI</h2>
@@ -123,7 +181,7 @@ function WalletPage() {
           />
         </div>
         <Button className="w-full" disabled={busy} onClick={() => void withdraw()}>
-          {busy ? "Requesting…" : "Request withdrawal"}
+          {busy ? "Requesting…" : "Withdraw"}
         </Button>
       </section>
 

@@ -44,6 +44,12 @@ function SettingsPage() {
   const [qrUrl, setQrUrl] = useState("");
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
+  const [referralEnabled, setReferralEnabled] = useState(true);
+  const [referralMax, setReferralMax] = useState("");
+  const [referralCondition, setReferralCondition] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [copyToast, setCopyToast] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -57,6 +63,12 @@ function SettingsPage() {
     setQrUrl(settings.data.qrBaseUrl);
     setPushTitle(settings.data.pushTitle);
     setPushBody(settings.data.pushBody);
+    setReferralEnabled(settings.data.referralEnabled);
+    setReferralMax(String(settings.data.referralMaxPerUser));
+    setReferralCondition(settings.data.referralCondition);
+    setInviteUrl(settings.data.referralInviteUrl);
+    setInviteMessage(settings.data.referralInviteMessage);
+    setCopyToast(settings.data.referralCopyToast);
   }, [settings.data]);
 
   async function save() {
@@ -65,6 +77,8 @@ function SettingsPage() {
       ["referral_reward_amount", Number(reward), "referral reward"],
       ["withdrawal_min_amount", Number(minAmount), "minimum withdrawal"],
       ["withdrawal_max_amount", Number(maxAmount), "maximum withdrawal"],
+      ["referral_program_enabled", referralEnabled ? 1 : 0, "referral switch"],
+      ["referral_max_per_user", Number(referralMax), "referral limit"],
     ];
     for (const [, value, label] of numbers) {
       if (!Number.isFinite(value) || value < 0) {
@@ -92,6 +106,18 @@ function SettingsPage() {
       toast.error("Notification title and message cannot be empty.");
       return;
     }
+    if (!/^https?:\/\/\S+$/.test(inviteUrl.trim())) {
+      toast.error("Enter a valid invite link starting with https://");
+      return;
+    }
+    if (!inviteMessage.includes("{code}")) {
+      toast.error("The invite message must include {code}.");
+      return;
+    }
+    if (!copyToast.trim() || !referralCondition.trim()) {
+      toast.error("Referral condition and copy message cannot be empty.");
+      return;
+    }
 
     setBusy(true);
     const texts: Array<[string, string]> = [
@@ -100,6 +126,10 @@ function SettingsPage() {
       ["qr_base_url", qrUrl.trim().replace(/\/$/, "")],
       ["push_title_template", pushTitle.trim()],
       ["push_body_template", pushBody.trim()],
+      ["referral_reward_condition", referralCondition.trim()],
+      ["referral_invite_url", inviteUrl.trim().replace(/\/$/, "")],
+      ["referral_invite_message", inviteMessage.trim()],
+      ["referral_copy_toast", copyToast.trim()],
     ];
     const results = await Promise.all([
       ...numbers.map(([key, value]) =>
@@ -186,6 +216,58 @@ function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             You can use {"{pickup}"}, {"{drop}"}, {"{distance}"} and {"{fare}"}.
           </p>
+        </div>
+        <div className="space-y-3 rounded-2xl border border-border p-3">
+          <p className="font-semibold">Referral &amp; rewards</p>
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span>Referral programme active</span>
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={referralEnabled}
+              onChange={(e) => setReferralEnabled(e.target.checked)}
+            />
+          </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="refmax">Rewarded referrals per user (0 = unlimited)</Label>
+            <Input
+              id="refmax"
+              type="number"
+              value={referralMax}
+              onChange={(e) => setReferralMax(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="refcond">Reward condition</Label>
+            <Input
+              id="refcond"
+              value={referralCondition}
+              onChange={(e) => setReferralCondition(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Currently supported: first_ride (credited after the invited person&apos;s first
+              completed ride).
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="refurl">Invite link</Label>
+            <Input id="refurl" value={inviteUrl} onChange={(e) => setInviteUrl(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="refmsg">Invite message</Label>
+            <Input
+              id="refmsg"
+              value={inviteMessage}
+              onChange={(e) => setInviteMessage(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              You can use {"{code}"}, {"{reward}"} and {"{link}"}.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reftoast">Copy confirmation message</Label>
+            <Input id="reftoast" value={copyToast} onChange={(e) => setCopyToast(e.target.value)} />
+          </div>
         </div>
         <Button className="w-full" onClick={() => void save()} disabled={busy}>
           {busy ? "Saving…" : "Save settings"}

@@ -235,6 +235,16 @@ function SignupForm() {
       if (upload.error) toast.error("Account created, but the photo could not be uploaded.");
       else await supabase.from("profiles").update({ photo_url: path }).eq("id", userId);
     }
+    const enteredCode = referral.trim().toUpperCase();
+    if (enteredCode && signUpData.session && userId) {
+      const { count } = await supabase
+        .from("referrals")
+        .select("id", { count: "exact", head: true })
+        .eq("referred_user_id", userId);
+      if (!count) {
+        toast.error("That referral code could not be applied, but your account was created.");
+      }
+    }
     setBusy(false);
     toast.success(
       role === "rider"

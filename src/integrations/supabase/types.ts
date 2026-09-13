@@ -427,6 +427,45 @@ export type Database = {
         }
         Relationships: []
       }
+      promotional_banners: {
+        Row: {
+          action_url: string | null
+          badge_text: string | null
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          subtitle: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_url?: string | null
+          badge_text?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          subtitle?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_url?: string | null
+          badge_text?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          subtitle?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ratings: {
         Row: {
           comment: string | null

@@ -143,11 +143,35 @@ function LoginForm() {
   );
 }
 
+const SIGNUP_ATTEMPT_KEY = "shahin-signup-attempts";
+const SIGNUP_WINDOW_MS = 10 * 60_000;
+const SIGNUP_MAX_ATTEMPTS = 5;
+
+function signupThrottled() {
+  if (typeof window === "undefined") return false;
+  const now = Date.now();
+  let attempts: number[] = [];
+  try {
+    attempts = (
+      JSON.parse(window.localStorage.getItem(SIGNUP_ATTEMPT_KEY) ?? "[]") as number[]
+    ).filter((time) => typeof time === "number" && now - time < SIGNUP_WINDOW_MS);
+  } catch {
+    attempts = [];
+  }
+  if (attempts.length >= SIGNUP_MAX_ATTEMPTS) return true;
+  attempts.push(now);
+  window.localStorage.setItem(SIGNUP_ATTEMPT_KEY, JSON.stringify(attempts));
+  return false;
+}
+
 function SignupForm() {
   const [role, setRole] = useState<"customer" | "rider">("customer");
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
+  const [address, setAddress] = useState("");
+  const [referral, setReferral] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -164,15 +188,35 @@ function SignupForm() {
       toast.error("Password must be at least 6 characters.");
       return;
     }
+    if (address.trim().length > 200) {
+      toast.error("Address must be under 200 characters.");
+      return;
+    }
+    if (photo && photo.size > 5 * 1024 * 1024) {
+      toast.error("Profile photo must be smaller than 5 MB.");
+      return;
+    }
+    if (signupThrottled()) {
+      toast.error("Too many attempts. Please wait a few minutes and try again.");
+      return;
+    }
 
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: mobileToEmail(mobile),
       password,
-      options: { data: { mobile, full_name: fullName.trim(), role } },
+      options: {
+        data: {
+          mobile,
+          full_name: fullName.trim(),
+          role,
+          address: address.trim(),
+          referral_code: referral.trim().toUpperCase(),
+        },
+      },
     });
-    setBusy(false);
     if (error) {
+      setBusy(false);
       toast.error(
         error.message.includes("already")
           ? "This mobile number is already registered."
@@ -180,9 +224,21 @@ function SignupForm() {
       );
       return;
     }
+
+    const userId = signUpData.user?.id;
+    if (photo && signUpData.session && userId) {
+      const extension = photo.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${userId}/profile.${extension}`;
+      const upload = await supabase.storage
+        .from("profile-photos")
+        .upload(path, photo, { upsert: true, contentType: photo.type });
+      if (upload.error) toast.error("Account created, but the photo could not be uploaded.");
+      else await supabase.from("profiles").update({ photo_url: path }).eq("id", userId);
+    }
+    setBusy(false);
     toast.success(
       role === "rider"
-        ? "Account created. Complete your vehicle details next."
+        ? "Account created. An administrator will review and approve your driver account."
         : "Account created.",
     );
   }
@@ -233,6 +289,35 @@ function SignupForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="At least 6 characters"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="su-address">Address</Label>
+        <Input
+          id="su-address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="House, area, city"
+          maxLength={200}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="su-referral">Referral code (optional)</Label>
+        <Input
+          id="su-referral"
+          value={referral}
+          onChange={(e) => setReferral(e.target.value.toUpperCase())}
+          placeholder="SHAHIN123"
+          maxLength={20}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="su-photo">Profile photo (optional)</Label>
+        <Input
+          id="su-photo"
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
         />
       </div>
       <Button type="submit" className="w-full" disabled={busy}>

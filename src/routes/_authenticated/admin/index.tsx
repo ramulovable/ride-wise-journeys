@@ -57,26 +57,32 @@ function AdminDashboard() {
       };
     },
   });
+  const ready = stats.isSuccess;
   const cards = [
-    { label: "Customers", value: stats.data?.customers ?? "—", to: "/admin/customers" },
-    { label: "Drivers", value: stats.data?.riders ?? "—", to: "/admin/riders" },
-    { label: "Pending approvals", value: stats.data?.pending ?? "—", to: "/admin/riders" },
-    { label: "Drivers online", value: stats.data?.active ?? "—", to: "/admin/riders" },
-    { label: "Total bookings", value: stats.data?.rides ?? "—", to: "/admin/rides" },
-    { label: "Open support", value: stats.data?.support ?? "—", to: "/admin/support" },
+    { label: "Customers", value: ready ? stats.data.customers : "—", to: "/admin/customers" },
+    { label: "Drivers", value: ready ? stats.data.riders : "—", to: "/admin/riders" },
+    { label: "Pending approvals", value: ready ? stats.data.pending : "—", to: "/admin/riders" },
+    { label: "Drivers online", value: ready ? stats.data.active : "—", to: "/admin/riders" },
+    { label: "Total bookings", value: ready ? stats.data.rides : "—", to: "/admin/rides" },
+    { label: "Open support", value: ready ? stats.data.support : "—", to: "/admin/support" },
     {
       label: "Completed cash fares",
-      value: stats.data ? rupees(stats.data.revenue) : "—",
+      value: ready ? rupees(stats.data.revenue) : "—",
       to: "/admin/rides",
     },
+    { label: "Fares & settings", value: "⚙", to: "/admin/fares" },
   ];
   return (
     <AdminShell title="Operations dashboard" subtitle="Live business counters from Shahin Travels.">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {cards.map((c) => (
-          <Link key={c.label} to={c.to} className="rounded-2xl border bg-card p-4">
-            <p className="text-xs text-muted-foreground">{c.label}</p>
-            <p className="mt-2 text-2xl font-bold text-primary">{c.value}</p>
+          <Link
+            key={c.label}
+            to={c.to}
+            className="flex aspect-square min-h-[7rem] flex-col items-center justify-center gap-2 rounded-2xl border bg-card p-3 text-center shadow-sm transition active:scale-[0.98]"
+          >
+            <p className="text-2xl font-bold leading-none text-primary sm:text-3xl">{c.value}</p>
+            <p className="text-xs font-medium text-muted-foreground">{c.label}</p>
           </Link>
         ))}
       </div>

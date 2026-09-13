@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
-
-const WHATSAPP_SUPPORT_URL = "https://wa.me/919334039007";
+import { DEFAULT_SUPPORT_PHONE, useAppSettings, whatsappLink } from "@/lib/settings";
 
 export function WhatsAppSupportButton() {
+  const settings = useAppSettings();
+  const supportUrl = whatsappLink(settings.data?.supportPhone ?? DEFAULT_SUPPORT_PHONE);
   return (
     <Button
       asChild
@@ -10,7 +11,7 @@ export function WhatsAppSupportButton() {
       className="fixed bottom-20 right-4 z-40 size-12 rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg hover:bg-whatsapp/90 focus-visible:ring-whatsapp sm:right-6"
     >
       <a
-        href={WHATSAPP_SUPPORT_URL}
+        href={supportUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Contact Shahin Travels support on WhatsApp"

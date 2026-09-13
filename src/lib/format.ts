@@ -10,6 +10,7 @@ export const RIDE_STATUS_LABEL: Record<string, string> = {
   started: "Trip started",
   completed: "Completed",
   cancelled: "Cancelled",
+  no_rider_available: "No driver available",
 };
 
 export const RIDE_FLOW = ["accepted", "on_the_way", "arrived", "started", "completed"] as const;

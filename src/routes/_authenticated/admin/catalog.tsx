@@ -24,6 +24,7 @@ function Catalog() {
   const [modelBrand, setModelBrand] = useState("");
   const [location, setLocation] = useState("");
   const [area, setArea] = useState("");
+  const [pinCode, setPinCode] = useState("");
   const categories = useQuery({
     queryKey: ["categories", "all"],
     queryFn: () => fetchCategories(false),
@@ -73,13 +74,16 @@ function Catalog() {
     }
   }
   async function addLocation() {
-    const { error } = await supabase
-      .from("locations")
-      .insert({ name: location.trim(), area: area.trim() || null });
+    const { error } = await supabase.from("locations").insert({
+      name: location.trim(),
+      area: area.trim() || null,
+      pin_code: pinCode.trim() || null,
+    });
     if (error) toast.error(error.message);
     else {
       setLocation("");
       setArea("");
+      setPinCode("");
       void qc.invalidateQueries({ queryKey: ["locations"] });
     }
   }
@@ -229,10 +233,14 @@ function Catalog() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
+            <Input placeholder="Area" value={area} onChange={(e) => setArea(e.target.value)} />
             <Input
-              placeholder="Area / PIN"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
+              className="w-24"
+              placeholder="PIN"
+              inputMode="numeric"
+              maxLength={6}
+              value={pinCode}
+              onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ""))}
             />
             <Button onClick={addLocation}>Add</Button>
           </div>
@@ -245,6 +253,7 @@ function Catalog() {
                 <span>
                   {x.name}
                   {x.area ? ` · ${x.area}` : ""}
+                  {x.pinCode ? ` · PIN ${x.pinCode}` : ""}
                 </span>
                 <Button
                   size="sm"

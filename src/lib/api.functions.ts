@@ -649,8 +649,57 @@ export const dismissRide = createServerFn({ method: "POST" })
         { onConflict: "rider_id,ride_id", ignoreDuplicates: true },
       );
     if (error) throw new Error(error.message);
-    return { ok: true };
+
+    const remaining = await countEligibleRiders(data.rideId);
+    if (remaining === 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin
+        .from("rides")
+        .update({ status: "no_rider_available" })
+        .eq("id", data.rideId)
+        .is("rider_id", null)
+        .in("status", ["requested", "searching"]);
+      return { ok: true, redispatched: false };
+    }
+    return { ok: true, redispatched: true };
   });
+
+/** Counts online, eligible drivers with a matching vehicle who have not declined this booking. */
+async function countEligibleRiders(rideId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: ride } = await supabaseAdmin
+    .from("rides")
+    .select("requested_category_id, requested_ac, passengers")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (!ride?.requested_category_id) return 0;
+
+  const [ridersResult, vehiclesResult, dismissalsResult] = await Promise.all([
+    supabaseAdmin
+      .from("rider_details")
+      .select("user_id")
+      .eq("is_approved", true)
+      .eq("is_blocked", false)
+      .eq("is_online", true)
+      .gte("subscription_valid_until", today),
+    supabaseAdmin
+      .from("rider_vehicles")
+      .select("rider_id, has_ac, seat_capacity")
+      .eq("is_active", true)
+      .eq("vehicle_category_id", ride.requested_category_id),
+    supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
+  ]);
+  const eligible = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
+  const declined = new Set((dismissalsResult.data ?? []).map((row) => row.rider_id));
+  return (vehiclesResult.data ?? []).filter(
+    (vehicle) =>
+      eligible.has(vehicle.rider_id) &&
+      !declined.has(vehicle.rider_id) &&
+      (ride.requested_ac == null || vehicle.has_ac === ride.requested_ac) &&
+      ride.passengers <= vehicle.seat_capacity,
+  ).length;
+}
 
 const rideActionInput = z.object({
   rideId: z.string().uuid(),
@@ -920,4 +969,88 @@ export const deleteRiderAccount = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.riderId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Driver, vehicle and contact details for a booking, visible to that booking's customer only. */
+export const getRideDriverDetails = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ rideId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: ride, error } = await context.supabase
+      .from("rides")
+      .select("id, customer_id, rider_id, vehicle_id")
+      .eq("id", data.rideId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!ride || ride.customer_id !== context.userId) throw new Error("Booking not found.");
+    if (!ride.rider_id) return null;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [profileResult, vehicleResult] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("full_name, mobile, photo_url")
+        .eq("id", ride.rider_id)
+        .maybeSingle(),
+      ride.vehicle_id
+        ? supabaseAdmin
+            .from("rider_vehicles")
+            .select(
+              "vehicle_number, vehicle_model, has_ac, seat_capacity, vehicle_category_id, brand_id, model_id",
+            )
+            .eq("id", ride.vehicle_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+    const vehicle = vehicleResult.data;
+    const [categoryResult, brandResult, modelResult] = await Promise.all([
+      vehicle?.vehicle_category_id
+        ? supabaseAdmin
+            .from("vehicle_categories")
+            .select("name")
+            .eq("id", vehicle.vehicle_category_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      vehicle?.brand_id
+        ? supabaseAdmin
+            .from("vehicle_brands")
+            .select("name")
+            .eq("id", vehicle.brand_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      vehicle?.model_id
+        ? supabaseAdmin
+            .from("vehicle_models")
+            .select("name")
+            .eq("id", vehicle.model_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    let photoUrl: string | null = null;
+    const photoPath = profileResult.data?.photo_url;
+    if (photoPath && !photoPath.startsWith("http")) {
+      const signed = await supabaseAdmin.storage
+        .from("profile-photos")
+        .createSignedUrl(photoPath, 60 * 60);
+      photoUrl = signed.data?.signedUrl ?? null;
+    } else if (photoPath) {
+      photoUrl = photoPath;
+    }
+
+    return {
+      name: profileResult.data?.full_name || "Shahin driver",
+      mobile: profileResult.data?.mobile ?? null,
+      photoUrl,
+      vehicle: vehicle
+        ? {
+            number: vehicle.vehicle_number,
+            type: categoryResult.data?.name ?? "Vehicle",
+            brand: brandResult.data?.name ?? null,
+            model: modelResult.data?.name ?? vehicle.vehicle_model,
+            hasAc: vehicle.has_ac,
+            seatCapacity: vehicle.seat_capacity,
+          }
+        : null,
+    };
   });

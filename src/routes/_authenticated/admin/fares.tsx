@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateTime } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/fares")({
@@ -37,6 +38,18 @@ function FareManagement() {
     queryKey: ["fare-rules"],
     queryFn: async () => {
       const { data, error } = await supabase.from("fare_rules").select("*").order("vehicle_class");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const history = useQuery({
+    queryKey: ["fare-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fare_rule_history")
+        .select("id, table_name, action, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
       if (error) throw error;
       return data ?? [];
     },
@@ -217,6 +230,31 @@ function FareManagement() {
               <Button onClick={() => void addSlab()}>Add</Button>
             </div>
           </div>
+        </section>
+
+        <section>
+          <h2 className="mb-2 font-semibold">Fare change history</h2>
+          {history.isSuccess && history.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No fare changes recorded yet.</p>
+          ) : (
+            <ol className="max-h-80 space-y-2 overflow-auto text-xs">
+              {history.data?.map((entry) => (
+                <li key={entry.id} className="rounded-lg border bg-card p-2">
+                  <span className="font-medium">
+                    {entry.table_name === "fare_rules" ? "Fare rule" : "Distance slab"}{" "}
+                    {entry.action === "insert"
+                      ? "added"
+                      : entry.action === "update"
+                        ? "changed"
+                        : "removed"}
+                  </span>
+                  <span className="ml-1 text-muted-foreground">
+                    {formatDateTime(entry.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </section>
       </div>
     </AdminShell>

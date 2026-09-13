@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { getRideDriverDetails } from "@/lib/api.functions";
 import { formatDateTime, RIDE_FLOW, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
@@ -53,16 +54,9 @@ function RideDetail() {
   });
 
   const driver = useQuery({
-    queryKey: ["driver", ride.data?.rider_id],
+    queryKey: ["driver-details", rideId, ride.data?.rider_id],
     enabled: Boolean(ride.data?.rider_id),
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, mobile")
-        .eq("id", ride.data!.rider_id!)
-        .maybeSingle();
-      return data;
-    },
+    queryFn: () => getRideDriverDetails({ data: { rideId } }),
   });
 
   const rating = useQuery({
@@ -184,18 +178,68 @@ function RideDetail() {
             </section>
           ) : null}
 
+          {r.status === "no_rider_available" ? (
+            <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+              No driver is available for this booking right now. Please try booking again.
+            </p>
+          ) : null}
+
           {r.rider_id && driver.data ? (
-            <section className="flex items-center justify-between rounded-2xl border border-border bg-card p-4">
-              <div>
-                <p className="text-sm font-semibold text-foreground">{driver.data.full_name}</p>
-                <p className="text-xs text-muted-foreground">Your driver</p>
+            <section className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center gap-3">
+                {driver.data.photoUrl ? (
+                  <img
+                    src={driver.data.photoUrl}
+                    alt={`${driver.data.name}, your driver`}
+                    className="size-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex size-12 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+                    {driver.data.name.slice(0, 1)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {driver.data.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Your driver</p>
+                </div>
+                {driver.data.mobile ? (
+                  <Button asChild size="sm">
+                    <a href={`tel:${driver.data.mobile}`}>
+                      <Phone className="mr-1.5 h-4 w-4" /> Call driver
+                    </a>
+                  </Button>
+                ) : null}
               </div>
-              <a
-                href={`tel:${driver.data.mobile}`}
-                className="inline-flex items-center gap-2 text-sm text-primary"
-              >
-                <Phone className="h-4 w-4" /> Call
-              </a>
+              {driver.data.vehicle ? (
+                <dl className="mt-3 grid grid-cols-2 gap-2 border-t pt-3 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">Vehicle</dt>
+                    <dd className="font-medium">
+                      {[
+                        driver.data.vehicle.type,
+                        driver.data.vehicle.brand,
+                        driver.data.vehicle.model,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Registration</dt>
+                    <dd className="font-medium">{driver.data.vehicle.number}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Seats</dt>
+                    <dd className="font-medium">{driver.data.vehicle.seatCapacity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Air conditioning</dt>
+                    <dd className="font-medium">{driver.data.vehicle.hasAc ? "AC" : "Non-AC"}</dd>
+                  </div>
+                </dl>
+              ) : null}
             </section>
           ) : null}
 

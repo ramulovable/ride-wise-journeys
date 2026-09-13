@@ -96,6 +96,7 @@ export function LocationPicker({
         latitude: location.latitude,
         longitude: location.longitude,
         source: "google",
+        pinCode: null,
         isActive: location.is_active,
         label: location.formatted_address || location.area || location.name,
       });

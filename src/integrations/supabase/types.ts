@@ -258,6 +258,32 @@ export type Database = {
           },
         ]
       }
+      ride_dismissals: {
+        Row: {
+          created_at: string
+          ride_id: string
+          rider_id: string
+        }
+        Insert: {
+          created_at?: string
+          ride_id: string
+          rider_id: string
+        }
+        Update: {
+          created_at?: string
+          ride_id?: string
+          rider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_dismissals_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ride_status_history: {
         Row: {
           actor_id: string | null

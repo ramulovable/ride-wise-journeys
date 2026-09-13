@@ -6,13 +6,28 @@ import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { acceptRide, updateRiderRide } from "@/lib/api.functions";
+import { acceptRide, dismissRide, updateRiderRide } from "@/lib/api.functions";
 import { subscriptionActive, useAuth } from "@/lib/auth";
 import { fetchLocations } from "@/lib/data";
 import { formatDateTime, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
-export const Route = createFileRoute("/_authenticated/rider/")({ component: RiderDashboard });
+export const Route = createFileRoute("/_authenticated/rider/")({
+  head: () => ({
+    meta: [
+      { title: "Driver dashboard — Shahin Travels" },
+      { name: "description", content: "Manage Shahin Travels ride requests and trips." },
+      { property: "og:title", content: "Driver dashboard — Shahin Travels" },
+      {
+        property: "og:description",
+        content: "Manage Shahin Travels ride requests and trips.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: RiderDashboard,
+});
 
 function RiderDashboard() {
   useRoleGuard("rider");
@@ -31,6 +46,19 @@ function RiderDashboard() {
         .select("*")
         .or(`rider_id.eq.${user!.id},and(rider_id.is.null,status.eq.searching)`)
         .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+  const dismissals = useQuery({
+    queryKey: ["ride-dismissals", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("ride_dismissals")
+        .select("ride_id")
+        .eq("rider_id", user.id);
       if (error) throw new Error(error.message);
       return data ?? [];
     },
@@ -73,6 +101,14 @@ function RiderDashboard() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const decline = useMutation({
+    mutationFn: (rideId: string) => dismissRide({ data: { rideId } }),
+    onSuccess: () => {
+      toast.success("Request declined.");
+      void qc.invalidateQueries({ queryKey: ["ride-dismissals"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const eligible = subscriptionActive(riderDetails) && !riderDetails?.is_blocked;
   async function toggleOnline() {
     if (!eligible && !riderDetails?.is_online) {
@@ -90,11 +126,13 @@ function RiderDashboard() {
     }
   }
   const place = (id: string) => locations.data?.find((x) => x.id === id)?.name ?? "—";
+  const dismissedRideIds = new Set((dismissals.data ?? []).map((item) => item.ride_id));
   const active = (rides.data ?? []).filter(
     (r) =>
       !["completed", "cancelled"].includes(r.status) &&
       (r.rider_id === user?.id ||
         (r.rider_id === null &&
+          !dismissedRideIds.has(r.id) &&
           vehicles.data?.some(
             (vehicle) =>
               vehicle.vehicle_category_id === r.requested_category_id &&
@@ -113,6 +151,13 @@ function RiderDashboard() {
         started: "completed",
       }) as const
     )[status as "requested"];
+  const nextActionLabel = (status: string) => {
+    const next = nextAction(status);
+    if (!next) return "";
+    if (status === "requested" || status === "searching") return "Accept";
+    if (status === "started") return "Complete · Cash received";
+    return `Mark ${RIDE_STATUS_LABEL[next]}`;
+  };
 
   return (
     <RiderShell
@@ -166,16 +211,24 @@ function RiderDashboard() {
               <div className="mt-3 flex gap-2">
                 {nextAction(ride.status) ? (
                   <Button
+                    className={ride.rider_id === null ? "flex-1" : undefined}
                     disabled={action.isPending}
-                    onClick={() =>
-                      action.mutate({ rideId: ride.id, next: nextAction(ride.status)! })
-                    }
+                    onClick={() => {
+                      const next = nextAction(ride.status);
+                      if (next) action.mutate({ rideId: ride.id, next });
+                    }}
                   >
-                    {ride.status === "requested" || ride.status === "searching"
-                      ? "Accept"
-                      : ride.status === "started"
-                        ? "Complete · Cash received"
-                        : `Mark ${RIDE_STATUS_LABEL[nextAction(ride.status)!]}`}
+                    {nextActionLabel(ride.status)}
+                  </Button>
+                ) : null}
+                {ride.rider_id === null && ["requested", "searching"].includes(ride.status) ? (
+                  <Button
+                    className="flex-1"
+                    variant="outline"
+                    disabled={decline.isPending}
+                    onClick={() => decline.mutate(ride.id)}
+                  >
+                    Decline
                   </Button>
                 ) : null}
               </div>

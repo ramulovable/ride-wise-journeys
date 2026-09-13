@@ -627,6 +627,31 @@ export const acceptRide = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Hides a pending broadcast only for the authenticated rider who declined it. */
+export const dismissRide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ rideId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: ride, error: rideError } = await context.supabase
+      .from("rides")
+      .select("id, rider_id, status")
+      .eq("id", data.rideId)
+      .maybeSingle();
+    if (rideError) throw new Error(rideError.message);
+    if (!ride || ride.rider_id !== null || !["requested", "searching"].includes(ride.status)) {
+      throw new Error("Booking is no longer available");
+    }
+
+    const { error } = await context.supabase
+      .from("ride_dismissals")
+      .upsert(
+        { rider_id: context.userId, ride_id: data.rideId },
+        { onConflict: "rider_id,ride_id", ignoreDuplicates: true },
+      );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 const rideActionInput = z.object({
   rideId: z.string().uuid(),
   action: z.enum(["on_the_way", "arrived", "started", "completed"]),

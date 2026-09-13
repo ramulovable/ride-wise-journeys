@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import banner from "@/assets/shahin-welcome.png.asset.json";
 import { BrandMark } from "@/components/BrandHeader";
 import { InstallAppBar } from "@/components/InstallAppBar";
+import { OtpField } from "@/components/OtpField";
+import { assertSignupVerified } from "@/lib/otp.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({

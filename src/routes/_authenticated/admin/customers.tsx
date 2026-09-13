@@ -1,11 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAdminCustomers, setCustomerBlocked } from "@/lib/api.functions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  deleteCustomerAccount,
+  getAdminCustomers,
+  setCustomerBlocked,
+} from "@/lib/api.functions";
 import { formatDateTime } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 

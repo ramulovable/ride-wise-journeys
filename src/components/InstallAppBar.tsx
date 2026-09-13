@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
+import { toast } from "sonner";
 import { BrandMark } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
 
@@ -16,22 +17,47 @@ function isStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches || navStandalone === true;
 }
 
-export function InstallAppBar() {
-  const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
+function isMobileBrowser() {
+  if (typeof window === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    window.navigator.userAgent,
+  );
+}
+
+function isIOS() {
+  if (typeof window === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream
+  );
+}
+
+function fallbackInstallMessage() {
+  if (isIOS()) {
+    return "Tap the Share button in Safari, then select 'Add to Home Screen' to install Shahin Travels.";
+  }
+  return "Tap the browser menu (⋮) at the top right and select 'Install app' or 'Add to Home screen'.";
+}
+
+export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
+  const [deferredPrompt, setDeferredPrompt] = useState<InstallPromptEvent | null>(null);
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (isStandalone()) return;
     if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
 
+    // On mobile browsers, show the bar by default even before beforeinstallprompt fires.
+    if (isMobileBrowser()) setHidden(false);
+
     function onBeforeInstall(event: Event) {
       event.preventDefault();
-      setPrompt(event as InstallPromptEvent);
+      setDeferredPrompt(event as InstallPromptEvent);
       setHidden(false);
     }
     function onInstalled() {
       setHidden(true);
-      setPrompt(null);
+      setDeferredPrompt(null);
     }
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
@@ -42,23 +68,30 @@ export function InstallAppBar() {
     };
   }, []);
 
-  if (hidden || !prompt) return null;
+  if (hidden) return null;
 
   async function install() {
-    if (!prompt) return;
-    await prompt.prompt();
-    const choice = await prompt.userChoice;
-    if (choice.outcome === "accepted") setHidden(true);
-    setPrompt(null);
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === "accepted") setHidden(true);
+      setDeferredPrompt(null);
+      return;
+    }
+
+    toast.info(fallbackInstallMessage(), {
+      duration: 8000,
+      position: "top-center",
+    });
   }
 
   function dismiss() {
-    window.localStorage.setItem(DISMISS_KEY, "1");
+    if (typeof window !== "undefined") window.localStorage.setItem(DISMISS_KEY, "1");
     setHidden(true);
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-20">
+    <div className={`fixed inset-x-0 z-50 px-3 ${offsetNav ? "bottom-16 sm:bottom-20" : "bottom-3 sm:bottom-4"}`}>
       <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/15 via-card to-accent/20 p-3 shadow-lg backdrop-blur">
         <div className="shrink-0 rounded-xl bg-card p-1 shadow-sm">
           <BrandMark size={36} />

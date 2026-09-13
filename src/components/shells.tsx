@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   MapPin,
   Search,
+  Settings,
   Route as RouteIcon,
   User,
   Users,

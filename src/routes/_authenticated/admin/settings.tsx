@@ -77,6 +77,8 @@ function SettingsPage() {
       ["referral_reward_amount", Number(reward), "referral reward"],
       ["withdrawal_min_amount", Number(minAmount), "minimum withdrawal"],
       ["withdrawal_max_amount", Number(maxAmount), "maximum withdrawal"],
+      ["referral_program_enabled", referralEnabled ? 1 : 0, "referral switch"],
+      ["referral_max_per_user", Number(referralMax), "referral limit"],
     ];
     for (const [, value, label] of numbers) {
       if (!Number.isFinite(value) || value < 0) {

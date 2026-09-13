@@ -257,8 +257,10 @@ function SignupForm() {
   const [referral, setReferral] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const confirmVerified = useServerFn(assertSignupVerified);
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (fullName.trim().length < 2) {
       toast.error("Please enter your full name.");
@@ -284,7 +286,11 @@ function SignupForm() {
       toast.error("Too many attempts. Please wait a few minutes and try again.");
       return;
     }
+    setVerifying(true);
+  }
 
+  async function createAccount(ticket: string) {
+    await confirmVerified({ data: { mobile, ticket } });
     setBusy(true);
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: mobileToEmail(mobile),

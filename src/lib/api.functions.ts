@@ -814,13 +814,19 @@ async function countEligibleRiders(rideId: string) {
   ]);
   const eligible = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
   const declined = new Set((dismissalsResult.data ?? []).map((row) => row.rider_id));
-  return (vehiclesResult.data ?? []).filter(
-    (vehicle) =>
-      eligible.has(vehicle.rider_id) &&
-      !declined.has(vehicle.rider_id) &&
-      (ride.requested_ac == null || vehicle.has_ac === ride.requested_ac) &&
-      ride.passengers <= vehicle.seat_capacity,
-  ).length;
+  return [
+    ...new Set(
+      (vehiclesResult.data ?? [])
+        .filter(
+          (vehicle) =>
+            eligible.has(vehicle.rider_id) &&
+            !declined.has(vehicle.rider_id) &&
+            (ride.requested_ac == null || vehicle.has_ac === ride.requested_ac) &&
+            ride.passengers <= vehicle.seat_capacity,
+        )
+        .map((vehicle) => vehicle.rider_id),
+    ),
+  ];
 }
 
 const rideActionInput = z.object({

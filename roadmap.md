@@ -18,3 +18,4 @@
 - [x] Add WhatsApp support shortcut to customer and driver screens only
 - [x] Add admin customer management and complete ride audit history
 - [x] Replace rider fares with centralized admin fare engine and broadcast dispatch
+- [ ] Restore per-driver broadcast decline and rider profile reviews

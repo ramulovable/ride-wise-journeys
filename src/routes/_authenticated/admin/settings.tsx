@@ -106,6 +106,18 @@ function SettingsPage() {
       toast.error("Notification title and message cannot be empty.");
       return;
     }
+    if (!/^https?:\/\/\S+$/.test(inviteUrl.trim())) {
+      toast.error("Enter a valid invite link starting with https://");
+      return;
+    }
+    if (!inviteMessage.includes("{code}")) {
+      toast.error("The invite message must include {code}.");
+      return;
+    }
+    if (!copyToast.trim() || !referralCondition.trim()) {
+      toast.error("Referral condition and copy message cannot be empty.");
+      return;
+    }
 
     setBusy(true);
     const texts: Array<[string, string]> = [

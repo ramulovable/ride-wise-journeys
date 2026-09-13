@@ -4,6 +4,7 @@ import {
   Bell,
   CalendarClock,
   ClipboardList,
+  Gift,
   Image as ImageIcon,
   LayoutGrid,
   LifeBuoy,

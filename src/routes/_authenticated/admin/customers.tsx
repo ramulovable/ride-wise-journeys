@@ -1,11 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAdminCustomers, setCustomerBlocked } from "@/lib/api.functions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  deleteCustomerAccount,
+  getAdminCustomers,
+  setCustomerBlocked,
+} from "@/lib/api.functions";
 import { formatDateTime } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
@@ -38,6 +54,20 @@ function Customers() {
       setCustomerBlocked({ data: { customerId, blocked } }),
     onSuccess: (_, variables) => {
       toast.success(variables.blocked ? "Customer blocked." : "Customer reactivated.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    full_name: string;
+    mobile: string;
+  } | null>(null);
+  const removeCustomer = useMutation({
+    mutationFn: (customerId: string) => deleteCustomerAccount({ data: { customerId } }),
+    onSuccess: () => {
+      toast.success("Customer account deleted successfully.");
+      setPendingDelete(null);
       void queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
     },
     onError: (error) => toast.error(error.message),
@@ -76,7 +106,7 @@ function Customers() {
                   <p className="text-xs text-muted-foreground">rides booked</p>
                 </div>
               </div>
-              <div className="mt-4 border-t pt-3">
+              <div className="mt-4 flex flex-wrap gap-2 border-t pt-3">
                 <Button
                   size="sm"
                   variant={customer.is_blocked ? "outline" : "destructive"}
@@ -87,11 +117,56 @@ function Customers() {
                 >
                   {customer.is_blocked ? "Reactivate account" : "Block account"}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={removeCustomer.isPending}
+                  onClick={() =>
+                    setPendingDelete({
+                      id: customer.id,
+                      full_name: customer.full_name || "Unnamed customer",
+                      mobile: customer.mobile,
+                    })
+                  }
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  Delete Customer
+                </Button>
               </div>
             </article>
           ))}
         </div>
       )}
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Customer Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {pendingDelete?.full_name} ({pendingDelete?.mobile})?
+              This action will permanently remove their profile, authentication record, and
+              associated customer records. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeCustomer.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removeCustomer.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingDelete) removeCustomer.mutate(pendingDelete.id);
+              }}
+            >
+              Confirm Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminShell>
   );
 }

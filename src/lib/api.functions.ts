@@ -1050,6 +1050,55 @@ export const setCustomerBlocked = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deleteCustomerAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminCustomerInput.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    if (data.customerId === context.userId)
+      throw new Error("You cannot delete your own account.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: customerRole, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", data.customerId)
+      .eq("role", "customer")
+      .maybeSingle();
+    if (roleError || !customerRole) throw new Error("Customer account not found.");
+
+    const uid = data.customerId;
+    const { data: rideRows } = await supabaseAdmin
+      .from("rides")
+      .select("id")
+      .eq("customer_id", uid);
+    const rideIds = (rideRows ?? []).map((r) => r.id);
+    if (rideIds.length) {
+      await supabaseAdmin.from("ride_status_history").delete().in("ride_id", rideIds);
+      await supabaseAdmin.from("ride_dismissals").delete().in("ride_id", rideIds);
+      await supabaseAdmin.from("notifications").delete().in("ride_id", rideIds);
+      await supabaseAdmin.from("ratings").delete().in("ride_id", rideIds);
+      await supabaseAdmin.from("earning_transactions").delete().in("ride_id", rideIds);
+      await supabaseAdmin.from("rides").delete().in("id", rideIds);
+    }
+    await supabaseAdmin.from("notifications").delete().eq("user_id", uid);
+    await supabaseAdmin.from("notification_devices").delete().eq("user_id", uid);
+    await supabaseAdmin.from("ratings").delete().eq("customer_id", uid);
+    await supabaseAdmin.from("support_requests").delete().eq("user_id", uid);
+    await supabaseAdmin.from("withdrawal_requests").delete().eq("user_id", uid);
+    await supabaseAdmin.from("wallet_transactions").delete().eq("user_id", uid);
+    await supabaseAdmin.from("wallet_accounts").delete().eq("user_id", uid);
+    await supabaseAdmin.from("referral_transactions").delete().eq("user_id", uid);
+    await supabaseAdmin.from("referrals").delete().eq("referred_user_id", uid);
+    await supabaseAdmin.from("referrals").delete().eq("referrer_user_id", uid);
+    await supabaseAdmin.from("referral_codes").delete().eq("user_id", uid);
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", uid);
+    await supabaseAdmin.from("profiles").delete().eq("id", uid);
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(uid);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const getAdminRideAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

@@ -34,6 +34,7 @@ export function OtpField({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const requested = useRef(false);
 
@@ -43,6 +44,7 @@ export function OtpField({
       setError(null);
       try {
         await send({ data: { mobile, purpose } });
+        setSent(true);
         setSeconds(RESEND_SECONDS);
         setNotice(
           isResend
@@ -51,6 +53,7 @@ export function OtpField({
         );
       } catch (err) {
         setNotice(null);
+        setSeconds(0);
         setError(readableError(err));
       } finally {
         setBusy(false);
@@ -58,6 +61,7 @@ export function OtpField({
     },
     [send, mobile, purpose],
   );
+
 
   useEffect(() => {
     if (requested.current) return;

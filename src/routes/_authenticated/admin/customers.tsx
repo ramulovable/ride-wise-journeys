@@ -58,6 +58,20 @@ function Customers() {
     },
     onError: (error) => toast.error(error.message),
   });
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    full_name: string;
+    mobile: string;
+  } | null>(null);
+  const removeCustomer = useMutation({
+    mutationFn: (customerId: string) => deleteCustomerAccount({ data: { customerId } }),
+    onSuccess: () => {
+      toast.success("Customer account deleted successfully.");
+      setPendingDelete(null);
+      void queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   return (
     <AdminShell title="All customers" subtitle="Registered customer accounts and booking activity.">

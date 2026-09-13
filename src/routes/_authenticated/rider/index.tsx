@@ -145,7 +145,7 @@ function RiderDashboard() {
               vehicle.vehicle_category_id === r.requested_category_id &&
               (r.requested_ac == null || vehicle.has_ac === r.requested_ac),
           ))),
-  );
+  ).sort((a, b) => Number(b.id === bookingId) - Number(a.id === bookingId));
   const history = (rides.data ?? []).filter((r) => ["completed", "cancelled"].includes(r.status));
   const nextAction = (status: string) =>
     (

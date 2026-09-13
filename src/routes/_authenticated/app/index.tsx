@@ -95,6 +95,9 @@ function BookPage() {
   return (
     <CustomerShell title="Book a ride" subtitle="आपकी यात्रा, हमारी जिम्मेदारी">
       <div className="space-y-4">
+        <div className="flex justify-end">
+          <EnablePushButton label="Turn on ride updates" doneLabel="Ride updates on" />
+        </div>
         <section className="rounded-2xl border border-border bg-card p-4">
           {noLocations ? (
             <EmptyState

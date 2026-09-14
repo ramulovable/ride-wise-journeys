@@ -124,6 +124,95 @@ export type Database = {
         }
         Relationships: []
       }
+      day_night_pricing_config: {
+        Row: {
+          applies_to_per_km: boolean
+          applies_to_reserve: boolean
+          applies_to_share: boolean
+          created_at: string
+          day_start_time: string
+          id: string
+          is_enabled: boolean
+          night_direct_rate: number | null
+          night_multiplier: number
+          night_start_time: string
+          pricing_mode: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to_per_km?: boolean
+          applies_to_reserve?: boolean
+          applies_to_share?: boolean
+          created_at?: string
+          day_start_time?: string
+          id?: string
+          is_enabled?: boolean
+          night_direct_rate?: number | null
+          night_multiplier?: number
+          night_start_time?: string
+          pricing_mode?: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to_per_km?: boolean
+          applies_to_reserve?: boolean
+          applies_to_share?: boolean
+          created_at?: string
+          day_start_time?: string
+          id?: string
+          is_enabled?: boolean
+          night_direct_rate?: number | null
+          night_multiplier?: number
+          night_start_time?: string
+          pricing_mode?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      day_night_vehicle_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_enabled: boolean
+          night_direct_rate: number | null
+          night_multiplier: number | null
+          pricing_mode: string
+          updated_at: string
+          vehicle_category_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_enabled?: boolean
+          night_direct_rate?: number | null
+          night_multiplier?: number | null
+          pricing_mode?: string
+          updated_at?: string
+          vehicle_category_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_enabled?: boolean
+          night_direct_rate?: number | null
+          night_multiplier?: number | null
+          pricing_mode?: string
+          updated_at?: string
+          vehicle_category_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_night_vehicle_overrides_vehicle_category_id_fkey"
+            columns: ["vehicle_category_id"]
+            isOneToOne: true
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       earning_transactions: {
         Row: {
           amount: number

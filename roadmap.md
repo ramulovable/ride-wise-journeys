@@ -19,3 +19,5 @@
 - [x] Add admin customer management and complete ride audit history
 - [x] Replace rider fares with centralized admin fare engine and broadcast dispatch
 - [x] Restore per-driver broadcast decline and rider profile reviews
+
+- [x] Show live IST Day/Night fare status on driver and admin dashboards

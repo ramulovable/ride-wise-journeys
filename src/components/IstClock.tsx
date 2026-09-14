@@ -58,7 +58,7 @@ export function IstClock() {
       {period ? (
         <div className="text-right leading-tight">
           <p className="text-xs font-semibold text-foreground">
-            {night ? "Night fare" : "Day fare"}
+            {night ? "🌙 Night Fare Active" : "☀️ Day Fare Active"}
           </p>
           <p className="text-[11px] text-muted-foreground">
             {nightActive

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { RiderShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { EnablePushButton } from "@/components/EnablePushButton";
+import { IstClock } from "@/components/IstClock";
 import { resolveVehicleImage, useVehicleImages } from "@/lib/vehicleImages";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,6 +174,9 @@ function RiderDashboard() {
       title="Driver dashboard"
       subtitle="Manage requests, trip progress and cash earnings."
     >
+      <div className="mb-4">
+        <IstClock />
+      </div>
       <section className="mb-4 rounded-2xl border bg-card p-4">
         <div className="flex items-center justify-between gap-3">
           <div>

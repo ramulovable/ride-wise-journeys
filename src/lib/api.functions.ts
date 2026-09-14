@@ -388,7 +388,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           passengers <= vehicle.seat_capacity,
       );
       const journeyTypes =
-        category.vehicle_class === "three_wheeler" ? ["share", "reserve"] : ["standard"];
+        category.vehicle_class === "three_wheeler" ? ["share"] : ["standard"];
       const acOptions = category.vehicle_class === "four_wheeler" ? [true, false] : [null];
       const fares = journeyTypes.flatMap((journeyType) =>
         acOptions.map((requestedAc) => {

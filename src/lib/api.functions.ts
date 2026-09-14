@@ -525,6 +525,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
     vehiclesResult,
     configResult,
     overridesResult,
+    reserveResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("vehicle_categories")

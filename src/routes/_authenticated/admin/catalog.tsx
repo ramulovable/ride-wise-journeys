@@ -50,7 +50,14 @@ type Model = {
 type EditState =
   | { kind: "category"; id: string; name: string; vehicleClass: VehicleClass; seats: number }
   | { kind: "brand"; id: string; name: string; categoryId: string }
-  | { kind: "model"; id: string; name: string; brandId: string; seats: number; supportsAc: boolean };
+  | {
+      kind: "model";
+      id: string;
+      name: string;
+      brandId: string;
+      seats: number;
+      supportsAc: boolean;
+    };
 
 type DeleteState = { table: CatalogTable; id: string; label: string; note: string };
 

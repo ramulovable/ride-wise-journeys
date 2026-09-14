@@ -298,6 +298,139 @@ async function calculateDrivingDistance(fromLocationId: string, toLocationId: st
 
 type FareRuleRow = Database["public"]["Tables"]["fare_rules"]["Row"];
 type FareSlabRow = Database["public"]["Tables"]["fare_slabs"]["Row"];
+type DayNightConfigRow = Database["public"]["Tables"]["day_night_pricing_config"]["Row"];
+type DayNightOverrideRow = Database["public"]["Tables"]["day_night_vehicle_overrides"]["Row"];
+
+export const PRICING_TIMEZONE = "Asia/Kolkata";
+
+const istFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: PRICING_TIMEZONE,
+  hour12: false,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** Current wall-clock time in Indian Standard Time as HH:MM:SS — never the client clock. */
+function istTimeString(now = new Date()) {
+  return istFormatter.format(now);
+}
+
+function toSeconds(value: string) {
+  const [h = "0", m = "0", s = "0"] = value.split(":");
+  return Number(h) * 3600 + Number(m) * 60 + Number(s);
+}
+
+/** Day window runs dayStart → nightStart; everything else (incl. past midnight) is night. */
+export function resolvePricingPeriod(
+  config: Pick<DayNightConfigRow, "day_start_time" | "night_start_time">,
+  now = new Date(),
+): "day" | "night" {
+  const current = toSeconds(istTimeString(now));
+  const dayStart = toSeconds(config.day_start_time);
+  const nightStart = toSeconds(config.night_start_time);
+  if (dayStart === nightStart) return "day";
+  if (dayStart < nightStart) return current >= dayStart && current < nightStart ? "day" : "night";
+  // Inverted configuration: day window itself crosses midnight.
+  return current >= dayStart || current < nightStart ? "day" : "night";
+}
+
+type NightSettings = {
+  enabled: boolean;
+  pricingMode: "multiplier" | "direct_rate";
+  multiplier: number;
+  directRate: number | null;
+};
+
+function effectiveNightSettings(
+  config: DayNightConfigRow,
+  override: DayNightOverrideRow | undefined,
+): NightSettings {
+  const base: NightSettings = {
+    enabled: config.is_enabled,
+    pricingMode: config.pricing_mode === "direct_rate" ? "direct_rate" : "multiplier",
+    multiplier: Number(config.night_multiplier),
+    directRate: config.night_direct_rate == null ? null : Number(config.night_direct_rate),
+  };
+  if (!override || !override.is_active) return base;
+  return {
+    enabled: config.is_enabled && override.is_enabled,
+    pricingMode: override.pricing_mode === "direct_rate" ? "direct_rate" : "multiplier",
+    multiplier:
+      override.night_multiplier == null ? base.multiplier : Number(override.night_multiplier),
+    directRate:
+      override.night_direct_rate == null ? base.directRate : Number(override.night_direct_rate),
+  };
+}
+
+function appliesToJourney(config: DayNightConfigRow, journeyType: string) {
+  if (journeyType === "share") return config.applies_to_share;
+  if (journeyType === "reserve") return config.applies_to_reserve;
+  return config.applies_to_per_km;
+}
+
+type BaseCalculation = ReturnType<typeof calculateRuleFare>;
+
+/** Layers night pricing on top of an already calculated base fare. */
+function applyDayNight(
+  base: NonNullable<BaseCalculation>,
+  options: {
+    period: "day" | "night";
+    config: DayNightConfigRow;
+    settings: NightSettings;
+    journeyType: string;
+    distanceKm: number;
+    passengers: number;
+  },
+) {
+  const { period, config, settings, journeyType, distanceKm, passengers } = options;
+  const baseUnitFare = base.unitFare;
+  const active =
+    period === "night" && settings.enabled && appliesToJourney(config, journeyType);
+
+  let unitFare = baseUnitFare;
+  let multiplierUsed: number | null = null;
+  let nightRateOverride: number | null = null;
+
+  if (active) {
+    if (settings.pricingMode === "direct_rate" && settings.directRate != null) {
+      nightRateOverride = settings.directRate;
+      unitFare = settings.directRate * distanceKm;
+    } else {
+      multiplierUsed = settings.multiplier;
+      unitFare = baseUnitFare * settings.multiplier;
+    }
+  }
+
+  unitFare = Math.round(unitFare * 100) / 100;
+  const totalFare =
+    Math.round((journeyType === "share" ? unitFare * passengers : unitFare) * 100) / 100;
+
+  return {
+    ...base,
+    unitFare,
+    totalFare,
+    baseUnitFare,
+    baseFare: Math.round((journeyType === "share" ? baseUnitFare * passengers : baseUnitFare) * 100) / 100,
+    pricingPeriod: period,
+    nightPricingApplied: active,
+    nightPricingMode: active ? settings.pricingMode : null,
+    multiplierUsed,
+    nightRateOverride,
+  };
+}
+
+async function loadDayNightPricing(
+  admin: Awaited<
+    ReturnType<typeof import("@/integrations/supabase/client.server")["default"] extends never
+      ? never
+      : never>
+  >,
+): Promise<never> {
+  throw new Error("unused");
+}
+void loadDayNightPricing;
+
 
 function calculateRuleFare(
   rule: FareRuleRow,

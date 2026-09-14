@@ -551,6 +551,12 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
       .limit(1)
       .maybeSingle(),
     supabaseAdmin.from("day_night_vehicle_overrides").select("*").eq("is_active", true),
+    supabaseAdmin
+      .from("three_wheeler_reserve_config")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (
     categoriesResult.error ||

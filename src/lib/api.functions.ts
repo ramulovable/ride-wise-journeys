@@ -298,6 +298,143 @@ async function calculateDrivingDistance(fromLocationId: string, toLocationId: st
 
 type FareRuleRow = Database["public"]["Tables"]["fare_rules"]["Row"];
 type FareSlabRow = Database["public"]["Tables"]["fare_slabs"]["Row"];
+type DayNightConfigRow = Database["public"]["Tables"]["day_night_pricing_config"]["Row"];
+type DayNightOverrideRow = Database["public"]["Tables"]["day_night_vehicle_overrides"]["Row"];
+
+export const PRICING_TIMEZONE = "Asia/Kolkata";
+
+/** Used only when no configuration row exists yet. */
+const DEFAULT_DAY_NIGHT_CONFIG = {
+  id: "default",
+  is_enabled: true,
+  day_start_time: "05:00:00",
+  night_start_time: "20:00:00",
+  pricing_mode: "multiplier",
+  night_multiplier: 2,
+  night_direct_rate: null,
+  applies_to_per_km: true,
+  applies_to_share: true,
+  applies_to_reserve: true,
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+} satisfies DayNightConfigRow;
+
+const istFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: PRICING_TIMEZONE,
+  hour12: false,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** Current wall-clock time in Indian Standard Time as HH:MM:SS — never the client clock. */
+function istTimeString(now = new Date()) {
+  return istFormatter.format(now);
+}
+
+function toSeconds(value: string) {
+  const [h = "0", m = "0", s = "0"] = value.split(":");
+  return Number(h) * 3600 + Number(m) * 60 + Number(s);
+}
+
+/** Day window runs dayStart → nightStart; everything else (incl. past midnight) is night. */
+export function resolvePricingPeriod(
+  config: Pick<DayNightConfigRow, "day_start_time" | "night_start_time">,
+  now = new Date(),
+): "day" | "night" {
+  const current = toSeconds(istTimeString(now));
+  const dayStart = toSeconds(config.day_start_time);
+  const nightStart = toSeconds(config.night_start_time);
+  if (dayStart === nightStart) return "day";
+  if (dayStart < nightStart) return current >= dayStart && current < nightStart ? "day" : "night";
+  // Inverted configuration: day window itself crosses midnight.
+  return current >= dayStart || current < nightStart ? "day" : "night";
+}
+
+type NightSettings = {
+  enabled: boolean;
+  pricingMode: "multiplier" | "direct_rate";
+  multiplier: number;
+  directRate: number | null;
+};
+
+function effectiveNightSettings(
+  config: DayNightConfigRow,
+  override: DayNightOverrideRow | undefined,
+): NightSettings {
+  const base: NightSettings = {
+    enabled: config.is_enabled,
+    pricingMode: config.pricing_mode === "direct_rate" ? "direct_rate" : "multiplier",
+    multiplier: Number(config.night_multiplier),
+    directRate: config.night_direct_rate == null ? null : Number(config.night_direct_rate),
+  };
+  if (!override || !override.is_active) return base;
+  return {
+    enabled: config.is_enabled && override.is_enabled,
+    pricingMode: override.pricing_mode === "direct_rate" ? "direct_rate" : "multiplier",
+    multiplier:
+      override.night_multiplier == null ? base.multiplier : Number(override.night_multiplier),
+    directRate:
+      override.night_direct_rate == null ? base.directRate : Number(override.night_direct_rate),
+  };
+}
+
+function appliesToJourney(config: DayNightConfigRow, journeyType: string) {
+  if (journeyType === "share") return config.applies_to_share;
+  if (journeyType === "reserve") return config.applies_to_reserve;
+  return config.applies_to_per_km;
+}
+
+type BaseCalculation = ReturnType<typeof calculateRuleFare>;
+
+/** Layers night pricing on top of an already calculated base fare. */
+function applyDayNight(
+  base: NonNullable<BaseCalculation>,
+  options: {
+    period: "day" | "night";
+    config: DayNightConfigRow;
+    settings: NightSettings;
+    journeyType: string;
+    distanceKm: number;
+    passengers: number;
+  },
+) {
+  const { period, config, settings, journeyType, distanceKm, passengers } = options;
+  const baseUnitFare = base.unitFare;
+  const active = period === "night" && settings.enabled && appliesToJourney(config, journeyType);
+
+  let unitFare = baseUnitFare;
+  let multiplierUsed: number | null = null;
+  let nightRateOverride: number | null = null;
+
+  if (active) {
+    if (settings.pricingMode === "direct_rate" && settings.directRate != null) {
+      nightRateOverride = settings.directRate;
+      unitFare = settings.directRate * distanceKm;
+    } else {
+      multiplierUsed = settings.multiplier;
+      unitFare = baseUnitFare * settings.multiplier;
+    }
+  }
+
+  unitFare = Math.round(unitFare * 100) / 100;
+  const totalFare =
+    Math.round((journeyType === "share" ? unitFare * passengers : unitFare) * 100) / 100;
+
+  return {
+    ...base,
+    unitFare,
+    totalFare,
+    baseUnitFare,
+    baseFare:
+      Math.round((journeyType === "share" ? baseUnitFare * passengers : baseUnitFare) * 100) / 100,
+    pricingPeriod: period,
+    nightPricingApplied: active,
+    nightPricingMode: active ? settings.pricingMode : null,
+    multiplierUsed,
+    nightRateOverride,
+  };
+}
 
 function calculateRuleFare(
   rule: FareRuleRow,
@@ -347,26 +484,40 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const route = await calculateDrivingDistance(fromLocationId, toLocationId);
   const today = new Date().toISOString().slice(0, 10);
-  const [categoriesResult, rulesResult, slabsResult, ridersResult, vehiclesResult] =
-    await Promise.all([
-      supabaseAdmin
-        .from("vehicle_categories")
-        .select("id, name, seat_capacity, vehicle_class")
-        .eq("is_active", true),
-      supabaseAdmin.from("fare_rules").select("*").eq("is_active", true),
-      supabaseAdmin.from("fare_slabs").select("*").eq("is_active", true),
-      supabaseAdmin
-        .from("rider_details")
-        .select("user_id")
-        .eq("is_approved", true)
-        .eq("is_blocked", false)
-        .eq("is_online", true)
-        .gte("subscription_valid_until", today),
-      supabaseAdmin
-        .from("rider_vehicles")
-        .select("id, rider_id, vehicle_category_id, seat_capacity, has_ac")
-        .eq("is_active", true),
-    ]);
+  const [
+    categoriesResult,
+    rulesResult,
+    slabsResult,
+    ridersResult,
+    vehiclesResult,
+    configResult,
+    overridesResult,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("vehicle_categories")
+      .select("id, name, seat_capacity, vehicle_class")
+      .eq("is_active", true),
+    supabaseAdmin.from("fare_rules").select("*").eq("is_active", true),
+    supabaseAdmin.from("fare_slabs").select("*").eq("is_active", true),
+    supabaseAdmin
+      .from("rider_details")
+      .select("user_id")
+      .eq("is_approved", true)
+      .eq("is_blocked", false)
+      .eq("is_online", true)
+      .gte("subscription_valid_until", today),
+    supabaseAdmin
+      .from("rider_vehicles")
+      .select("id, rider_id, vehicle_category_id, seat_capacity, has_ac")
+      .eq("is_active", true),
+    supabaseAdmin
+      .from("day_night_pricing_config")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin.from("day_night_vehicle_overrides").select("*").eq("is_active", true),
+  ]);
   if (
     categoriesResult.error ||
     rulesResult.error ||
@@ -378,8 +529,15 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   const eligibleRiders = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
   const rules = rulesResult.data ?? [];
   const slabs = slabsResult.data ?? [];
+  const config = configResult.data ?? DEFAULT_DAY_NIGHT_CONFIG;
+  const overrides = overridesResult.data ?? [];
+  const calculatedAt = new Date();
+  const period = resolvePricingPeriod(config, calculatedAt);
   return {
     ...route,
+    pricingPeriod: period,
+    pricingTimezone: PRICING_TIMEZONE,
+    fareCalculatedAt: calculatedAt.toISOString(),
     options: (categoriesResult.data ?? []).map((category) => {
       const matchingVehicles = (vehiclesResult.data ?? []).filter(
         (vehicle) =>
@@ -387,8 +545,11 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           eligibleRiders.has(vehicle.rider_id) &&
           passengers <= vehicle.seat_capacity,
       );
-      const journeyTypes =
-        category.vehicle_class === "three_wheeler" ? ["share"] : ["standard"];
+      const settings = effectiveNightSettings(
+        config,
+        overrides.find((item) => item.vehicle_category_id === category.id),
+      );
+      const journeyTypes = category.vehicle_class === "three_wheeler" ? ["share"] : ["standard"];
       const acOptions = category.vehicle_class === "four_wheeler" ? [true, false] : [null];
       const fares = journeyTypes.flatMap((journeyType) =>
         acOptions.map((requestedAc) => {
@@ -402,7 +563,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           const hasVehicle = matchingVehicles.some(
             (vehicle) => requestedAc == null || vehicle.has_ac === requestedAc,
           );
-          const calculated = rule
+          const baseCalculated = rule
             ? calculateRuleFare(
                 rule,
                 slabs.filter((slab) => slab.fare_rule_id === rule.id),
@@ -410,12 +571,27 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
                 passengers,
               )
             : null;
+          const calculated = baseCalculated
+            ? applyDayNight(baseCalculated, {
+                period,
+                config,
+                settings,
+                journeyType,
+                distanceKm: route.distanceKm,
+                passengers,
+              })
+            : null;
           return {
             journeyType,
             requestedAc,
             available: Boolean(hasVehicle && calculated),
             fare: calculated?.totalFare ?? null,
             unitFare: calculated?.unitFare ?? null,
+            baseFare: calculated?.baseFare ?? null,
+            pricingPeriod: period,
+            nightPricingApplied: calculated?.nightPricingApplied ?? false,
+            multiplierUsed: calculated?.multiplierUsed ?? null,
+            nightRateOverride: calculated?.nightRateOverride ?? null,
             reason: hasVehicle ? "Fare currently unavailable" : "No driver available",
             ruleId: rule?.id ?? null,
             calculation: calculated,
@@ -439,6 +615,34 @@ export const getFareOptions = createServerFn({ method: "GET" })
   .handler(async ({ data }) =>
     loadFareOptions(data.fromLocationId, data.toLocationId, data.passengers),
   );
+
+/** Authoritative IST clock + current day/night fare status. Never trust the device clock. */
+export const getPricingStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("day_night_pricing_config")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const config = data ?? DEFAULT_DAY_NIGHT_CONFIG;
+    const now = new Date();
+    const period = resolvePricingPeriod(config, now);
+    return {
+      timezone: PRICING_TIMEZONE,
+      serverTime: now.toISOString(),
+      istTime: istTimeString(now),
+      period,
+      isEnabled: config.is_enabled,
+      dayStartTime: config.day_start_time,
+      nightStartTime: config.night_start_time,
+      pricingMode: config.pricing_mode,
+      nightMultiplier: Number(config.night_multiplier),
+      nightDirectRate: config.night_direct_rate == null ? null : Number(config.night_direct_rate),
+    };
+  });
 
 /** Returns only the non-sensitive fields needed to compare currently available rides. */
 export const getRiderOffers = createServerFn({ method: "GET" })
@@ -562,6 +766,16 @@ export const createBooking = createServerFn({ method: "POST" })
       totalFare: option.fare,
       passengers: data.passengers,
       calculation: option.calculation,
+      base_fare: option.baseFare,
+      pricing_period: option.pricingPeriod,
+      pricing_mode: option.nightRateOverride != null ? "direct_rate" : "multiplier",
+      multiplier_used: option.multiplierUsed,
+      night_rate_override: option.nightRateOverride,
+      distance_km: quote.distanceKm,
+      vehicle_category: category.categoryName,
+      final_fare: option.fare,
+      timezone: PRICING_TIMEZONE,
+      fare_calculated_at: quote.fareCalculatedAt,
     };
 
     const { data: ride, error } = await supabase
@@ -835,7 +1049,6 @@ async function notifyCustomerRideUpdate(rideId: string, stage: string) {
   }
 }
 
-
 /** A rider accepts a pending ride. Blocked unless approved with an active subscription and online. */
 export const acceptRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1055,8 +1268,7 @@ export const deleteCustomerAccount = createServerFn({ method: "POST" })
   .validator((data: unknown) => adminCustomerInput.parse(data))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
-    if (data.customerId === context.userId)
-      throw new Error("You cannot delete your own account.");
+    if (data.customerId === context.userId) throw new Error("You cannot delete your own account.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: customerRole, error: roleError } = await supabaseAdmin
       .from("user_roles")

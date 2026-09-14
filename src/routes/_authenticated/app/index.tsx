@@ -6,7 +6,9 @@ import { ArrowLeftRight, Car, MapPin, Minus, Plus, RouteIcon } from "lucide-reac
 import { CustomerShell } from "@/components/shells";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { EmptyState } from "@/components/EmptyState";
+import { IstClock } from "@/components/IstClock";
 import { LocationPicker } from "@/components/LocationPicker";
+
 import { PromoCarousel } from "@/components/PromoCarousel";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,6 +100,8 @@ function BookPage() {
     <CustomerShell title="Book a ride" subtitle="आपकी यात्रा, हमारी जिम्मेदारी">
       <div className="space-y-4">
         <PromoCarousel />
+        <IstClock />
+
         <div className="flex justify-end">
           <EnablePushButton label="Turn on ride updates" doneLabel="Ride updates on" />
         </div>
@@ -266,6 +270,13 @@ function BookPage() {
                             : "Cash on completion"
                           : fare.reason}
                       </span>
+                      {fare.available && fare.nightPricingApplied ? (
+                        <span className="mt-0.5 block text-[11px] font-medium text-primary">
+                          Night fare
+                          {fare.multiplierUsed ? ` ${fare.multiplierUsed}×` : ""} applied
+                          {fare.baseFare != null ? ` · day ${rupees(fare.baseFare)}` : ""}
+                        </span>
+                      ) : null}
                     </span>
                     <strong className="text-lg text-primary">
                       {fare.available ? rupees(fare.fare ?? 0) : "—"}

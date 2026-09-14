@@ -347,7 +347,15 @@ function DayNightSection() {
     }
   }
 
-  async function updateOverride(id: string, changes: Record<string, unknown>) {
+  async function updateOverride(
+    id: string,
+    changes: {
+      is_enabled?: boolean;
+      pricing_mode?: string;
+      night_multiplier?: number | null;
+      night_direct_rate?: number | null;
+    },
+  ) {
     const { error } = await supabase
       .from("day_night_vehicle_overrides")
       .update(changes)

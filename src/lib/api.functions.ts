@@ -610,14 +610,23 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           const hasVehicle = matchingVehicles.some(
             (vehicle) => requestedAc == null || vehicle.has_ac === requestedAc,
           );
-          const baseCalculated = rule
-            ? calculateRuleFare(
-                rule,
-                slabs.filter((slab) => slab.fare_rule_id === rule.id),
-                route.distanceKm,
-                passengers,
-              )
-            : null;
+          const isThreeWheelerReserve =
+            category.vehicle_class === "three_wheeler" && journeyType === "reserve";
+          const baseCalculated = isThreeWheelerReserve
+            ? {
+                unitFare: reserveConfig.fixed_fare,
+                totalFare: reserveConfig.fixed_fare,
+                pricingMode: "fixed_reserve",
+                slab: null,
+              }
+            : rule
+              ? calculateRuleFare(
+                  rule,
+                  slabs.filter((slab) => slab.fare_rule_id === rule.id),
+                  route.distanceKm,
+                  passengers,
+                )
+              : null;
           const calculated = baseCalculated
             ? applyDayNight(baseCalculated, {
                 period,

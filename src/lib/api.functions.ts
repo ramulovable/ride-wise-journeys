@@ -472,26 +472,40 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const route = await calculateDrivingDistance(fromLocationId, toLocationId);
   const today = new Date().toISOString().slice(0, 10);
-  const [categoriesResult, rulesResult, slabsResult, ridersResult, vehiclesResult] =
-    await Promise.all([
-      supabaseAdmin
-        .from("vehicle_categories")
-        .select("id, name, seat_capacity, vehicle_class")
-        .eq("is_active", true),
-      supabaseAdmin.from("fare_rules").select("*").eq("is_active", true),
-      supabaseAdmin.from("fare_slabs").select("*").eq("is_active", true),
-      supabaseAdmin
-        .from("rider_details")
-        .select("user_id")
-        .eq("is_approved", true)
-        .eq("is_blocked", false)
-        .eq("is_online", true)
-        .gte("subscription_valid_until", today),
-      supabaseAdmin
-        .from("rider_vehicles")
-        .select("id, rider_id, vehicle_category_id, seat_capacity, has_ac")
-        .eq("is_active", true),
-    ]);
+  const [
+    categoriesResult,
+    rulesResult,
+    slabsResult,
+    ridersResult,
+    vehiclesResult,
+    configResult,
+    overridesResult,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("vehicle_categories")
+      .select("id, name, seat_capacity, vehicle_class")
+      .eq("is_active", true),
+    supabaseAdmin.from("fare_rules").select("*").eq("is_active", true),
+    supabaseAdmin.from("fare_slabs").select("*").eq("is_active", true),
+    supabaseAdmin
+      .from("rider_details")
+      .select("user_id")
+      .eq("is_approved", true)
+      .eq("is_blocked", false)
+      .eq("is_online", true)
+      .gte("subscription_valid_until", today),
+    supabaseAdmin
+      .from("rider_vehicles")
+      .select("id, rider_id, vehicle_category_id, seat_capacity, has_ac")
+      .eq("is_active", true),
+    supabaseAdmin
+      .from("day_night_pricing_config")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin.from("day_night_vehicle_overrides").select("*").eq("is_active", true),
+  ]);
   if (
     categoriesResult.error ||
     rulesResult.error ||
@@ -503,8 +517,15 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   const eligibleRiders = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
   const rules = rulesResult.data ?? [];
   const slabs = slabsResult.data ?? [];
+  const config = configResult.data ?? DEFAULT_DAY_NIGHT_CONFIG;
+  const overrides = overridesResult.data ?? [];
+  const calculatedAt = new Date();
+  const period = resolvePricingPeriod(config, calculatedAt);
   return {
     ...route,
+    pricingPeriod: period,
+    pricingTimezone: PRICING_TIMEZONE,
+    fareCalculatedAt: calculatedAt.toISOString(),
     options: (categoriesResult.data ?? []).map((category) => {
       const matchingVehicles = (vehiclesResult.data ?? []).filter(
         (vehicle) =>
@@ -512,8 +533,11 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           eligibleRiders.has(vehicle.rider_id) &&
           passengers <= vehicle.seat_capacity,
       );
-      const journeyTypes =
-        category.vehicle_class === "three_wheeler" ? ["share"] : ["standard"];
+      const settings = effectiveNightSettings(
+        config,
+        overrides.find((item) => item.vehicle_category_id === category.id),
+      );
+      const journeyTypes = category.vehicle_class === "three_wheeler" ? ["share"] : ["standard"];
       const acOptions = category.vehicle_class === "four_wheeler" ? [true, false] : [null];
       const fares = journeyTypes.flatMap((journeyType) =>
         acOptions.map((requestedAc) => {
@@ -527,7 +551,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           const hasVehicle = matchingVehicles.some(
             (vehicle) => requestedAc == null || vehicle.has_ac === requestedAc,
           );
-          const calculated = rule
+          const baseCalculated = rule
             ? calculateRuleFare(
                 rule,
                 slabs.filter((slab) => slab.fare_rule_id === rule.id),
@@ -535,12 +559,27 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
                 passengers,
               )
             : null;
+          const calculated = baseCalculated
+            ? applyDayNight(baseCalculated, {
+                period,
+                config,
+                settings,
+                journeyType,
+                distanceKm: route.distanceKm,
+                passengers,
+              })
+            : null;
           return {
             journeyType,
             requestedAc,
             available: Boolean(hasVehicle && calculated),
             fare: calculated?.totalFare ?? null,
             unitFare: calculated?.unitFare ?? null,
+            baseFare: calculated?.baseFare ?? null,
+            pricingPeriod: period,
+            nightPricingApplied: calculated?.nightPricingApplied ?? false,
+            multiplierUsed: calculated?.multiplierUsed ?? null,
+            nightRateOverride: calculated?.nightRateOverride ?? null,
             reason: hasVehicle ? "Fare currently unavailable" : "No driver available",
             ruleId: rule?.id ?? null,
             calculation: calculated,
@@ -557,6 +596,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
     }),
   };
 }
+
 
 export const getFareOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

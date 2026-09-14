@@ -319,7 +319,6 @@ const DEFAULT_DAY_NIGHT_CONFIG = {
   updated_at: new Date(0).toISOString(),
 } satisfies DayNightConfigRow;
 
-
 const istFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: PRICING_TIMEZONE,
   hour12: false,
@@ -402,8 +401,7 @@ function applyDayNight(
 ) {
   const { period, config, settings, journeyType, distanceKm, passengers } = options;
   const baseUnitFare = base.unitFare;
-  const active =
-    period === "night" && settings.enabled && appliesToJourney(config, journeyType);
+  const active = period === "night" && settings.enabled && appliesToJourney(config, journeyType);
 
   let unitFare = baseUnitFare;
   let multiplierUsed: number | null = null;
@@ -428,7 +426,8 @@ function applyDayNight(
     unitFare,
     totalFare,
     baseUnitFare,
-    baseFare: Math.round((journeyType === "share" ? baseUnitFare * passengers : baseUnitFare) * 100) / 100,
+    baseFare:
+      Math.round((journeyType === "share" ? baseUnitFare * passengers : baseUnitFare) * 100) / 100,
     pricingPeriod: period,
     nightPricingApplied: active,
     nightPricingMode: active ? settings.pricingMode : null,
@@ -436,10 +435,6 @@ function applyDayNight(
     nightRateOverride,
   };
 }
-
-
-
-
 
 function calculateRuleFare(
   rule: FareRuleRow,
@@ -614,7 +609,6 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   };
 }
 
-
 export const getFareOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => fareOptionsInput.parse(data))
@@ -649,7 +643,6 @@ export const getPricingStatus = createServerFn({ method: "GET" })
       nightDirectRate: config.night_direct_rate == null ? null : Number(config.night_direct_rate),
     };
   });
-
 
 /** Returns only the non-sensitive fields needed to compare currently available rides. */
 export const getRiderOffers = createServerFn({ method: "GET" })
@@ -784,7 +777,6 @@ export const createBooking = createServerFn({ method: "POST" })
       timezone: PRICING_TIMEZONE,
       fare_calculated_at: quote.fareCalculatedAt,
     };
-
 
     const { data: ride, error } = await supabase
       .from("rides")
@@ -1057,7 +1049,6 @@ async function notifyCustomerRideUpdate(rideId: string, stage: string) {
   }
 }
 
-
 /** A rider accepts a pending ride. Blocked unless approved with an active subscription and online. */
 export const acceptRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1277,8 +1268,7 @@ export const deleteCustomerAccount = createServerFn({ method: "POST" })
   .validator((data: unknown) => adminCustomerInput.parse(data))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
-    if (data.customerId === context.userId)
-      throw new Error("You cannot delete your own account.");
+    if (data.customerId === context.userId) throw new Error("You cannot delete your own account.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: customerRole, error: roleError } = await supabaseAdmin
       .from("user_roles")

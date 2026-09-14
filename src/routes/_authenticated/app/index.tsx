@@ -281,7 +281,6 @@ function BookPage() {
                     <strong className="text-lg text-primary">
                       {fare.available ? rupees(fare.fare ?? 0) : "—"}
                     </strong>
-
                   </Button>
                 ))}
               </div>

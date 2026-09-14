@@ -264,3 +264,298 @@ function FareManagement() {
     </AdminShell>
   );
 }
+
+type ConfigRow = {
+  id: string;
+  is_enabled: boolean;
+  day_start_time: string;
+  night_start_time: string;
+  pricing_mode: string;
+  night_multiplier: number;
+  night_direct_rate: number | null;
+  applies_to_per_km: boolean;
+  applies_to_share: boolean;
+  applies_to_reserve: boolean;
+};
+
+function DayNightSection() {
+  const qc = useQueryClient();
+  const [overrideCategory, setOverrideCategory] = useState("");
+
+  const config = useQuery({
+    queryKey: ["day-night-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("day_night_pricing_config")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as ConfigRow | null;
+    },
+  });
+  const categories = useQuery({
+    queryKey: ["vehicle-categories-basic"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicle_categories")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("sort_order");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const overrides = useQuery({
+    queryKey: ["day-night-overrides"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("day_night_vehicle_overrides").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  async function saveConfig(changes: Partial<ConfigRow>) {
+    const row = config.data;
+    if (!row) return;
+    const { error } = await supabase
+      .from("day_night_pricing_config")
+      .update(changes)
+      .eq("id", row.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Day/Night pricing saved.");
+      void qc.invalidateQueries({ queryKey: ["day-night-config"] });
+      void qc.invalidateQueries({ queryKey: ["fare-history"] });
+    }
+  }
+
+  async function addOverride() {
+    if (!overrideCategory) {
+      toast.error("Choose a vehicle category.");
+      return;
+    }
+    const { error } = await supabase
+      .from("day_night_vehicle_overrides")
+      .insert({ vehicle_category_id: overrideCategory });
+    if (error) toast.error(error.message);
+    else {
+      setOverrideCategory("");
+      toast.success("Override added.");
+      void qc.invalidateQueries({ queryKey: ["day-night-overrides"] });
+    }
+  }
+
+  async function updateOverride(id: string, changes: Record<string, unknown>) {
+    const { error } = await supabase
+      .from("day_night_vehicle_overrides")
+      .update(changes)
+      .eq("id", id);
+    if (error) toast.error(error.message);
+    else void qc.invalidateQueries({ queryKey: ["day-night-overrides"] });
+  }
+
+  async function removeOverride(id: string) {
+    const { error } = await supabase.from("day_night_vehicle_overrides").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Override removed.");
+      void qc.invalidateQueries({ queryKey: ["day-night-overrides"] });
+    }
+  }
+
+  const row = config.data;
+
+  return (
+    <section className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Day / Night pricing</h2>
+          <p className="text-xs text-muted-foreground">
+            All times are Indian Standard Time. Night runs from the night start to the day start.
+          </p>
+        </div>
+        {row ? (
+          <Button
+            size="sm"
+            variant={row.is_enabled ? "default" : "outline"}
+            onClick={() => void saveConfig({ is_enabled: !row.is_enabled })}
+          >
+            {row.is_enabled ? "On" : "Off"}
+          </Button>
+        ) : null}
+      </div>
+
+      {!row ? (
+        <p className="text-sm text-muted-foreground">Loading pricing settings…</p>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label>
+              <Label>Day starts</Label>
+              <Input
+                type="time"
+                defaultValue={row.day_start_time.slice(0, 5)}
+                onBlur={(e) => void saveConfig({ day_start_time: e.target.value })}
+              />
+            </label>
+            <label>
+              <Label>Night starts</Label>
+              <Input
+                type="time"
+                defaultValue={row.night_start_time.slice(0, 5)}
+                onBlur={(e) => void saveConfig({ night_start_time: e.target.value })}
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <label>
+              <Label>Pricing style</Label>
+              <select
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                value={row.pricing_mode}
+                onChange={(e) => void saveConfig({ pricing_mode: e.target.value })}
+              >
+                <option value="multiplier">Multiplier</option>
+                <option value="direct_rate">Direct night rate</option>
+              </select>
+            </label>
+            <label>
+              <Label>Night multiplier</Label>
+              <Input
+                type="number"
+                step="0.1"
+                defaultValue={row.night_multiplier}
+                onBlur={(e) => void saveConfig({ night_multiplier: Number(e.target.value) })}
+              />
+            </label>
+            <label>
+              <Label>Night ₹ / km</Label>
+              <Input
+                type="number"
+                defaultValue={row.night_direct_rate ?? ""}
+                onBlur={(e) =>
+                  void saveConfig({
+                    night_direct_rate: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["applies_to_per_km", "Per-km fares"],
+                ["applies_to_share", "Share fares"],
+                ["applies_to_reserve", "Reserve fares"],
+              ] as const
+            ).map(([key, label]) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={row[key] ? "default" : "outline"}
+                onClick={() => void saveConfig({ [key]: !row[key] })}
+              >
+                {label}: {row[key] ? "On" : "Off"}
+              </Button>
+            ))}
+          </div>
+
+          <div className="space-y-2 border-t pt-3">
+            <h3 className="text-sm font-semibold">Vehicle overrides</h3>
+            {overrides.data?.length ? (
+              overrides.data.map((item) => (
+                <div key={item.id} className="rounded-md bg-muted p-2 text-sm">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="font-medium">
+                      {categories.data?.find((c) => c.id === item.vehicle_category_id)?.name ??
+                        "Vehicle"}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={item.is_enabled ? "default" : "outline"}
+                        onClick={() =>
+                          void updateOverride(item.id, { is_enabled: !item.is_enabled })
+                        }
+                      >
+                        {item.is_enabled ? "On" : "Off"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void removeOverride(item.id)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <select
+                      className="h-9 rounded-md border bg-background px-3 text-sm"
+                      value={item.pricing_mode}
+                      onChange={(e) =>
+                        void updateOverride(item.id, { pricing_mode: e.target.value })
+                      }
+                    >
+                      <option value="multiplier">Multiplier</option>
+                      <option value="direct_rate">Direct night rate</option>
+                    </select>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="Multiplier"
+                      defaultValue={item.night_multiplier ?? ""}
+                      onBlur={(e) =>
+                        void updateOverride(item.id, {
+                          night_multiplier: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Night ₹/km"
+                      defaultValue={item.night_direct_rate ?? ""}
+                      onBlur={(e) =>
+                        void updateOverride(item.id, {
+                          night_direct_rate: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No vehicle overrides. All vehicles use the settings above.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <select
+                className="h-9 flex-1 rounded-md border bg-background px-3 text-sm"
+                value={overrideCategory}
+                onChange={(e) => setOverrideCategory(e.target.value)}
+              >
+                <option value="">Add override for…</option>
+                {categories.data
+                  ?.filter(
+                    (category) =>
+                      !overrides.data?.some((item) => item.vehicle_category_id === category.id),
+                  )
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+              </select>
+              <Button onClick={() => void addOverride()}>Add</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}

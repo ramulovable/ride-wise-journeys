@@ -157,7 +157,10 @@ function Catalog() {
     if (!edit) return;
     let error: { message: string } | null = null;
     if (edit.kind === "category") {
-      if (!edit.name.trim()) return toast.error("Name is required.");
+      if (!edit.name.trim()) {
+        toast.error("Name is required.");
+        return;
+      }
       ({ error } = await supabase
         .from("vehicle_categories")
         .update({
@@ -167,13 +170,19 @@ function Catalog() {
         })
         .eq("id", edit.id));
     } else if (edit.kind === "brand") {
-      if (!edit.name.trim() || !edit.categoryId) return toast.error("Name and category required.");
+      if (!edit.name.trim() || !edit.categoryId) {
+        toast.error("Name and category required.");
+        return;
+      }
       ({ error } = await supabase
         .from("vehicle_brands")
         .update({ name: edit.name.trim(), category_id: edit.categoryId })
         .eq("id", edit.id));
     } else {
-      if (!edit.name.trim() || !edit.brandId) return toast.error("Name and brand required.");
+      if (!edit.name.trim() || !edit.brandId) {
+        toast.error("Name and brand required.");
+        return;
+      }
       ({ error } = await supabase
         .from("vehicle_models")
         .update({

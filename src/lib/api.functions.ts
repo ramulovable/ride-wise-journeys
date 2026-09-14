@@ -622,6 +622,35 @@ export const getFareOptions = createServerFn({ method: "GET" })
     loadFareOptions(data.fromLocationId, data.toLocationId, data.passengers),
   );
 
+/** Authoritative IST clock + current day/night fare status. Never trust the device clock. */
+export const getPricingStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("day_night_pricing_config")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const config = data ?? DEFAULT_DAY_NIGHT_CONFIG;
+    const now = new Date();
+    const period = resolvePricingPeriod(config, now);
+    return {
+      timezone: PRICING_TIMEZONE,
+      serverTime: now.toISOString(),
+      istTime: istTimeString(now),
+      period,
+      isEnabled: config.is_enabled,
+      dayStartTime: config.day_start_time,
+      nightStartTime: config.night_start_time,
+      pricingMode: config.pricing_mode,
+      nightMultiplier: Number(config.night_multiplier),
+      nightDirectRate: config.night_direct_rate == null ? null : Number(config.night_direct_rate),
+    };
+  });
+
+
 /** Returns only the non-sensitive fields needed to compare currently available rides. */
 export const getRiderOffers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

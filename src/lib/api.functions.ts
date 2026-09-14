@@ -480,6 +480,39 @@ function calculateRuleFare(
   };
 }
 
+type ReserveConfigRow = Database["public"]["Tables"]["three_wheeler_reserve_config"]["Row"];
+
+/** Used only when no Three Wheeler reserve configuration row exists yet. */
+const DEFAULT_RESERVE_CONFIG = {
+  is_enabled: false,
+  min_km: 15,
+  max_km: 35,
+  fixed_fare: 0,
+};
+
+function reserveSettings(row: ReserveConfigRow | null | undefined) {
+  if (!row) return DEFAULT_RESERVE_CONFIG;
+  return {
+    is_enabled: row.is_enabled,
+    min_km: Number(row.min_km),
+    max_km: Number(row.max_km),
+    fixed_fare: Number(row.fixed_fare),
+  };
+}
+
+/** Three Wheeler reserve journeys are only offered inside the configured distance band. */
+export function reserveIsAvailable(
+  config: ReturnType<typeof reserveSettings>,
+  distanceKm: number,
+): boolean {
+  return (
+    config.is_enabled &&
+    config.fixed_fare > 0 &&
+    distanceKm > config.min_km &&
+    distanceKm <= config.max_km
+  );
+}
+
 async function loadFareOptions(fromLocationId: string, toLocationId: string, passengers: number) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const route = await calculateDrivingDistance(fromLocationId, toLocationId);
@@ -492,6 +525,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
     vehiclesResult,
     configResult,
     overridesResult,
+    reserveResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("vehicle_categories")
@@ -517,6 +551,12 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
       .limit(1)
       .maybeSingle(),
     supabaseAdmin.from("day_night_vehicle_overrides").select("*").eq("is_active", true),
+    supabaseAdmin
+      .from("three_wheeler_reserve_config")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (
     categoriesResult.error ||
@@ -531,6 +571,8 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   const slabs = slabsResult.data ?? [];
   const config = configResult.data ?? DEFAULT_DAY_NIGHT_CONFIG;
   const overrides = overridesResult.data ?? [];
+  const reserveConfig = reserveSettings(reserveResult.data);
+  const reserveOffered = reserveIsAvailable(reserveConfig, route.distanceKm);
   const calculatedAt = new Date();
   const period = resolvePricingPeriod(config, calculatedAt);
   return {
@@ -549,7 +591,12 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
         config,
         overrides.find((item) => item.vehicle_category_id === category.id),
       );
-      const journeyTypes = category.vehicle_class === "three_wheeler" ? ["share"] : ["standard"];
+      const journeyTypes =
+        category.vehicle_class === "three_wheeler"
+          ? reserveOffered
+            ? ["share", "reserve"]
+            : ["share"]
+          : ["standard"];
       const acOptions = category.vehicle_class === "four_wheeler" ? [true, false] : [null];
       const fares = journeyTypes.flatMap((journeyType) =>
         acOptions.map((requestedAc) => {
@@ -563,14 +610,23 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
           const hasVehicle = matchingVehicles.some(
             (vehicle) => requestedAc == null || vehicle.has_ac === requestedAc,
           );
-          const baseCalculated = rule
-            ? calculateRuleFare(
-                rule,
-                slabs.filter((slab) => slab.fare_rule_id === rule.id),
-                route.distanceKm,
-                passengers,
-              )
-            : null;
+          const isThreeWheelerReserve =
+            category.vehicle_class === "three_wheeler" && journeyType === "reserve";
+          const baseCalculated = isThreeWheelerReserve
+            ? {
+                unitFare: reserveConfig.fixed_fare,
+                totalFare: reserveConfig.fixed_fare,
+                pricingMode: "fixed_reserve",
+                slab: null,
+              }
+            : rule
+              ? calculateRuleFare(
+                  rule,
+                  slabs.filter((slab) => slab.fare_rule_id === rule.id),
+                  route.distanceKm,
+                  passengers,
+                )
+              : null;
           const calculated = baseCalculated
             ? applyDayNight(baseCalculated, {
                 period,
@@ -748,6 +804,17 @@ export const createBooking = createServerFn({ method: "POST" })
 
     const quote = await loadFareOptions(data.fromLocationId, data.toLocationId, data.passengers);
     const category = quote.options.find((item) => item.categoryId === data.categoryId);
+    if (data.bookingType === "reserve" && category?.vehicleClass === "three_wheeler") {
+      const { data: reserveRow } = await supabaseAdmin
+        .from("three_wheeler_reserve_config")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!reserveIsAvailable(reserveSettings(reserveRow), quote.distanceKm)) {
+        throw new Error("Reserve journey is not available for this distance.");
+      }
+    }
     const option = category?.fares.find(
       (item) =>
         item.journeyType === data.bookingType && item.requestedAc === (data.requestedAc ?? null),

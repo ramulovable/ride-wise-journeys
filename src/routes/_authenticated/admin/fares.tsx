@@ -123,6 +123,8 @@ function FareManagement() {
       <div className="space-y-5">
         <DayNightSection />
 
+        <ThreeWheelerReserveSection />
+
         <section className="grid gap-3 md:grid-cols-2">
           {rules.data?.map((rule) => (
             <article key={rule.id} className="rounded-lg border bg-card p-4">
@@ -562,6 +564,105 @@ function DayNightSection() {
               <Button onClick={() => void addOverride()}>Add</Button>
             </div>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+type ReserveRow = {
+  id: string;
+  is_enabled: boolean;
+  min_km: number;
+  max_km: number;
+  fixed_fare: number;
+};
+
+function ThreeWheelerReserveSection() {
+  const qc = useQueryClient();
+  const config = useQuery({
+    queryKey: ["three-wheeler-reserve-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("three_wheeler_reserve_config")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as ReserveRow | null;
+    },
+  });
+
+  async function save(changes: Partial<ReserveRow>) {
+    const row = config.data;
+    if (!row) return;
+    const { error } = await supabase
+      .from("three_wheeler_reserve_config")
+      .update(changes)
+      .eq("id", row.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Reserve settings saved.");
+      void qc.invalidateQueries({ queryKey: ["three-wheeler-reserve-config"] });
+      void qc.invalidateQueries({ queryKey: ["fare-history"] });
+    }
+  }
+
+  const row = config.data;
+
+  return (
+    <section className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Three Wheeler reserve journey</h2>
+          <p className="text-xs text-muted-foreground">
+            Reserve is shown to customers only when the trip distance is above the minimum and up to
+            the maximum. The fare is a fixed total for the whole vehicle.
+          </p>
+        </div>
+        {row ? (
+          <Button
+            size="sm"
+            variant={row.is_enabled ? "default" : "outline"}
+            onClick={() => void save({ is_enabled: !row.is_enabled })}
+          >
+            {row.is_enabled ? "On" : "Off"}
+          </Button>
+        ) : null}
+      </div>
+
+      {!row ? (
+        <p className="text-sm text-muted-foreground">Loading reserve settings…</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label>
+            <Label>Minimum km (above)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              defaultValue={row.min_km}
+              onBlur={(e) => void save({ min_km: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            <Label>Maximum km (up to)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              defaultValue={row.max_km}
+              onBlur={(e) => void save({ max_km: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            <Label>Fixed reserve fare ₹</Label>
+            <Input
+              type="number"
+              step="1"
+              defaultValue={row.fixed_fare}
+              onBlur={(e) => void save({ fixed_fare: Number(e.target.value) })}
+            />
+          </label>
         </div>
       )}
     </section>

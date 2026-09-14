@@ -1225,6 +1225,36 @@ export type Database = {
         }
         Relationships: []
       }
+      three_wheeler_reserve_config: {
+        Row: {
+          created_at: string
+          fixed_fare: number
+          id: string
+          is_enabled: boolean
+          max_km: number
+          min_km: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fixed_fare?: number
+          id?: string
+          is_enabled?: boolean
+          max_km?: number
+          min_km?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fixed_fare?: number
+          id?: string
+          is_enabled?: boolean
+          max_km?: number
+          min_km?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

@@ -804,6 +804,17 @@ export const createBooking = createServerFn({ method: "POST" })
 
     const quote = await loadFareOptions(data.fromLocationId, data.toLocationId, data.passengers);
     const category = quote.options.find((item) => item.categoryId === data.categoryId);
+    if (data.bookingType === "reserve" && category?.vehicleClass === "three_wheeler") {
+      const { data: reserveRow } = await supabaseAdmin
+        .from("three_wheeler_reserve_config")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!reserveIsAvailable(reserveSettings(reserveRow), quote.distanceKm)) {
+        throw new Error("Reserve journey is not available for this distance.");
+      }
+    }
     const option = category?.fares.find(
       (item) =>
         item.journeyType === data.bookingType && item.requestedAc === (data.requestedAc ?? null),

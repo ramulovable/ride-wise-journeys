@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeftRight, Car, MapPin, Minus, Plus, RouteIcon } from "lucide-react";
+import { ArrowLeftRight, Bike, Car, MapPin, Minus, Plus, RouteIcon, Truck } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -231,8 +231,14 @@ function BookPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{option.categoryName}</p>
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Car className="h-3.5 w-3.5" />
+                  <p className="flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
+                    {option.vehicleClass === "two_wheeler" ? (
+                      <Bike className="h-3.5 w-3.5" />
+                    ) : option.vehicleClass === "three_wheeler" ? (
+                      <Truck className="h-3.5 w-3.5" />
+                    ) : (
+                      <Car className="h-3.5 w-3.5" />
+                    )}
                     {option.vehicleClass.replaceAll("_", " ")}
                   </p>
                 </div>

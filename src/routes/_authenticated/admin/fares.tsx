@@ -39,7 +39,9 @@ function FareManagement() {
     queryFn: async () => {
       const { data, error } = await supabase.from("fare_rules").select("*").order("vehicle_class");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).filter(
+        (rule) => !(rule.vehicle_class === "three_wheeler" && rule.journey_type === "reserve"),
+      );
     },
   });
   const history = useQuery({

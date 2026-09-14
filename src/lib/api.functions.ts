@@ -571,6 +571,8 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
   const slabs = slabsResult.data ?? [];
   const config = configResult.data ?? DEFAULT_DAY_NIGHT_CONFIG;
   const overrides = overridesResult.data ?? [];
+  const reserveConfig = reserveSettings(reserveResult.data);
+  const reserveOffered = reserveIsAvailable(reserveConfig, route.distanceKm);
   const calculatedAt = new Date();
   const period = resolvePricingPeriod(config, calculatedAt);
   return {

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/shells";
+import { IstClock } from "@/components/IstClock";
 import { supabase } from "@/integrations/supabase/client";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 import { rupees } from "@/lib/format";
@@ -74,6 +75,9 @@ function AdminDashboard() {
   ];
   return (
     <AdminShell title="Operations dashboard" subtitle="Live business counters from Shahin Travels.">
+      <div className="mx-auto mb-4 max-w-3xl">
+        <IstClock />
+      </div>
       <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {cards.map((c) => (
           <Link

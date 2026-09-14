@@ -303,6 +303,23 @@ type DayNightOverrideRow = Database["public"]["Tables"]["day_night_vehicle_overr
 
 export const PRICING_TIMEZONE = "Asia/Kolkata";
 
+/** Used only when no configuration row exists yet. */
+const DEFAULT_DAY_NIGHT_CONFIG = {
+  id: "default",
+  is_enabled: true,
+  day_start_time: "05:00:00",
+  night_start_time: "20:00:00",
+  pricing_mode: "multiplier",
+  night_multiplier: 2,
+  night_direct_rate: null,
+  applies_to_per_km: true,
+  applies_to_share: true,
+  applies_to_reserve: true,
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+} satisfies DayNightConfigRow;
+
+
 const istFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: PRICING_TIMEZONE,
   hour12: false,

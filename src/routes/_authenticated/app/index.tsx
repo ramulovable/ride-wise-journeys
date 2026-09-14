@@ -270,10 +270,18 @@ function BookPage() {
                             : "Cash on completion"
                           : fare.reason}
                       </span>
+                      {fare.available && fare.nightPricingApplied ? (
+                        <span className="mt-0.5 block text-[11px] font-medium text-primary">
+                          Night fare
+                          {fare.multiplierUsed ? ` ${fare.multiplierUsed}×` : ""} applied
+                          {fare.baseFare != null ? ` · day ${rupees(fare.baseFare)}` : ""}
+                        </span>
+                      ) : null}
                     </span>
                     <strong className="text-lg text-primary">
                       {fare.available ? rupees(fare.fare ?? 0) : "—"}
                     </strong>
+
                   </Button>
                 ))}
               </div>

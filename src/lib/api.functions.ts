@@ -744,7 +744,18 @@ export const createBooking = createServerFn({ method: "POST" })
       totalFare: option.fare,
       passengers: data.passengers,
       calculation: option.calculation,
+      base_fare: option.baseFare,
+      pricing_period: option.pricingPeriod,
+      pricing_mode: option.nightRateOverride != null ? "direct_rate" : "multiplier",
+      multiplier_used: option.multiplierUsed,
+      night_rate_override: option.nightRateOverride,
+      distance_km: quote.distanceKm,
+      vehicle_category: category.categoryName,
+      final_fare: option.fare,
+      timezone: PRICING_TIMEZONE,
+      fare_calculated_at: quote.fareCalculatedAt,
     };
+
 
     const { data: ride, error } = await supabase
       .from("rides")

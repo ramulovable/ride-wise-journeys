@@ -420,16 +420,8 @@ function applyDayNight(
   };
 }
 
-async function loadDayNightPricing(
-  admin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server")["default"] extends never
-      ? never
-      : never>
-  >,
-): Promise<never> {
-  throw new Error("unused");
-}
-void loadDayNightPricing;
+
+
 
 
 function calculateRuleFare(

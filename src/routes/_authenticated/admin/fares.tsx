@@ -123,6 +123,8 @@ function FareManagement() {
       <div className="space-y-5">
         <DayNightSection />
 
+        <ThreeWheelerReserveSection />
+
         <section className="grid gap-3 md:grid-cols-2">
           {rules.data?.map((rule) => (
             <article key={rule.id} className="rounded-lg border bg-card p-4">

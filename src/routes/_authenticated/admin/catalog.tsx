@@ -93,10 +93,6 @@ function Catalog() {
   });
 
   const term = search.trim().toLowerCase();
-  const brandById = useMemo(
-    () => new Map((brands.data ?? []).map((item) => [item.id, item])),
-    [brands.data],
-  );
   const categoryById = useMemo(
     () => new Map((categories.data ?? []).map((item) => [item.id, item])),
     [categories.data],

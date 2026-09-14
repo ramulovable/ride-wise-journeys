@@ -480,6 +480,39 @@ function calculateRuleFare(
   };
 }
 
+type ReserveConfigRow = Database["public"]["Tables"]["three_wheeler_reserve_config"]["Row"];
+
+/** Used only when no Three Wheeler reserve configuration row exists yet. */
+const DEFAULT_RESERVE_CONFIG = {
+  is_enabled: false,
+  min_km: 15,
+  max_km: 35,
+  fixed_fare: 0,
+};
+
+function reserveSettings(row: ReserveConfigRow | null | undefined) {
+  if (!row) return DEFAULT_RESERVE_CONFIG;
+  return {
+    is_enabled: row.is_enabled,
+    min_km: Number(row.min_km),
+    max_km: Number(row.max_km),
+    fixed_fare: Number(row.fixed_fare),
+  };
+}
+
+/** Three Wheeler reserve journeys are only offered inside the configured distance band. */
+export function reserveIsAvailable(
+  config: ReturnType<typeof reserveSettings>,
+  distanceKm: number,
+): boolean {
+  return (
+    config.is_enabled &&
+    config.fixed_fare > 0 &&
+    distanceKm > config.min_km &&
+    distanceKm <= config.max_km
+  );
+}
+
 async function loadFareOptions(fromLocationId: string, toLocationId: string, passengers: number) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const route = await calculateDrivingDistance(fromLocationId, toLocationId);

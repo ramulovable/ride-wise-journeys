@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/rider/qr")({
       { property: "og:description", content: "Printable booking QR codes for your vehicles." },
     ],
   }),
-  component: RiderQr;
+  component: RiderQr,
 });
 
 function RiderQr() {

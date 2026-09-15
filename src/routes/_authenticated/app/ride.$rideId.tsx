@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Phone, Star } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { LiveRideMap } from "@/components/LiveRideMap";
+import { VerifiedTick } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -203,8 +204,9 @@ function RideDetail() {
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
+                  <p className="flex items-center gap-1 truncate text-sm font-semibold text-foreground">
                     {driver.data.name}
+                    {driver.data.isVerified ? <VerifiedTick className="h-4 w-4" /> : null}
                   </p>
                   <p className="text-xs text-muted-foreground">Your driver</p>
                 </div>

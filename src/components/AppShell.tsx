@@ -4,6 +4,8 @@ import { Bell, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandHeader } from "@/components/BrandHeader";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import { InstallAppBar } from "@/components/InstallAppBar";
@@ -28,6 +30,7 @@ export function AppShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { profile } = useAuth();
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -42,13 +45,18 @@ export function AppShell({
         title={title}
         {...(subtitle === undefined ? {} : { subtitle })}
         right={
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
             {showNotificationBell ? (
               <Button variant="ghost" size="icon" asChild aria-label="Notifications">
                 <Link to="/notifications">
                   <Bell className="h-4 w-4" />
                 </Link>
               </Button>
+            ) : null}
+            {showNotificationBell ? (
+              <Link to="/profile" aria-label="My profile">
+                <ProfileAvatar path={profile?.photo_url} name={profile?.full_name} size={32} />
+              </Link>
             ) : null}
             <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
               <LogOut className="h-4 w-4" />

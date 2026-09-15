@@ -31,6 +31,7 @@ export type RiderDetails = {
   base_location_id: string | null;
   is_approved: boolean;
   is_blocked: boolean;
+  is_verified: boolean;
   is_online: boolean;
   subscription_valid_until: string | null;
 };

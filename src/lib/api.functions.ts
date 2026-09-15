@@ -1622,10 +1622,17 @@ export const getRideDriverDetails = createServerFn({ method: "GET" })
       photoUrl = photoPath;
     }
 
+    const { data: riderRow } = await supabaseAdmin
+      .from("rider_details")
+      .select("is_verified")
+      .eq("user_id", ride.rider_id)
+      .maybeSingle();
+
     return {
       name: profileResult.data?.full_name || "Shahin driver",
       mobile: profileResult.data?.mobile ?? null,
       photoUrl,
+      isVerified: Boolean(riderRow?.is_verified),
       vehicle: vehicle
         ? {
             number: vehicle.vehicle_number,
@@ -1711,4 +1718,118 @@ export const getRideRouteGeometry = createServerFn({ method: "GET" })
     }
 
     return { pickup, drop, polyline, distanceKm, durationMinutes, status: ride.status };
+  });
+
+/** Admin: grant or revoke a driver's verified blue tick. */
+export const setRiderVerified = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminRiderInput.extend({ verified: z.boolean() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("rider_details")
+      .update({ is_verified: data.verified })
+      .eq("user_id", data.riderId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Admin: full personal and vehicle details for one driver. */
+export const getAdminRiderProfile = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminRiderInput.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [profileResult, detailsResult, vehiclesResult] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("full_name, mobile, address, created_at, photo_url")
+        .eq("id", data.riderId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("rider_details")
+        .select("is_approved, is_blocked, is_online, is_verified, subscription_valid_until")
+        .eq("user_id", data.riderId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("rider_vehicles")
+        .select(
+          "id, vehicle_number, vehicle_model, brand_name, has_ac, is_active, vehicle_category_id, brand_id, model_id",
+        )
+        .eq("rider_id", data.riderId),
+    ]);
+
+    const vehicles = vehiclesResult.data ?? [];
+    const categoryIds = [
+      ...new Set(vehicles.map((v) => v.vehicle_category_id).filter(Boolean)),
+    ] as string[];
+    const brandIds = [...new Set(vehicles.map((v) => v.brand_id).filter(Boolean))] as string[];
+    const modelIds = [...new Set(vehicles.map((v) => v.model_id).filter(Boolean))] as string[];
+    const [categories, brands, models] = await Promise.all([
+      categoryIds.length
+        ? supabaseAdmin.from("vehicle_categories").select("id, name").in("id", categoryIds)
+        : Promise.resolve({ data: [] }),
+      brandIds.length
+        ? supabaseAdmin.from("vehicle_brands").select("id, name").in("id", brandIds)
+        : Promise.resolve({ data: [] }),
+      modelIds.length
+        ? supabaseAdmin.from("vehicle_models").select("id, name").in("id", modelIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const nameOf = (rows: { id: string; name: string }[] | null, id: string | null) =>
+      (id && rows?.find((row) => row.id === id)?.name) || null;
+
+    return {
+      name: profileResult.data?.full_name ?? "Driver",
+      mobile: profileResult.data?.mobile ?? null,
+      address: profileResult.data?.address ?? null,
+      joinedAt: profileResult.data?.created_at ?? null,
+      photoPath: profileResult.data?.photo_url ?? null,
+      isApproved: Boolean(detailsResult.data?.is_approved),
+      isBlocked: Boolean(detailsResult.data?.is_blocked),
+      isVerified: Boolean(detailsResult.data?.is_verified),
+      subscriptionValidUntil: detailsResult.data?.subscription_valid_until ?? null,
+      vehicles: vehicles.map((vehicle) => ({
+        id: vehicle.id,
+        number: vehicle.vehicle_number,
+        category: nameOf(categories.data, vehicle.vehicle_category_id),
+        brand: nameOf(brands.data, vehicle.brand_id) ?? vehicle.brand_name,
+        model: nameOf(models.data, vehicle.model_id) ?? vehicle.vehicle_model,
+        hasAc: vehicle.has_ac,
+        isActive: vehicle.is_active,
+      })),
+    };
+  });
+
+/** Admin: every customer review left for one driver. */
+export const getAdminRiderReviews = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminRiderInput.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ratings, error } = await supabaseAdmin
+      .from("ratings")
+      .select("id, customer_id, stars, comment, created_at")
+      .eq("rider_id", data.riderId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const customerIds = [...new Set((ratings ?? []).map((r) => r.customer_id))];
+    const { data: customers } = customerIds.length
+      ? await supabaseAdmin.from("profiles").select("id, full_name").in("id", customerIds)
+      : { data: [] };
+    const reviews = (ratings ?? []).map((rating) => ({
+      id: rating.id,
+      stars: rating.stars,
+      comment: rating.comment,
+      createdAt: rating.created_at,
+      customerName:
+        customers?.find((customer) => customer.id === rating.customer_id)?.full_name || "Customer",
+    }));
+    const average = reviews.length
+      ? reviews.reduce((sum, review) => sum + review.stars, 0) / reviews.length
+      : 0;
+    return { average, total: reviews.length, reviews };
   });

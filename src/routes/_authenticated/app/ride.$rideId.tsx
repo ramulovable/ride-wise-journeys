@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Phone, Star } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
+import { LiveRideMap } from "@/components/LiveRideMap";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -136,6 +137,9 @@ function RideDetail() {
         <p className="text-sm text-muted-foreground">Loading ride…</p>
       ) : (
         <div className="space-y-4">
+          {r.rider_id && !["completed", "cancelled"].includes(r.status) ? (
+            <LiveRideMap rideId={rideId} active className="h-64 w-full rounded-2xl" />
+          ) : null}
           <section className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-semibold text-foreground">
               {placeName(r.from_location_id)} → {placeName(r.to_location_id)}

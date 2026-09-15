@@ -1622,10 +1622,17 @@ export const getRideDriverDetails = createServerFn({ method: "GET" })
       photoUrl = photoPath;
     }
 
+    const { data: riderRow } = await supabaseAdmin
+      .from("rider_details")
+      .select("is_verified")
+      .eq("user_id", ride.rider_id)
+      .maybeSingle();
+
     return {
       name: profileResult.data?.full_name || "Shahin driver",
       mobile: profileResult.data?.mobile ?? null,
       photoUrl,
+      isVerified: Boolean(riderRow?.is_verified),
       vehicle: vehicle
         ? {
             number: vehicle.vehicle_number,

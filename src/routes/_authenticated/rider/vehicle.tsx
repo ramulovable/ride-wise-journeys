@@ -17,7 +17,10 @@ export const Route = createFileRoute("/_authenticated/rider/vehicle")({
   head: () => ({
     meta: [
       { title: "My vehicles — Shahin Travels driver" },
-      { name: "description", content: "Add your vehicles and download printable booking QR codes." },
+      {
+        name: "description",
+        content: "Add your vehicles and download printable booking QR codes.",
+      },
       { property: "og:title", content: "My vehicles — Shahin Travels driver" },
       { property: "og:description", content: "Add vehicles and download booking QR codes." },
     ],

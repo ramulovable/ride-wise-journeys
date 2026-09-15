@@ -1638,3 +1638,77 @@ export const getRideDriverDetails = createServerFn({ method: "GET" })
         : null,
     };
   });
+
+/** Route geometry for a live ride map. Only the ride's driver and customer can read it. */
+export const getRideRouteGeometry = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z
+      .object({
+        rideId: z.string().uuid(),
+        driverLat: z.number().optional(),
+        driverLng: z.number().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: ride, error } = await context.supabase
+      .from("rides")
+      .select("id, customer_id, rider_id, from_location_id, to_location_id, status")
+      .eq("id", data.rideId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!ride || (ride.customer_id !== context.userId && ride.rider_id !== context.userId)) {
+      throw new Error("Booking not found.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [pickup, drop] = await Promise.all([
+      getLocationCoordinates(ride.from_location_id, supabaseAdmin),
+      getLocationCoordinates(ride.to_location_id, supabaseAdmin),
+    ]);
+
+    const hasDriver = data.driverLat != null && data.driverLng != null;
+    const origin = hasDriver
+      ? { latitude: data.driverLat!, longitude: data.driverLng! }
+      : { latitude: pickup.latitude, longitude: pickup.longitude };
+    const body: Record<string, unknown> = {
+      origin: { location: { latLng: origin } },
+      destination: { location: { latLng: drop } },
+      travelMode: "DRIVE",
+      routingPreference: "TRAFFIC_AWARE",
+      ...(hasDriver ? { intermediates: [{ location: { latLng: pickup } }] } : {}),
+    };
+    let polyline: string | null = null;
+    let distanceKm: number | null = null;
+    let durationMinutes: number | null = null;
+    try {
+      const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/routes/directions/v2:computeRoutes`, {
+        method: "POST",
+        headers: googleHeaders(
+          "routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration",
+        ),
+        body: JSON.stringify(body),
+      });
+      if (response.ok) {
+        const payload = (await response.json()) as {
+          routes?: Array<{
+            polyline?: { encodedPolyline?: string };
+            distanceMeters?: number;
+            duration?: string;
+          }>;
+        };
+        const route = payload.routes?.[0];
+        polyline = route?.polyline?.encodedPolyline ?? null;
+        distanceKm = route?.distanceMeters ? Math.round(route.distanceMeters / 100) / 10 : null;
+        durationMinutes = route?.duration
+          ? Math.max(1, Math.round(Number.parseFloat(route.duration.replace("s", "")) / 60))
+          : null;
+      } else {
+        console.error(`Route geometry failed [${response.status}]: ${await response.text()}`);
+      }
+    } catch (routeError) {
+      console.error("Route geometry request failed", routeError);
+    }
+
+    return { pickup, drop, polyline, distanceKm, durationMinutes, status: ride.status };
+  });

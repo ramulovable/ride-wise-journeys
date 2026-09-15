@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { ProfilePhotoManager, VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { useAuth } from "@/lib/auth";
+import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { useAppSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/_authenticated/profile")({
@@ -29,7 +30,8 @@ export const Route = createFileRoute("/_authenticated/profile")({
 });
 
 function ProfilePage() {
-  const { profile, role, user, riderDetails, refresh } = useAuth();
+  const { profile, role, user, refresh } = useAuth();
+  const riderDetails = useMyRiderDetails();
   const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);

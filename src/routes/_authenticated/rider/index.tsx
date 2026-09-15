@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { acceptRide, dismissRide, updateRiderRide } from "@/lib/api.functions";
 import { subscriptionActive, useAuth } from "@/lib/auth";
+import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { fetchLocations } from "@/lib/data";
 import { formatDate, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
@@ -71,7 +72,8 @@ function minutesAgo(iso: string) {
 function RiderDashboard() {
   useRoleGuard("rider");
   const { bookingId } = Route.useSearch();
-  const { user, profile, riderDetails, refresh } = useAuth();
+  const { user, profile, refresh } = useAuth();
+  const riderDetails = useMyRiderDetails();
   const qc = useQueryClient();
 
   const locations = useQuery({

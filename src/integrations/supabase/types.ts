@@ -856,6 +856,7 @@ export type Database = {
           is_approved: boolean
           is_blocked: boolean
           is_online: boolean
+          is_verified: boolean
           license_number: string | null
           seat_capacity: number
           subscription_valid_until: string | null
@@ -871,6 +872,7 @@ export type Database = {
           is_approved?: boolean
           is_blocked?: boolean
           is_online?: boolean
+          is_verified?: boolean
           license_number?: string | null
           seat_capacity?: number
           subscription_valid_until?: string | null
@@ -886,6 +888,7 @@ export type Database = {
           is_approved?: boolean
           is_blocked?: boolean
           is_online?: boolean
+          is_verified?: boolean
           license_number?: string | null
           seat_capacity?: number
           subscription_valid_until?: string | null

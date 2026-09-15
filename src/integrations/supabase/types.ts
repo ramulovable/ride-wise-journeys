@@ -767,6 +767,50 @@ export type Database = {
           },
         ]
       }
+      ride_driver_locations: {
+        Row: {
+          accuracy: number | null
+          created_at: string
+          heading: number | null
+          latitude: number
+          longitude: number
+          ride_id: string
+          rider_id: string
+          speed: number | null
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          created_at?: string
+          heading?: number | null
+          latitude: number
+          longitude: number
+          ride_id: string
+          rider_id: string
+          speed?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          created_at?: string
+          heading?: number | null
+          latitude?: number
+          longitude?: number
+          ride_id?: string
+          rider_id?: string
+          speed?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_driver_locations_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: true
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ride_status_history: {
         Row: {
           actor_id: string | null
@@ -938,6 +982,7 @@ export type Database = {
       rider_vehicles: {
         Row: {
           brand_id: string | null
+          brand_name: string | null
           created_at: string
           has_ac: boolean
           id: string
@@ -956,6 +1001,7 @@ export type Database = {
         }
         Insert: {
           brand_id?: string | null
+          brand_name?: string | null
           created_at?: string
           has_ac?: boolean
           id?: string
@@ -974,6 +1020,7 @@ export type Database = {
         }
         Update: {
           brand_id?: string | null
+          brand_name?: string | null
           created_at?: string
           has_ac?: boolean
           id?: string

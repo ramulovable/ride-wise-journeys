@@ -29,3 +29,6 @@
 - [x] Simplify driver vehicle registration to category + brand + model + number
 - [x] Live Google Maps tracking with route, traffic and moving driver marker
 - [x] Standardize the admin-controlled verified driver badge across driver, customer and admin views
+
+## Open
+- [ ] Connect user's own Google Maps API key (BYOK) via google_maps connector "New connection → Use your own credentials", replacing managed key so maps load on shahintravels.app; then verify Live Navigation and publish.

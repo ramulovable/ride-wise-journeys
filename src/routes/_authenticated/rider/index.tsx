@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  BadgeCheck,
   BadgeIndianRupee,
   ChevronRight,
   Clock,
@@ -17,7 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { RiderShell } from "@/components/shells";
-import { ProfileAvatar, VerifiedTick } from "@/components/ProfileAvatar";
+import { ProfileAvatar, VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { EmptyState } from "@/components/EmptyState";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { IstClock } from "@/components/IstClock";
@@ -242,22 +241,11 @@ function RiderDashboard() {
         >
           <ProfileAvatar path={profile?.photo_url} name={profile?.full_name} size={56} />
           <div className="min-w-0 flex-1">
-            {riderDetails?.is_verified ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0]/10 px-2 py-0.5 text-[11px] font-medium text-[#1d9bf0]">
-                <VerifiedTick className="h-3.5 w-3.5" /> Verified Driver
-              </span>
-            ) : riderDetails?.is_approved ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                <BadgeCheck className="h-3 w-3" /> Approved Driver
-              </span>
-            ) : (
-              <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px]">
-                Pending approval
-              </span>
-            )}
-            <p className="truncate text-sm font-semibold text-foreground">
-              {profile?.full_name || "Driver"}
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <span className="truncate">{profile?.full_name || "Driver"}</span>
+              {riderDetails?.is_verified ? <VerifiedTick /> : null}
             </p>
+            {riderDetails?.is_verified ? <VerifiedByline className="block" /> : null}
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               <Star className="h-3.5 w-3.5 fill-accent text-accent" />
               {averageRating ?? "—"} ({completedCount} rides)

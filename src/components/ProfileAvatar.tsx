@@ -23,12 +23,20 @@ export function useAvatarUrl(path: string | null | undefined) {
   });
 }
 
-export function VerifiedTick({ className = "h-4 w-4" }: { className?: string }) {
+export function VerifiedTick({ className = "size-[22px]" }: { className?: string }) {
   return (
     <BadgeCheck
-      className={`shrink-0 fill-[#1d9bf0] text-white ${className}`}
+      className={`shrink-0 fill-verified text-verified-foreground ${className}`}
       aria-label="Verified driver"
     />
+  );
+}
+
+export function VerifiedByline({ className = "" }: { className?: string }) {
+  return (
+    <span className={`text-[11px] text-muted-foreground/80 tracking-wide ${className}`}>
+      verified by shahin travels
+    </span>
   );
 }
 

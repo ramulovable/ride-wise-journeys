@@ -31,4 +31,4 @@
 - [x] Standardize the admin-controlled verified driver badge across driver, customer and admin views
 
 ## Open
-- [ ] Connect user's own Google Maps API key (BYOK) via google_maps connector "New connection → Use your own credentials", replacing managed key so maps load on shahintravels.app; then verify Live Navigation and publish.
+- [x] Google Maps custom key stored as secret GOOGLE_MAPS_CUSTOM_BROWSER_KEY; LiveRideMap loads it via getMapsBrowserKey server fn with managed-key fallback; published and verified live (map + route render on shahintravels.app).

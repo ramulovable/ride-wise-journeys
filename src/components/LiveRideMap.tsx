@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getRideRouteGeometry } from "@/lib/api.functions";
+import { getMapsBrowserKey } from "@/lib/maps.functions";
 
 type LatLng = { lat: number; lng: number };
 
@@ -28,32 +29,44 @@ const TRACKING_ID = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING
 
 let mapsPromise: Promise<MapsApi> | null = null;
 
+async function resolveBrowserKey(): Promise<{ key: string; trackingId: string | null }> {
+  // The customer's own referrer-restricted key (custom domain) wins when set;
+  // otherwise fall back to the platform-managed key (works on *.lovable.app).
+  try {
+    const custom = await getMapsBrowserKey();
+    if (custom.key) return { key: custom.key, trackingId: null };
+  } catch {
+    // fall through to the managed key
+  }
+  if (BROWSER_KEY) return { key: BROWSER_KEY, trackingId: TRACKING_ID ?? null };
+  throw new Error("Map is not configured yet.");
+}
+
 function loadMaps(): Promise<MapsApi> {
   if (mapsPromise) return mapsPromise;
-  mapsPromise = new Promise<MapsApi>((resolve, reject) => {
-    if (!BROWSER_KEY) {
-      reject(new Error("Map is not configured yet."));
-      return;
-    }
+  mapsPromise = (async () => {
+    const { key, trackingId } = await resolveBrowserKey();
     const scope = window as unknown as {
       google?: { maps?: MapsApi };
       initShahinMaps?: () => void;
     };
-    if (scope.google?.maps) {
-      resolve(scope.google.maps);
-      return;
-    }
-    scope.initShahinMaps = () => {
-      if (scope.google?.maps) resolve(scope.google.maps);
-      else reject(new Error("Map could not be loaded."));
-    };
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${BROWSER_KEY}&libraries=geometry&loading=async&callback=initShahinMaps${
-      TRACKING_ID ? `&channel=${TRACKING_ID}` : ""
-    }`;
-    script.async = true;
-    script.onerror = () => reject(new Error("Map could not be loaded."));
-    document.head.appendChild(script);
+    if (scope.google?.maps) return scope.google.maps;
+    return new Promise<MapsApi>((resolve, reject) => {
+      scope.initShahinMaps = () => {
+        if (scope.google?.maps) resolve(scope.google.maps);
+        else reject(new Error("Map could not be loaded."));
+      };
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry&loading=async&callback=initShahinMaps${
+        trackingId ? `&channel=${trackingId}` : ""
+      }`;
+      script.async = true;
+      script.onerror = () => reject(new Error("Map could not be loaded."));
+      document.head.appendChild(script);
+    });
+  })();
+  mapsPromise.catch(() => {
+    mapsPromise = null;
   });
   return mapsPromise;
 }

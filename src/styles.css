@@ -61,6 +61,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-whatsapp: var(--whatsapp);
   --color-whatsapp-foreground: var(--whatsapp-foreground);
+  --color-verified: var(--verified);
+  --color-verified-foreground: var(--verified-foreground);
 }
 
 :root {
@@ -100,6 +102,8 @@
   --brand-navy: oklch(0.24 0.045 258);
   --whatsapp: oklch(0.7 0.2 148);
   --whatsapp-foreground: oklch(1 0 0);
+  --verified: oklch(0.67 0.19 244);
+  --verified-foreground: oklch(1 0 0);
 }
 
 .dark {
@@ -137,6 +141,8 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
   --whatsapp: oklch(0.7 0.2 148);
   --whatsapp-foreground: oklch(1 0 0);
+  --verified: oklch(0.72 0.16 244);
+  --verified-foreground: oklch(1 0 0);
 }
 
 @layer base {

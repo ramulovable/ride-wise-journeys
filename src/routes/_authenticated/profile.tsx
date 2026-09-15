@@ -10,7 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { ProfilePhotoManager, VerifiedTick } from "@/components/ProfileAvatar";
+import {
+  ProfilePhotoManager,
+  VerifiedByline,
+  VerifiedTick,
+} from "@/components/ProfileAvatar";
 import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/settings";
 
@@ -85,9 +89,10 @@ function ProfilePage() {
       <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
         <ProfilePhotoManager />
         {role === "rider" && riderDetails?.is_verified ? (
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-[#1d9bf0]/10 px-2.5 py-1 text-xs font-medium text-[#1d9bf0]">
-            <VerifiedTick /> Verified driver
-          </p>
+          <div className="flex items-center gap-2" aria-label="Verified by Shahin Travels">
+            <VerifiedTick />
+            <VerifiedByline />
+          </div>
         ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="p-name">Full name</Label>

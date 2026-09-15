@@ -5,7 +5,7 @@ import { BadgeCheck, Star } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
-import { ProfileAvatar, VerifiedTick } from "@/components/ProfileAvatar";
+import { ProfileAvatar, VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -85,10 +85,11 @@ function Riders() {
                     size={44}
                   />
                   <div>
-                    <p className="flex items-center gap-1 font-semibold">
-                      {r.profile?.full_name || "Unnamed driver"}
+                    <p className="flex items-center gap-1.5 font-semibold">
+                      <span>{r.profile?.full_name || "Unnamed driver"}</span>
                       {r.is_verified ? <VerifiedTick /> : null}
                     </p>
+                    {r.is_verified ? <VerifiedByline className="block" /> : null}
                     <p className="text-xs text-muted-foreground">
                       {r.profile?.mobile} · {r.is_online ? "Online" : "Offline"}
                     </p>
@@ -203,10 +204,13 @@ function RiderDetailsDialog({ riderId, onClose }: { riderId: string | null; onCl
           <div className="space-y-4 text-sm">
             <div className="flex items-center gap-3">
               <ProfileAvatar path={details.data.photoPath} name={details.data.name} size={56} />
-              <p className="flex items-center gap-1 font-semibold">
-                {details.data.name}
-                {details.data.isVerified ? <VerifiedTick /> : null}
-              </p>
+              <div>
+                <p className="flex items-center gap-1.5 font-semibold">
+                  <span>{details.data.name}</span>
+                  {details.data.isVerified ? <VerifiedTick /> : null}
+                </p>
+                {details.data.isVerified ? <VerifiedByline className="block" /> : null}
+              </div>
             </div>
             <dl className="grid grid-cols-2 gap-2">
               <dt className="text-muted-foreground">Mobile</dt>

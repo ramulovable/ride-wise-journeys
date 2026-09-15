@@ -39,11 +39,11 @@ export function ProfileAvatar({
   size = 56,
   className = "",
 }: {
-  path?: string | null;
-  url?: string | null;
-  name?: string | null;
-  size?: number;
-  className?: string;
+  path?: string | null | undefined;
+  url?: string | null | undefined;
+  name?: string | null | undefined;
+  size?: number | undefined;
+  className?: string | undefined;
 }) {
   const signed = useAvatarUrl(path ?? null);
   const src = url ?? signed.data ?? null;

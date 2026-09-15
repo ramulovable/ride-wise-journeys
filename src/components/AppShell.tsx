@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandHeader } from "@/components/BrandHeader";
@@ -15,12 +15,14 @@ export function AppShell({
   subtitle,
   nav,
   showWhatsAppSupport = false,
+  showNotificationBell = false,
   children,
 }: {
   title: string;
   subtitle?: string;
   nav: NavItem[];
   showWhatsAppSupport?: boolean;
+  showNotificationBell?: boolean;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
@@ -40,9 +42,18 @@ export function AppShell({
         title={title}
         {...(subtitle === undefined ? {} : { subtitle })}
         right={
-          <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center">
+            {showNotificationBell ? (
+              <Button variant="ghost" size="icon" asChild aria-label="Notifications">
+                <Link to="/notifications">
+                  <Bell className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         }
       />
       <main className="mx-auto w-full max-w-3xl px-4 py-4">{children}</main>

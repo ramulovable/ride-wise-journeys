@@ -15,7 +15,10 @@ export const Route = createFileRoute("/_authenticated/rider/ride/$rideId")({
   head: () => ({
     meta: [
       { title: "Live navigation — Shahin Travels driver" },
-      { name: "description", content: "Live route, traffic and trip controls for your active ride." },
+      {
+        name: "description",
+        content: "Live route, traffic and trip controls for your active ride.",
+      },
       { property: "og:title", content: "Live navigation — Shahin Travels driver" },
       { property: "og:description", content: "Live route, traffic and trip controls." },
     ],
@@ -121,7 +124,9 @@ function RiderRideDetail() {
               disabled={advance.isPending}
               onClick={() => advance.mutate(next)}
             >
-              {next === "completed" ? "Complete · Cash received" : `Mark ${RIDE_STATUS_LABEL[next]}`}
+              {next === "completed"
+                ? "Complete · Cash received"
+                : `Mark ${RIDE_STATUS_LABEL[next]}`}
             </Button>
           ) : null}
         </div>

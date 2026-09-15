@@ -331,7 +331,9 @@ function RiderDashboard() {
                 <article
                   key={ride.id}
                   className={`rounded-2xl border bg-card p-4 ${
-                    ride.id === bookingId ? "border-primary ring-2 ring-primary/40" : "border-border"
+                    ride.id === bookingId
+                      ? "border-primary ring-2 ring-primary/40"
+                      : "border-border"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -353,8 +355,8 @@ function RiderDashboard() {
                     </div>
                   </div>
                   <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Clock className="h-3 w-3" /> {minutesAgo(ride.created_at)} ·{" "}
-                    {ride.passengers} passenger(s)
+                    <Clock className="h-3 w-3" /> {minutesAgo(ride.created_at)} · {ride.passengers}{" "}
+                    passenger(s)
                   </p>
                   <Badge className="mt-2" variant="secondary">
                     {RIDE_STATUS_LABEL[ride.status] ?? ride.status}

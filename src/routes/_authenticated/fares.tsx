@@ -34,7 +34,9 @@ function FareDetails() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fare_rules")
-        .select("id, vehicle_class, journey_type, ac_option, rate_per_km, included_km, extra_km_rate")
+        .select(
+          "id, vehicle_class, journey_type, ac_option, rate_per_km, included_km, extra_km_rate",
+        )
         .eq("is_active", true)
         .order("vehicle_class");
       if (error) throw new Error(error.message);
@@ -79,9 +81,7 @@ function FareDetails() {
                   <p className="mt-2 text-sm">
                     <strong>{rupees(Number(rule.rate_per_km))}</strong> per km
                     {rule.included_km ? ` · first ${rule.included_km} km included` : ""}
-                    {rule.extra_km_rate
-                      ? ` · extra km ${rupees(Number(rule.extra_km_rate))}`
-                      : ""}
+                    {rule.extra_km_rate ? ` · extra km ${rupees(Number(rule.extra_km_rate))}` : ""}
                   </p>
                 ) : null}
                 {ruleSlabs.length ? (

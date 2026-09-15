@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
 });
 
 function ProfilePage() {
-  const { profile, role, user, refresh } = useAuth();
+  const { profile, role, user, riderDetails, refresh } = useAuth();
   const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);

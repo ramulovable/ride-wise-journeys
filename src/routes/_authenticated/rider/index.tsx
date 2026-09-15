@@ -84,7 +84,8 @@ function RiderDashboard() {
   const rides = useQuery({
     queryKey: ["rider-rides", user?.id],
     enabled: Boolean(user),
-    refetchInterval: 20_000,
+    refetchInterval: 5_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rides")

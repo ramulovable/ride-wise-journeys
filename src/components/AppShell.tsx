@@ -4,6 +4,8 @@ import { Bell, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandHeader } from "@/components/BrandHeader";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import { InstallAppBar } from "@/components/InstallAppBar";

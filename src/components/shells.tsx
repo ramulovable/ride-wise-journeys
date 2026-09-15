@@ -5,13 +5,12 @@ import {
   CalendarClock,
   ClipboardList,
   Gift,
+  Home,
   Image as ImageIcon,
   LayoutGrid,
   LifeBuoy,
   MapPin,
-  Search,
   Settings,
-  Route as RouteIcon,
   User,
   Users,
   QrCode,
@@ -23,18 +22,20 @@ import { AppShell, type NavItem } from "@/components/AppShell";
 const icon = (node: ReactNode) => node;
 
 const customerNav: NavItem[] = [
-  { to: "/app", label: "Book", icon: icon(<Search className="h-4 w-4" />) },
-  { to: "/app/rides", label: "My rides", icon: icon(<ClipboardList className="h-4 w-4" />) },
-  { to: "/wallet", label: "Wallet", icon: icon(<Wallet className="h-4 w-4" />) },
+  { to: "/app", label: "Home", icon: icon(<Home className="h-4 w-4" />) },
+  { to: "/app/rides", label: "My Bookings", icon: icon(<ClipboardList className="h-4 w-4" />) },
   { to: "/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
   { to: "/profile", label: "Profile", icon: icon(<User className="h-4 w-4" />) },
 ];
 
 const riderNav: NavItem[] = [
-  { to: "/rider", label: "Rides", icon: icon(<RouteIcon className="h-4 w-4" />) },
-  { to: "/rider/vehicle", label: "Vehicle", icon: icon(<MapPin className="h-4 w-4" />) },
-  { to: "/wallet", label: "Wallet", icon: icon(<Wallet className="h-4 w-4" />) },
-  { to: "/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
+  { to: "/rider", label: "Home", icon: icon(<Home className="h-4 w-4" />) },
+  { to: "/rider/rides", label: "Bookings", icon: icon(<ClipboardList className="h-4 w-4" />) },
+  {
+    to: "/rider/earnings",
+    label: "Earning",
+    icon: icon(<BadgeIndianRupee className="h-4 w-4" />),
+  },
   { to: "/profile", label: "Profile", icon: icon(<User className="h-4 w-4" />) },
 ];
 
@@ -74,6 +75,7 @@ export function CustomerShell({
       {...(subtitle === undefined ? {} : { subtitle })}
       nav={customerNav}
       showWhatsAppSupport
+      showNotificationBell
     >
       {children}
     </AppShell>
@@ -95,6 +97,7 @@ export function RiderShell({
       {...(subtitle === undefined ? {} : { subtitle })}
       nav={riderNav}
       showWhatsAppSupport
+      showNotificationBell
     >
       {children}
     </AppShell>

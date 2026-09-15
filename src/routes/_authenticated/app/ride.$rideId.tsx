@@ -203,8 +203,9 @@ function RideDetail() {
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
+                  <p className="flex items-center gap-1 truncate text-sm font-semibold text-foreground">
                     {driver.data.name}
+                    {driver.data.isVerified ? <VerifiedTick className="h-4 w-4" /> : null}
                   </p>
                   <p className="text-xs text-muted-foreground">Your driver</p>
                 </div>

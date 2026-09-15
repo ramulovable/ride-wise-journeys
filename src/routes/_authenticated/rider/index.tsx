@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { RiderShell } from "@/components/shells";
+import { ProfileAvatar, VerifiedTick } from "@/components/ProfileAvatar";
 import { EmptyState } from "@/components/EmptyState";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { IstClock } from "@/components/IstClock";

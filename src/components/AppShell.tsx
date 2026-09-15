@@ -30,6 +30,7 @@ export function AppShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { profile } = useAuth();
 
   async function signOut() {
     await queryClient.cancelQueries();

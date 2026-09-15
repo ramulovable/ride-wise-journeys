@@ -21,3 +21,10 @@
 - [x] Restore per-driver broadcast decline and rider profile reviews
 
 - [x] Show live IST Day/Night fare status on driver and admin dashboards
+
+## Master update (customer + driver redesign)
+- [ ] Redesign customer booking dashboard to match reference mockup
+- [ ] Redesign driver dashboard to match reference mockup
+- [ ] Show exactly 5 vehicle categories with quality artwork and live fares
+- [ ] Simplify driver vehicle registration to category + brand + model + number
+- [ ] Live Google Maps tracking with route, traffic and moving driver marker

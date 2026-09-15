@@ -25,6 +25,6 @@
 ## Master update (customer + driver redesign)
 - [ ] Redesign customer booking dashboard to match reference mockup
 - [ ] Redesign driver dashboard to match reference mockup
-- [ ] Show exactly 5 vehicle categories with quality artwork and live fares
-- [ ] Simplify driver vehicle registration to category + brand + model + number
-- [ ] Live Google Maps tracking with route, traffic and moving driver marker
+- [x] Show exactly 5 vehicle categories with quality artwork and live fares
+- [x] Simplify driver vehicle registration to category + brand + model + number
+- [x] Live Google Maps tracking with route, traffic and moving driver marker

@@ -42,13 +42,18 @@ export function AppShell({
         title={title}
         {...(subtitle === undefined ? {} : { subtitle })}
         right={
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
             {showNotificationBell ? (
               <Button variant="ghost" size="icon" asChild aria-label="Notifications">
                 <Link to="/notifications">
                   <Bell className="h-4 w-4" />
                 </Link>
               </Button>
+            ) : null}
+            {showNotificationBell ? (
+              <Link to="/profile" aria-label="My profile">
+                <ProfileAvatar path={profile?.photo_url} name={profile?.full_name} size={32} />
+              </Link>
             ) : null}
             <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
               <LogOut className="h-4 w-4" />

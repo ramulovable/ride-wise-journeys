@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Phone, Star } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { LiveRideMap } from "@/components/LiveRideMap";
+import { VerifiedTick } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";

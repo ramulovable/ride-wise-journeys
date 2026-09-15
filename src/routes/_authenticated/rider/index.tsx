@@ -284,6 +284,21 @@ function RiderDashboard() {
           />
         </section>
 
+        {vehicles.isSuccess && (vehicles.data?.length ?? 0) === 0 ? (
+          <section className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4">
+            <p className="text-sm font-semibold text-foreground">
+              Koi vehicle add nahi hai / No vehicle added
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Booking requests sirf usi vehicle type ke liye aate hain jo aapne add kiya ho. Pehle
+              apna vehicle add karein.
+            </p>
+            <Button asChild className="mt-3 w-full">
+              <Link to="/rider/vehicle">Add my vehicle</Link>
+            </Button>
+          </section>
+        ) : null}
+
         <div className="flex justify-end">
           <EnablePushButton />
         </div>

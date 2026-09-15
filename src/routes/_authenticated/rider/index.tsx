@@ -134,6 +134,19 @@ function RiderDashboard() {
         .data ?? [],
   });
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`rider-ride-feed-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rides" }, () => {
+        void qc.invalidateQueries({ queryKey: ["rider-rides", user.id] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, qc]);
+
   const action = useMutation({
     mutationFn: async ({
       rideId,

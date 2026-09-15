@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -83,7 +84,8 @@ function RiderDashboard() {
   const rides = useQuery({
     queryKey: ["rider-rides", user?.id],
     enabled: Boolean(user),
-    refetchInterval: 20_000,
+    refetchInterval: 5_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rides")
@@ -131,6 +133,19 @@ function RiderDashboard() {
       (await supabase.from("earning_transactions").select("amount").eq("rider_id", user!.id))
         .data ?? [],
   });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`rider-ride-feed-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rides" }, () => {
+        void qc.invalidateQueries({ queryKey: ["rider-rides", user.id] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, qc]);
 
   const action = useMutation({
     mutationFn: async ({

@@ -208,7 +208,7 @@ function BannersPage() {
       subtitle: subtitle.trim(),
       badge_text: badge.trim() || null,
       action_url: action.trim() || null,
-      image_url: imageRef ?? imageUrlField.trim() ?? null,
+      image_url: imageRef ?? (imageUrlField.trim() || null),
       display_order: Number(order) || (banners.data?.length ?? 0) + 1,
     });
     setBusy(false);
@@ -436,7 +436,9 @@ function BannerCard({ banner, onPatch, onReplaceImage, onDelete }: BannerCardPro
           }
           busy={uploading}
           onPick={(file) => void pick(file)}
-          onClear={() => void onPatch(banner.id, { image_url: null })}
+          onClear={() => {
+            void onPatch(banner.id, { image_url: null }).then(() => removeBannerImage(banner.imageRef));
+          }}
         />
       </div>
 

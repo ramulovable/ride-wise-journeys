@@ -74,7 +74,7 @@ export function PromoCarousel() {
               key={banner.id}
               type="button"
               onClick={() => open(banner)}
-              className={`relative min-w-full overflow-hidden bg-gradient-to-br p-4 text-left text-primary-foreground ${
+              className={`relative flex aspect-[16/7] min-w-full flex-col justify-end overflow-hidden bg-gradient-to-br p-4 text-left text-primary-foreground ${
                 THEMES[i % THEMES.length]
               }`}
               style={

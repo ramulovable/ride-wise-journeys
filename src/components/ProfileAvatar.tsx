@@ -145,7 +145,12 @@ export function ProfilePhotoManager() {
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">Profile photo</p>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
             {profile?.photo_url ? "Change photo" : "Upload photo"}
           </Button>
           {profile?.photo_url ? (

@@ -304,7 +304,10 @@ function RiderReviewsDialog({ riderId, onClose }: { riderId: string | null; onCl
                     {review.comment ? (
                       <p className="text-muted-foreground">{review.comment}</p>
                     ) : null}
-                    <time className="block text-xs text-muted-foreground" dateTime={review.createdAt}>
+                    <time
+                      className="block text-xs text-muted-foreground"
+                      dateTime={review.createdAt}
+                    >
                       {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(
                         new Date(review.createdAt),
                       )}

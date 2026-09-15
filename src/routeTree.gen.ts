@@ -40,6 +40,7 @@ import { Route as AuthenticatedRiderQrRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRiderRidesRouteImport } from './routes/_authenticated/rider/rides'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
+import { Route as AuthenticatedRiderRideRideIdRouteImport } from './routes/_authenticated/rider/ride.$rideId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -209,6 +210,12 @@ const AuthenticatedAppRideRideIdRoute =
     path: '/app/ride/$rideId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRiderRideRideIdRoute =
+  AuthenticatedRiderRideRideIdRouteImport.update({
+    id: '/rider/ride/$rideId',
+    path: '/rider/ride/$rideId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AuthenticatedAppIndexRoute
   '/rider/': typeof AuthenticatedRiderIndexRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
+  '/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -273,6 +281,7 @@ export interface FileRoutesByTo {
   '/app': typeof AuthenticatedAppIndexRoute
   '/rider': typeof AuthenticatedRiderIndexRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
+  '/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -307,6 +316,7 @@ export interface FileRoutesById {
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/rider/': typeof AuthenticatedRiderIndexRoute
   '/_authenticated/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
+  '/_authenticated/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/rider/'
     | '/app/ride/$rideId'
+    | '/rider/ride/$rideId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -373,6 +384,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/rider'
     | '/app/ride/$rideId'
+    | '/rider/ride/$rideId'
   id:
     | '__root__'
     | '/'
@@ -406,6 +418,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/'
     | '/_authenticated/rider/'
     | '/_authenticated/app/ride/$rideId'
+    | '/_authenticated/rider/ride/$rideId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -633,6 +646,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRideRideIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/rider/ride/$rideId': {
+      id: '/_authenticated/rider/ride/$rideId'
+      path: '/rider/ride/$rideId'
+      fullPath: '/rider/ride/$rideId'
+      preLoaderRoute: typeof AuthenticatedRiderRideRideIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -665,6 +685,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedRiderIndexRoute: typeof AuthenticatedRiderIndexRoute
   AuthenticatedAppRideRideIdRoute: typeof AuthenticatedAppRideRideIdRoute
+  AuthenticatedRiderRideRideIdRoute: typeof AuthenticatedRiderRideRideIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -696,6 +717,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedRiderIndexRoute: AuthenticatedRiderIndexRoute,
   AuthenticatedAppRideRideIdRoute: AuthenticatedAppRideRideIdRoute,
+  AuthenticatedRiderRideRideIdRoute: AuthenticatedRiderRideRideIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

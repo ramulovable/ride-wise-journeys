@@ -213,6 +213,75 @@ export type Database = {
           },
         ]
       }
+      dispatch_settings: {
+        Row: {
+          created_at: string
+          dispatch_enabled: boolean
+          dispatch_priority: string
+          en_route_matching_enabled: boolean
+          id: string
+          max_additional_minutes: number
+          max_gps_accuracy_meters: number
+          max_location_age_seconds: number
+          max_pickup_detour_km: number
+          max_share_passengers: number
+          nearby_dispatch_enabled: boolean
+          pickup_radius_km: number
+          require_location_for_dispatch: boolean
+          reserve_exclusive: boolean
+          route_corridor_km: number
+          updated_at: string
+          weight_additional_time: number
+          weight_capacity: number
+          weight_detour: number
+          weight_pickup_proximity: number
+        }
+        Insert: {
+          created_at?: string
+          dispatch_enabled?: boolean
+          dispatch_priority?: string
+          en_route_matching_enabled?: boolean
+          id?: string
+          max_additional_minutes?: number
+          max_gps_accuracy_meters?: number
+          max_location_age_seconds?: number
+          max_pickup_detour_km?: number
+          max_share_passengers?: number
+          nearby_dispatch_enabled?: boolean
+          pickup_radius_km?: number
+          require_location_for_dispatch?: boolean
+          reserve_exclusive?: boolean
+          route_corridor_km?: number
+          updated_at?: string
+          weight_additional_time?: number
+          weight_capacity?: number
+          weight_detour?: number
+          weight_pickup_proximity?: number
+        }
+        Update: {
+          created_at?: string
+          dispatch_enabled?: boolean
+          dispatch_priority?: string
+          en_route_matching_enabled?: boolean
+          id?: string
+          max_additional_minutes?: number
+          max_gps_accuracy_meters?: number
+          max_location_age_seconds?: number
+          max_pickup_detour_km?: number
+          max_share_passengers?: number
+          nearby_dispatch_enabled?: boolean
+          pickup_radius_km?: number
+          require_location_for_dispatch?: boolean
+          reserve_exclusive?: boolean
+          route_corridor_km?: number
+          updated_at?: string
+          weight_additional_time?: number
+          weight_capacity?: number
+          weight_detour?: number
+          weight_pickup_proximity?: number
+        }
+        Relationships: []
+      }
       earning_transactions: {
         Row: {
           amount: number
@@ -241,6 +310,73 @@ export type Database = {
             columns: ["ride_id"]
             isOneToOne: true
             referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      en_route_matches: {
+        Row: {
+          active_ride_id: string
+          additional_duration_minutes: number | null
+          compatibility_result: Json
+          created_at: string
+          id: string
+          new_ride_id: string
+          pickup_detour_km: number | null
+          rider_id: string
+          route_deviation_km: number | null
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          active_ride_id: string
+          additional_duration_minutes?: number | null
+          compatibility_result?: Json
+          created_at?: string
+          id?: string
+          new_ride_id: string
+          pickup_detour_km?: number | null
+          rider_id: string
+          route_deviation_km?: number | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          active_ride_id?: string
+          additional_duration_minutes?: number | null
+          compatibility_result?: Json
+          created_at?: string
+          id?: string
+          new_ride_id?: string
+          pickup_detour_km?: number | null
+          rider_id?: string
+          route_deviation_km?: number | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "en_route_matches_active_ride_id_fkey"
+            columns: ["active_ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "en_route_matches_new_ride_id_fkey"
+            columns: ["new_ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "en_route_matches_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
             referencedColumns: ["id"]
           },
         ]
@@ -811,6 +947,154 @@ export type Database = {
           },
         ]
       }
+      ride_route_state: {
+        Row: {
+          created_at: string
+          current_latitude: number | null
+          current_longitude: number | null
+          destination_latitude: number | null
+          destination_longitude: number | null
+          is_active: boolean
+          occupied_passenger_count: number
+          origin_latitude: number | null
+          origin_longitude: number | null
+          remaining_capacity: number
+          remaining_distance_km: number | null
+          remaining_duration_minutes: number | null
+          ride_id: string
+          rider_id: string
+          route_geometry: Json
+          route_progress: number
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_latitude?: number | null
+          current_longitude?: number | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          is_active?: boolean
+          occupied_passenger_count?: number
+          origin_latitude?: number | null
+          origin_longitude?: number | null
+          remaining_capacity?: number
+          remaining_distance_km?: number | null
+          remaining_duration_minutes?: number | null
+          ride_id: string
+          rider_id: string
+          route_geometry?: Json
+          route_progress?: number
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_latitude?: number | null
+          current_longitude?: number | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          is_active?: boolean
+          occupied_passenger_count?: number
+          origin_latitude?: number | null
+          origin_longitude?: number | null
+          remaining_capacity?: number
+          remaining_distance_km?: number | null
+          remaining_duration_minutes?: number | null
+          ride_id?: string
+          rider_id?: string
+          route_geometry?: Json
+          route_progress?: number
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_route_state_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: true
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ride_route_state_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ride_route_stops: {
+        Row: {
+          created_at: string
+          id: string
+          latitude: number | null
+          location_id: string | null
+          longitude: number | null
+          passenger_count: number
+          ride_id: string
+          rider_id: string
+          sequence_order: number
+          status: string
+          stop_type: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_id?: string | null
+          longitude?: number | null
+          passenger_count?: number
+          ride_id: string
+          rider_id: string
+          sequence_order?: number
+          status?: string
+          stop_type: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_id?: string | null
+          longitude?: number | null
+          passenger_count?: number
+          ride_id?: string
+          rider_id?: string
+          sequence_order?: number
+          status?: string
+          stop_type?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_route_stops_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ride_route_stops_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ride_route_stops_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ride_status_history: {
         Row: {
           actor_id: string | null
@@ -911,6 +1195,104 @@ export type Database = {
             columns: ["vehicle_category_id"]
             isOneToOne: false
             referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rider_live_locations: {
+        Row: {
+          accuracy_meters: number | null
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          recorded_at: string
+          rider_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          accuracy_meters?: number | null
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          recorded_at?: string
+          rider_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          accuracy_meters?: number | null
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          recorded_at?: string
+          rider_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rider_live_locations_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rider_presence: {
+        Row: {
+          active_ride_id: string | null
+          active_vehicle_id: string | null
+          created_at: string
+          current_accuracy_meters: number | null
+          current_latitude: number | null
+          current_longitude: number | null
+          last_location_at: string | null
+          last_seen_at: string | null
+          rider_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          active_ride_id?: string | null
+          active_vehicle_id?: string | null
+          created_at?: string
+          current_accuracy_meters?: number | null
+          current_latitude?: number | null
+          current_longitude?: number | null
+          last_location_at?: string | null
+          last_seen_at?: string | null
+          rider_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          active_ride_id?: string | null
+          active_vehicle_id?: string | null
+          created_at?: string
+          current_accuracy_meters?: number | null
+          current_latitude?: number | null
+          current_longitude?: number | null
+          last_location_at?: string | null
+          last_seen_at?: string | null
+          rider_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rider_presence_active_ride_id_fkey"
+            columns: ["active_ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_presence_active_vehicle_id_fkey"
+            columns: ["active_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
             referencedColumns: ["id"]
           },
         ]

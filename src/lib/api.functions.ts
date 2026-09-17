@@ -887,8 +887,12 @@ async function notifyEligibleRiders(
 ) {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const riderIds = await eligibleRiderIds(rideId);
+    const { planDispatch, recordEnRouteOffers } = await import("@/lib/dispatch.server");
+    const plan = await planDispatch(rideId);
+    await recordEnRouteOffers(rideId, plan.enRoute);
+    const riderIds = plan.riderIds;
     if (riderIds.length === 0) return;
+    const enRouteOnly = new Set(plan.enRouteRiderIds);
 
     const { data: ride } = await supabaseAdmin
       .from("rides")
@@ -915,10 +919,6 @@ async function notifyEligibleRiders(
         .replaceAll("{distance}", info.distanceKm == null ? "—" : String(info.distanceKm))
         .replaceAll("{fare}", String(info.fare))
         .replaceAll("{category}", info.categoryName);
-    const title = fill(text.get("push_title_template") || "New ride request");
-    const body = fill(
-      text.get("push_body_template") || "{pickup} to {drop} · {distance} km · Rs {fare}",
-    );
     const path = `/rider?bookingId=${rideId}`;
     const payloadData = {
       bookingId: rideId,
@@ -930,14 +930,34 @@ async function notifyEligibleRiders(
       path,
     };
 
-    await deliverPush({
-      userIds: riderIds,
-      rideId,
-      title,
-      body,
-      path,
-      payloadData,
-    });
+    const normalIds = riderIds.filter((id) => !enRouteOnly.has(id));
+    const enRouteIds = riderIds.filter((id) => enRouteOnly.has(id));
+
+    if (normalIds.length) {
+      await deliverPush({
+        userIds: normalIds,
+        rideId,
+        title: fill(text.get("push_title_template") || "New ride request"),
+        body: fill(
+          text.get("push_body_template") || "{pickup} to {drop} · {distance} km · Rs {fare}",
+        ),
+        path,
+        payloadData,
+      });
+    }
+    if (enRouteIds.length) {
+      await deliverPush({
+        userIds: enRouteIds,
+        rideId,
+        title: fill(text.get("enroute_push_title_template") || "En-route share ride request"),
+        body: fill(
+          text.get("enroute_push_body_template") ||
+            "Pickup {pickup} on your way to {drop} · {distance} km · Rs {fare}",
+        ),
+        path,
+        payloadData: { ...payloadData, enRoute: true },
+      });
+    }
   } catch (pushError) {
     console.error("Ride alert dispatch failed", pushError);
   }

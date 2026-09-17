@@ -1193,47 +1193,15 @@ async function countEligibleRiders(rideId: string) {
   return (await eligibleRiderIds(rideId)).length;
 }
 
-/** Online, approved, subscribed drivers with a matching vehicle who have not declined. */
+/**
+ * Drivers this booking may be offered to, from both dispatch paths:
+ * nearby free drivers inside the configured radius, and compatible
+ * en-route share drivers. All thresholds come from dispatch_settings.
+ */
 async function eligibleRiderIds(rideId: string): Promise<string[]> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: ride } = await supabaseAdmin
-    .from("rides")
-    .select("requested_category_id, requested_ac, passengers")
-    .eq("id", rideId)
-    .maybeSingle();
-  if (!ride?.requested_category_id) return [];
-
-  const [ridersResult, vehiclesResult, dismissalsResult] = await Promise.all([
-    supabaseAdmin
-      .from("rider_details")
-      .select("user_id")
-      .eq("is_approved", true)
-      .eq("is_blocked", false)
-      .eq("is_online", true)
-      .gte("subscription_valid_until", today),
-    supabaseAdmin
-      .from("rider_vehicles")
-      .select("rider_id, has_ac, seat_capacity")
-      .eq("is_active", true)
-      .eq("vehicle_category_id", ride.requested_category_id),
-    supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
-  ]);
-  const eligible = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
-  const declined = new Set((dismissalsResult.data ?? []).map((row) => row.rider_id));
-  return [
-    ...new Set(
-      (vehiclesResult.data ?? [])
-        .filter(
-          (vehicle) =>
-            eligible.has(vehicle.rider_id) &&
-            !declined.has(vehicle.rider_id) &&
-            (ride.requested_ac == null || vehicle.has_ac === ride.requested_ac) &&
-            ride.passengers <= vehicle.seat_capacity,
-        )
-        .map((vehicle) => vehicle.rider_id),
-    ),
-  ];
+  const { planDispatch } = await import("@/lib/dispatch.server");
+  const plan = await planDispatch(rideId);
+  return plan.riderIds;
 }
 
 const rideActionInput = z.object({

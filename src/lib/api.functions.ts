@@ -887,8 +887,12 @@ async function notifyEligibleRiders(
 ) {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const riderIds = await eligibleRiderIds(rideId);
+    const { planDispatch, recordEnRouteOffers } = await import("@/lib/dispatch.server");
+    const plan = await planDispatch(rideId);
+    await recordEnRouteOffers(rideId, plan.enRoute);
+    const riderIds = plan.riderIds;
     if (riderIds.length === 0) return;
+    const enRouteOnly = new Set(plan.enRouteRiderIds);
 
     const { data: ride } = await supabaseAdmin
       .from("rides")
@@ -915,10 +919,6 @@ async function notifyEligibleRiders(
         .replaceAll("{distance}", info.distanceKm == null ? "—" : String(info.distanceKm))
         .replaceAll("{fare}", String(info.fare))
         .replaceAll("{category}", info.categoryName);
-    const title = fill(text.get("push_title_template") || "New ride request");
-    const body = fill(
-      text.get("push_body_template") || "{pickup} to {drop} · {distance} km · Rs {fare}",
-    );
     const path = `/rider?bookingId=${rideId}`;
     const payloadData = {
       bookingId: rideId,
@@ -930,14 +930,34 @@ async function notifyEligibleRiders(
       path,
     };
 
-    await deliverPush({
-      userIds: riderIds,
-      rideId,
-      title,
-      body,
-      path,
-      payloadData,
-    });
+    const normalIds = riderIds.filter((id) => !enRouteOnly.has(id));
+    const enRouteIds = riderIds.filter((id) => enRouteOnly.has(id));
+
+    if (normalIds.length) {
+      await deliverPush({
+        userIds: normalIds,
+        rideId,
+        title: fill(text.get("push_title_template") || "New ride request"),
+        body: fill(
+          text.get("push_body_template") || "{pickup} to {drop} · {distance} km · Rs {fare}",
+        ),
+        path,
+        payloadData,
+      });
+    }
+    if (enRouteIds.length) {
+      await deliverPush({
+        userIds: enRouteIds,
+        rideId,
+        title: fill(text.get("enroute_push_title_template") || "En-route share ride request"),
+        body: fill(
+          text.get("enroute_push_body_template") ||
+            "Pickup {pickup} on your way to {drop} · {distance} km · Rs {fare}",
+        ),
+        path,
+        payloadData: { ...payloadData, enRoute: true },
+      });
+    }
   } catch (pushError) {
     console.error("Ride alert dispatch failed", pushError);
   }
@@ -1193,47 +1213,15 @@ async function countEligibleRiders(rideId: string) {
   return (await eligibleRiderIds(rideId)).length;
 }
 
-/** Online, approved, subscribed drivers with a matching vehicle who have not declined. */
+/**
+ * Drivers this booking may be offered to, from both dispatch paths:
+ * nearby free drivers inside the configured radius, and compatible
+ * en-route share drivers. All thresholds come from dispatch_settings.
+ */
 async function eligibleRiderIds(rideId: string): Promise<string[]> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: ride } = await supabaseAdmin
-    .from("rides")
-    .select("requested_category_id, requested_ac, passengers")
-    .eq("id", rideId)
-    .maybeSingle();
-  if (!ride?.requested_category_id) return [];
-
-  const [ridersResult, vehiclesResult, dismissalsResult] = await Promise.all([
-    supabaseAdmin
-      .from("rider_details")
-      .select("user_id")
-      .eq("is_approved", true)
-      .eq("is_blocked", false)
-      .eq("is_online", true)
-      .gte("subscription_valid_until", today),
-    supabaseAdmin
-      .from("rider_vehicles")
-      .select("rider_id, has_ac, seat_capacity")
-      .eq("is_active", true)
-      .eq("vehicle_category_id", ride.requested_category_id),
-    supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
-  ]);
-  const eligible = new Set((ridersResult.data ?? []).map((rider) => rider.user_id));
-  const declined = new Set((dismissalsResult.data ?? []).map((row) => row.rider_id));
-  return [
-    ...new Set(
-      (vehiclesResult.data ?? [])
-        .filter(
-          (vehicle) =>
-            eligible.has(vehicle.rider_id) &&
-            !declined.has(vehicle.rider_id) &&
-            (ride.requested_ac == null || vehicle.has_ac === ride.requested_ac) &&
-            ride.passengers <= vehicle.seat_capacity,
-        )
-        .map((vehicle) => vehicle.rider_id),
-    ),
-  ];
+  const { planDispatch } = await import("@/lib/dispatch.server");
+  const plan = await planDispatch(rideId);
+  return plan.riderIds;
 }
 
 const rideActionInput = z.object({
@@ -1832,4 +1820,263 @@ export const getAdminRiderReviews = createServerFn({ method: "GET" })
       ? reviews.reduce((sum, review) => sum + review.stars, 0) / reviews.length
       : 0;
     return { average, total: reviews.length, reviews };
+  });
+
+/* ------------------------------------------------------- en-route share rides */
+
+/**
+ * Records pickup/drop stops and the live route state for a driver's assigned ride,
+ * and marks the driver as being on a trip.
+ */
+async function registerRideAssignment(rideId: string, riderId: string, vehicleId: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { locationPoint } = await import("@/lib/dispatch.server");
+    const { data: ride } = await supabaseAdmin
+      .from("rides")
+      .select("from_location_id, to_location_id, passengers")
+      .eq("id", rideId)
+      .maybeSingle();
+    if (!ride) return;
+    const [pickup, drop, existing, vehicle] = await Promise.all([
+      locationPoint(ride.from_location_id),
+      locationPoint(ride.to_location_id),
+      supabaseAdmin
+        .from("ride_route_stops")
+        .select("sequence_order, stop_type")
+        .eq("rider_id", riderId)
+        .eq("status", "pending"),
+      supabaseAdmin.from("rider_vehicles").select("seat_capacity").eq("id", vehicleId).maybeSingle(),
+    ]);
+    const pickupOrders = (existing.data ?? [])
+      .filter((row) => row.stop_type === "pickup")
+      .map((row) => row.sequence_order);
+    const dropOrders = (existing.data ?? [])
+      .filter((row) => row.stop_type === "drop")
+      .map((row) => row.sequence_order);
+    const nextPickup = (pickupOrders.length ? Math.max(...pickupOrders) : 0) + 1;
+    const nextDrop = (dropOrders.length ? Math.max(...dropOrders) : 1000) + 1;
+
+    await supabaseAdmin.from("ride_route_stops").upsert(
+      [
+        {
+          ride_id: rideId,
+          rider_id: riderId,
+          vehicle_id: vehicleId,
+          stop_type: "pickup",
+          location_id: ride.from_location_id,
+          latitude: pickup?.latitude ?? null,
+          longitude: pickup?.longitude ?? null,
+          sequence_order: nextPickup,
+          passenger_count: ride.passengers,
+          status: "pending",
+        },
+        {
+          ride_id: rideId,
+          rider_id: riderId,
+          vehicle_id: vehicleId,
+          stop_type: "drop",
+          location_id: ride.to_location_id,
+          latitude: drop?.latitude ?? null,
+          longitude: drop?.longitude ?? null,
+          sequence_order: nextDrop,
+          passenger_count: ride.passengers,
+          status: "pending",
+        },
+      ],
+      { onConflict: "ride_id,stop_type" },
+    );
+
+    const { data: onboard } = await supabaseAdmin
+      .from("rides")
+      .select("passengers")
+      .eq("vehicle_id", vehicleId)
+      .in("status", ["accepted", "on_the_way", "arrived", "started"]);
+    const occupied = (onboard ?? []).reduce((sum, row) => sum + row.passengers, 0);
+
+    await supabaseAdmin.from("ride_route_state").upsert(
+      {
+        ride_id: rideId,
+        rider_id: riderId,
+        vehicle_id: vehicleId,
+        origin_latitude: pickup?.latitude ?? null,
+        origin_longitude: pickup?.longitude ?? null,
+        destination_latitude: drop?.latitude ?? null,
+        destination_longitude: drop?.longitude ?? null,
+        occupied_passenger_count: occupied,
+        remaining_capacity: Math.max(0, (vehicle.data?.seat_capacity ?? 0) - occupied),
+        is_active: true,
+      },
+      { onConflict: "ride_id" },
+    );
+
+    await supabaseAdmin
+      .from("rider_presence")
+      .upsert(
+        {
+          rider_id: riderId,
+          status: "online_on_ride",
+          active_ride_id: rideId,
+          active_vehicle_id: vehicleId,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "rider_id" },
+      );
+  } catch (error) {
+    console.error("Route state update failed", error);
+  }
+}
+
+/** Pending en-route share offers for the signed-in driver, with live match details. */
+export const getEnRouteOffers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: matches, error } = await supabase
+      .from("en_route_matches")
+      .select("*")
+      .eq("rider_id", userId)
+      .eq("status", "offered")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (error) throw new Error(error.message);
+    if (!matches?.length) return [];
+
+    const rideIds = matches.map((row) => row.new_ride_id);
+    const { data: rides } = await supabase
+      .from("rides")
+      .select(
+        "id, from_location_id, to_location_id, passengers, total_fare, distance_km, status, rider_id, booking_type",
+      )
+      .in("id", rideIds);
+    const open = (rides ?? []).filter(
+      (ride) => ride.rider_id === null && ["requested", "searching"].includes(ride.status),
+    );
+    if (!open.length) return [];
+    const { data: places } = await supabase
+      .from("locations")
+      .select("id, name")
+      .in(
+        "id",
+        open.flatMap((ride) => [ride.from_location_id, ride.to_location_id]),
+      );
+    const nameOf = (id: string) => places?.find((place) => place.id === id)?.name ?? "—";
+
+    return open.map((ride) => {
+      const match = matches.find((row) => row.new_ride_id === ride.id)!;
+      return {
+        rideId: ride.id,
+        activeRideId: match.active_ride_id,
+        pickup: nameOf(ride.from_location_id),
+        drop: nameOf(ride.to_location_id),
+        passengers: ride.passengers,
+        fare: Number(ride.total_fare),
+        distanceKm: ride.distance_km == null ? null : Number(ride.distance_km),
+        detourKm: match.pickup_detour_km == null ? null : Number(match.pickup_detour_km),
+        deviationKm: match.route_deviation_km == null ? null : Number(match.route_deviation_km),
+        additionalMinutes:
+          match.additional_duration_minutes == null
+            ? null
+            : Number(match.additional_duration_minutes),
+        remainingCapacity:
+          (match.compatibility_result as { remainingCapacity?: number } | null)
+            ?.remainingCapacity ?? null,
+      };
+    });
+  });
+
+/**
+ * A driver already on a share trip accepts an extra passenger. Everything is
+ * re-verified server side at accept time; stale frontend state can never win.
+ */
+export const acceptEnRouteRide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ rideId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: rider } = await supabase
+      .from("rider_details")
+      .select("is_approved, is_blocked, is_online, subscription_valid_until")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (
+      !rider?.is_approved ||
+      rider.is_blocked ||
+      !rider.is_online ||
+      !rider.subscription_valid_until ||
+      rider.subscription_valid_until < today
+    ) {
+      throw new Error("Your account is not eligible to accept rides right now.");
+    }
+
+    const { enRouteCandidates } = await import("@/lib/dispatch.server");
+    const candidates = await enRouteCandidates(data.rideId);
+    const match = candidates.find((item) => item.riderId === userId);
+    if (!match) throw new Error("This ride no longer fits your current route.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated } = await supabaseAdmin
+      .from("rides")
+      .update({
+        rider_id: userId,
+        vehicle_id: match.vehicleId,
+        status: "accepted",
+        accepted_at: new Date().toISOString(),
+      })
+      .eq("id", data.rideId)
+      .is("rider_id", null)
+      .in("status", ["requested", "searching"])
+      .select("id");
+    if (!updated?.length) throw new Error("Booking is no longer available");
+
+    await supabaseAdmin
+      .from("en_route_matches")
+      .update({ status: "accepted" })
+      .eq("new_ride_id", data.rideId)
+      .eq("rider_id", userId);
+    await supabaseAdmin
+      .from("en_route_matches")
+      .update({ status: "expired" })
+      .eq("new_ride_id", data.rideId)
+      .neq("rider_id", userId)
+      .eq("status", "offered");
+
+    await registerRideAssignment(data.rideId, userId, match.vehicleId);
+    await notifyCustomerRideUpdate(data.rideId, "accepted");
+    return { ok: true };
+  });
+
+/** A driver declines an en-route offer; the booking stays open for other drivers. */
+export const rejectEnRouteRide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z.object({ rideId: z.string().uuid(), reason: z.string().max(200).optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await supabase
+      .from("en_route_matches")
+      .update({ status: "rejected" })
+      .eq("new_ride_id", data.rideId)
+      .eq("rider_id", userId);
+    await supabase
+      .from("ride_dismissals")
+      .upsert(
+        { rider_id: userId, ride_id: data.rideId },
+        { onConflict: "rider_id,ride_id", ignoreDuplicates: true },
+      );
+
+    const remaining = await countEligibleRiders(data.rideId);
+    if (remaining === 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin
+        .from("rides")
+        .update({ status: "no_rider_available" })
+        .eq("id", data.rideId)
+        .is("rider_id", null)
+        .in("status", ["requested", "searching"]);
+      return { ok: true, redispatched: false };
+    }
+    return { ok: true, redispatched: true };
   });

@@ -1167,6 +1167,7 @@ export const acceptRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("Booking is no longer available");
+    await registerRideAssignment(data.rideId, userId, data.vehicleId);
     await notifyCustomerRideUpdate(data.rideId, "accepted");
     return { ok: true };
   });

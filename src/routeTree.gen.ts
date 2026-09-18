@@ -24,6 +24,7 @@ import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
 import { Route as AuthenticatedAdminDispatchRouteImport } from './routes/_authenticated/admin/dispatch'
 import { Route as AuthenticatedAdminFaresRouteImport } from './routes/_authenticated/admin/fares'
+import { Route as AuthenticatedAdminLiveDriversRouteImport } from './routes/_authenticated/admin/live-drivers'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
 import { Route as AuthenticatedAdminReferralsRouteImport } from './routes/_authenticated/admin/referrals'
@@ -122,6 +123,12 @@ const AuthenticatedAdminFaresRoute = AuthenticatedAdminFaresRouteImport.update({
   path: '/admin/fares',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminLiveDriversRoute =
+  AuthenticatedAdminLiveDriversRouteImport.update({
+    id: '/admin/live-drivers',
+    path: '/admin/live-drivers',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminNotificationsRoute =
   AuthenticatedAdminNotificationsRouteImport.update({
     id: '/admin/notifications',
@@ -238,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/admin/live-drivers': typeof AuthenticatedAdminLiveDriversRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/referrals': typeof AuthenticatedAdminReferralsRoute
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/admin/live-drivers': typeof AuthenticatedAdminLiveDriversRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
   '/admin/referrals': typeof AuthenticatedAdminReferralsRoute
@@ -308,6 +317,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/_authenticated/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/_authenticated/admin/live-drivers': typeof AuthenticatedAdminLiveDriversRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
   '/_authenticated/admin/referrals': typeof AuthenticatedAdminReferralsRoute
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/admin/customers'
     | '/admin/dispatch'
     | '/admin/fares'
+    | '/admin/live-drivers'
     | '/admin/notifications'
     | '/admin/qr'
     | '/admin/referrals'
@@ -378,6 +389,7 @@ export interface FileRouteTypes {
     | '/admin/customers'
     | '/admin/dispatch'
     | '/admin/fares'
+    | '/admin/live-drivers'
     | '/admin/notifications'
     | '/admin/qr'
     | '/admin/referrals'
@@ -413,6 +425,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/dispatch'
     | '/_authenticated/admin/fares'
+    | '/_authenticated/admin/live-drivers'
     | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/qr'
     | '/_authenticated/admin/referrals'
@@ -545,6 +558,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/fares'
       fullPath: '/admin/fares'
       preLoaderRoute: typeof AuthenticatedAdminFaresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/live-drivers': {
+      id: '/_authenticated/admin/live-drivers'
+      path: '/admin/live-drivers'
+      fullPath: '/admin/live-drivers'
+      preLoaderRoute: typeof AuthenticatedAdminLiveDriversRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/notifications': {
@@ -688,6 +708,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminDispatchRoute: typeof AuthenticatedAdminDispatchRoute
   AuthenticatedAdminFaresRoute: typeof AuthenticatedAdminFaresRoute
+  AuthenticatedAdminLiveDriversRoute: typeof AuthenticatedAdminLiveDriversRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
   AuthenticatedAdminReferralsRoute: typeof AuthenticatedAdminReferralsRoute
@@ -721,6 +742,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminDispatchRoute: AuthenticatedAdminDispatchRoute,
   AuthenticatedAdminFaresRoute: AuthenticatedAdminFaresRoute,
+  AuthenticatedAdminLiveDriversRoute: AuthenticatedAdminLiveDriversRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,
   AuthenticatedAdminReferralsRoute: AuthenticatedAdminReferralsRoute,

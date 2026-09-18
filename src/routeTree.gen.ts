@@ -22,6 +22,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin/catalog'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
+import { Route as AuthenticatedAdminDispatchRouteImport } from './routes/_authenticated/admin/dispatch'
 import { Route as AuthenticatedAdminFaresRouteImport } from './routes/_authenticated/admin/fares'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
@@ -108,6 +109,12 @@ const AuthenticatedAdminCustomersRoute =
   AuthenticatedAdminCustomersRouteImport.update({
     id: '/admin/customers',
     path: '/admin/customers',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminDispatchRoute =
+  AuthenticatedAdminDispatchRouteImport.update({
+    id: '/admin/dispatch',
+    path: '/admin/dispatch',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminFaresRoute = AuthenticatedAdminFaresRouteImport.update({
@@ -229,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
@@ -262,6 +270,7 @@ export interface FileRoutesByTo {
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
@@ -297,6 +306,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/_authenticated/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/_authenticated/admin/fares': typeof AuthenticatedAdminFaresRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/admin/banners'
     | '/admin/catalog'
     | '/admin/customers'
+    | '/admin/dispatch'
     | '/admin/fares'
     | '/admin/notifications'
     | '/admin/qr'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/admin/banners'
     | '/admin/catalog'
     | '/admin/customers'
+    | '/admin/dispatch'
     | '/admin/fares'
     | '/admin/notifications'
     | '/admin/qr'
@@ -399,6 +411,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/customers'
+    | '/_authenticated/admin/dispatch'
     | '/_authenticated/admin/fares'
     | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/qr'
@@ -518,6 +531,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/customers'
       fullPath: '/admin/customers'
       preLoaderRoute: typeof AuthenticatedAdminCustomersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/dispatch': {
+      id: '/_authenticated/admin/dispatch'
+      path: '/admin/dispatch'
+      fullPath: '/admin/dispatch'
+      preLoaderRoute: typeof AuthenticatedAdminDispatchRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/fares': {
@@ -666,6 +686,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
+  AuthenticatedAdminDispatchRoute: typeof AuthenticatedAdminDispatchRoute
   AuthenticatedAdminFaresRoute: typeof AuthenticatedAdminFaresRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
@@ -698,6 +719,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
+  AuthenticatedAdminDispatchRoute: AuthenticatedAdminDispatchRoute,
   AuthenticatedAdminFaresRoute: AuthenticatedAdminFaresRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,

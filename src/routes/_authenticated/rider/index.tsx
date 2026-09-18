@@ -25,7 +25,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { acceptRide, dismissRide, updateRiderRide } from "@/lib/api.functions";
+import {
+  acceptEnRouteRide,
+  acceptRide,
+  dismissRide,
+  getEnRouteOffers,
+  rejectEnRouteRide,
+  updateRiderRide,
+} from "@/lib/api.functions";
+import { useRiderPresenceBroadcast } from "@/lib/useRiderPresence";
 import { subscriptionActive, useAuth } from "@/lib/auth";
 import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { fetchLocations } from "@/lib/data";
@@ -197,6 +205,34 @@ function RiderDashboard() {
     }
   }
 
+  const online = Boolean(riderDetails?.is_online);
+  const presence = useRiderPresenceBroadcast(online);
+
+  const enRouteOffers = useQuery({
+    queryKey: ["en-route-offers", user?.id],
+    enabled: Boolean(user?.id) && online,
+    refetchInterval: 8_000,
+    queryFn: () => getEnRouteOffers(),
+  });
+
+  const acceptEnRoute = useMutation({
+    mutationFn: (rideId: string) => acceptEnRouteRide({ data: { rideId } }),
+    onSuccess: () => {
+      toast.success("Extra passenger added to your trip.");
+      void qc.invalidateQueries({ queryKey: ["en-route-offers", user?.id] });
+      void qc.invalidateQueries({ queryKey: ["rider-rides", user?.id] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const rejectEnRoute = useMutation({
+    mutationFn: (rideId: string) => rejectEnRouteRide({ data: { rideId } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["en-route-offers", user?.id] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const place = (id: string) => locations.data?.find((x) => x.id === id)?.name ?? "—";
   const dismissedRideIds = new Set((dismissals.data ?? []).map((item) => item.ride_id));
   const active = (rides.data ?? [])
@@ -298,6 +334,70 @@ function RiderDashboard() {
             aria-label="Toggle online status"
           />
         </section>
+
+        {online && presence.denied ? (
+          <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+            Location access is blocked. Allow location so nearby bookings reach you.
+          </p>
+        ) : null}
+
+        {(enRouteOffers.data?.length ?? 0) > 0 ? (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-foreground">En-route share ride requests</h2>
+            {enRouteOffers.data?.map((offer) => (
+              <article
+                key={offer.rideId}
+                className="rounded-2xl border border-primary/50 bg-primary/5 p-4"
+              >
+                <Badge className="mb-2">On your way</Badge>
+                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <span className="size-2.5 rounded-full bg-primary" aria-hidden="true" />
+                  <span className="truncate">{offer.pickup}</span>
+                </p>
+                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <span className="size-2.5 rounded-full bg-destructive" aria-hidden="true" />
+                  <span className="truncate">{offer.drop}</span>
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  <span>{offer.passengers} passenger(s)</span>
+                  <span className="text-right font-bold text-primary">{rupees(offer.fare)}</span>
+                  <span>
+                    Detour {offer.detourKm == null ? "—" : `${offer.detourKm} km`}
+                  </span>
+                  <span className="text-right">
+                    Extra{" "}
+                    {offer.additionalMinutes == null ? "—" : `${offer.additionalMinutes} min`}
+                  </span>
+                  <span>
+                    {offer.deviationKm == null ? "" : `${offer.deviationKm} km from route`}
+                  </span>
+                  <span className="text-right">
+                    {offer.remainingCapacity == null
+                      ? ""
+                      : `${offer.remainingCapacity} seat(s) free`}
+                  </span>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive text-destructive"
+                    disabled={rejectEnRoute.isPending}
+                    onClick={() => rejectEnRoute.mutate(offer.rideId)}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    disabled={acceptEnRoute.isPending}
+                    onClick={() => acceptEnRoute.mutate(offer.rideId)}
+                  >
+                    Accept
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </section>
+        ) : null}
 
         {vehicles.isSuccess && (vehicles.data?.length ?? 0) === 0 ? (
           <section className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4">

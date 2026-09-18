@@ -1240,6 +1240,7 @@ export const updateRiderRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("That ride action is no longer available.");
+    if (data.action === "completed") await closeRideAssignment(data.rideId, context.userId);
     await notifyCustomerRideUpdate(data.rideId, data.action);
     return { ok: true };
   });

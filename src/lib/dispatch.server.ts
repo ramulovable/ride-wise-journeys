@@ -359,13 +359,12 @@ export async function enRouteCandidates(rideId: string): Promise<EnRouteCandidat
   ]);
   if (!pickup || !drop) return [];
 
-  const activeStatuses = ["accepted", "on_the_way", "arrived", "started"] as const;
   const [drivers, activeResult, dismissalsResult, presenceResult] = await Promise.all([
     activeDriverIds(),
     supabaseAdmin
       .from("rides")
       .select("id, rider_id, vehicle_id, booking_type, passengers, to_location_id, status")
-      .in("status", activeStatuses as unknown as string[])
+      .in("status", ["accepted", "on_the_way", "arrived", "started"])
       .not("rider_id", "is", null),
     supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
     supabaseAdmin.from("rider_presence").select("*"),

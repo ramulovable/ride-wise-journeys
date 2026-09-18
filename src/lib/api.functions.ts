@@ -1167,6 +1167,7 @@ export const acceptRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("Booking is no longer available");
+    await registerRideAssignment(data.rideId, userId, data.vehicleId);
     await notifyCustomerRideUpdate(data.rideId, "accepted");
     return { ok: true };
   });
@@ -1239,6 +1240,7 @@ export const updateRiderRide = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("That ride action is no longer available.");
+    if (data.action === "completed") await closeRideAssignment(data.rideId, context.userId);
     await notifyCustomerRideUpdate(data.rideId, data.action);
     return { ok: true };
   });
@@ -2080,3 +2082,36 @@ export const rejectEnRouteRide = createServerFn({ method: "POST" })
     }
     return { ok: true, redispatched: true };
   });
+
+/** Closes route state and stops for a finished ride and frees the driver when idle. */
+async function closeRideAssignment(rideId: string, riderId: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await Promise.all([
+      supabaseAdmin.from("ride_route_state").update({ is_active: false }).eq("ride_id", rideId),
+      supabaseAdmin
+        .from("ride_route_stops")
+        .update({ status: "done" })
+        .eq("ride_id", rideId)
+        .eq("status", "pending"),
+    ]);
+    const { data: stillActive } = await supabaseAdmin
+      .from("rides")
+      .select("id")
+      .eq("rider_id", riderId)
+      .in("status", ["accepted", "on_the_way", "arrived", "started"])
+      .limit(1);
+    if (!stillActive?.length) {
+      await supabaseAdmin
+        .from("rider_presence")
+        .update({
+          status: "online_available",
+          active_ride_id: null,
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq("rider_id", riderId);
+    }
+  } catch (error) {
+    console.error("Route close-out failed", error);
+  }
+}

@@ -30,8 +30,30 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    ref: typeof search["ref"] === "string" ? search["ref"] : undefined,
+  }),
   component: WelcomePage,
 });
+
+const REF_STORAGE_KEY = "shahin_referral_code";
+
+/** Remembers a ?ref= code from a shared invite link until the account is created. */
+function useCapturedReferral(): string {
+  const [code, setCode] = useState("");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const fromUrl = new URLSearchParams(window.location.search).get("ref");
+    if (fromUrl) {
+      const clean = fromUrl.trim().toUpperCase().slice(0, 20);
+      window.sessionStorage.setItem(REF_STORAGE_KEY, clean);
+      setCode(clean);
+      return;
+    }
+    setCode(window.sessionStorage.getItem(REF_STORAGE_KEY) ?? "");
+  }, []);
+  return code;
+}
 
 function WelcomePage() {
   const { session, role, loading } = useAuth();
@@ -258,6 +280,11 @@ function SignupForm() {
   const [password, setPassword] = useState("");
   const [address, setAddress] = useState("");
   const [referral, setReferral] = useState("");
+  const capturedReferral = useCapturedReferral();
+
+  useEffect(() => {
+    if (capturedReferral) setReferral((current) => current || capturedReferral);
+  }, [capturedReferral]);
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [verifying, setVerifying] = useState(false);

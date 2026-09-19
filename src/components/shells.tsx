@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import {
+  Route as RouteIcon,
+  Navigation,
   BadgeIndianRupee,
   Bell,
   CalendarClock,
@@ -51,6 +53,8 @@ const adminNav: NavItem[] = [
   },
   { to: "/admin/fares", label: "Fares", icon: icon(<BadgeIndianRupee className="h-4 w-4" />) },
   { to: "/admin/rides", label: "Rides", icon: icon(<CalendarClock className="h-4 w-4" />) },
+  { to: "/admin/dispatch", label: "Dispatch", icon: icon(<RouteIcon className="h-4 w-4" />) },
+  { to: "/admin/live-drivers", label: "Live", icon: icon(<Navigation className="h-4 w-4" />) },
   { to: "/admin/withdrawals", label: "Payouts", icon: icon(<Wallet className="h-4 w-4" />) },
   { to: "/admin/referrals", label: "Referrals", icon: icon(<Gift className="h-4 w-4" />) },
   { to: "/admin/banners", label: "Banners", icon: icon(<ImageIcon className="h-4 w-4" />) },

@@ -56,8 +56,7 @@ export function haversineKm(a: Point, b: Point): number {
   const dLon = toRad(b.longitude - a.longitude);
   const lat1 = toRad(a.latitude);
   const lat2 = toRad(b.latitude);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -100,7 +99,10 @@ function segmentDistanceKm(point: Point, a: Point, b: Point) {
   const dx = bx - ax;
   const dy = by - ay;
   const lengthSquared = dx * dx + dy * dy;
-  const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  const t =
+    lengthSquared === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
   const projected = { latitude: ay + t * dy, longitude: ax + t * dx };
   return { distanceKm: haversineKm(point, projected), t };
 }
@@ -323,7 +325,8 @@ export async function nearbyCandidates(rideId: string): Promise<NearbyCandidate[
       vehicleId: vehicle.id,
       pickupDistanceKm: distanceKm == null ? null : Math.round(distanceKm * 100) / 100,
       score:
-        (distanceKm ?? Number(settings.pickup_radius_km)) * Number(settings.weight_pickup_proximity),
+        (distanceKm ?? Number(settings.pickup_radius_km)) *
+        Number(settings.weight_pickup_proximity),
     });
   }
   return candidates.sort((a, b) => a.score - b.score);
@@ -380,7 +383,9 @@ export async function enRouteCandidates(rideId: string): Promise<EnRouteCandidat
   );
   if (activeRides.length === 0) return [];
 
-  const vehicleIds = [...new Set(activeRides.map((row) => row.vehicle_id).filter(Boolean))] as string[];
+  const vehicleIds = [
+    ...new Set(activeRides.map((row) => row.vehicle_id).filter(Boolean)),
+  ] as string[];
   const { data: vehicles } = await supabaseAdmin
     .from("rider_vehicles")
     .select("id, rider_id, vehicle_category_id, has_ac, seat_capacity, is_active")
@@ -449,10 +454,7 @@ export async function enRouteCandidates(rideId: string): Promise<EnRouteCandidat
       detourRoute.durationMinutes != null && baseRoute.durationMinutes != null
         ? detourRoute.durationMinutes - baseRoute.durationMinutes
         : null;
-    if (
-      additionalMinutes != null &&
-      additionalMinutes > Number(settings.max_additional_minutes)
-    ) {
+    if (additionalMinutes != null && additionalMinutes > Number(settings.max_additional_minutes)) {
       continue;
     }
 
@@ -484,7 +486,10 @@ export type DispatchPlan = {
 /** Runs both dispatch paths and orders the drivers by the configured priority. */
 export async function planDispatch(rideId: string): Promise<DispatchPlan> {
   const settings = await loadDispatchSettings();
-  const [nearby, enRoute] = await Promise.all([nearbyCandidates(rideId), enRouteCandidates(rideId)]);
+  const [nearby, enRoute] = await Promise.all([
+    nearbyCandidates(rideId),
+    enRouteCandidates(rideId),
+  ]);
   const nearbyIds = nearby.map((item) => item.riderId);
   const enRouteIds = enRoute.map((item) => item.riderId).filter((id) => !nearbyIds.includes(id));
 

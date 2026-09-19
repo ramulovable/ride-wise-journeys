@@ -32,3 +32,6 @@
 
 ## Open
 - [x] Google Maps custom key stored as secret GOOGLE_MAPS_CUSTOM_BROWSER_KEY; LiveRideMap loads it via getMapsBrowserKey server fn with managed-key fallback; published and verified live (map + route render on shahintravels.app).
+
+## Pending
+- Referral reward condition fully admin-configurable (DB table referral_reward_conditions); NEW_ACCOUNT_CREATED credits referrer wallet immediately on signup (idempotent, anti-abuse, limit enforced); remove hardcoded first_ride helper text; ?ref= link attribution; admin referral history detail.

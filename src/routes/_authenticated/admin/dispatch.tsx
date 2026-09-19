@@ -99,7 +99,10 @@ const PRIORITIES: Array<{ value: Form["dispatch_priority"]; label: string }> = [
 function DispatchSettingsPage() {
   useRoleGuard("admin");
   const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ["dispatch-settings"], queryFn: () => getDispatchSettings() });
+  const settings = useQuery({
+    queryKey: ["dispatch-settings"],
+    queryFn: () => getDispatchSettings(),
+  });
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
 

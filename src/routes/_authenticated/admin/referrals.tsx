@@ -4,7 +4,7 @@ import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime, rupees } from "@/lib/format";
-import { REFERRAL_STATUS_LABEL } from "@/lib/referrals";
+import { REFERRAL_STATUS_LABEL, fetchRewardConditions } from "@/lib/referrals";
 import { useAppSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/_authenticated/admin/referrals")({
@@ -87,6 +87,13 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function AdminReferralsPage() {
   const settings = useAppSettings();
   const records = useQuery({ queryKey: ["admin-referrals"], queryFn: fetchAdminReferrals });
+  const conditions = useQuery({
+    queryKey: ["referral-reward-conditions"],
+    queryFn: fetchRewardConditions,
+  });
+  const activeCondition = conditions.data?.find(
+    (item) => item.code === settings.data?.referralCondition,
+  );
 
   const rows = records.data ?? [];
   const successful = rows.filter((row) => row.status === "rewarded");
@@ -107,9 +114,12 @@ function AdminReferralsPage() {
           <p className="text-xs text-muted-foreground">Current reward per side</p>
           <p className="text-xl font-bold">{rupees(settings.data?.referralReward ?? 0)}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Programme is {settings.data?.referralEnabled === false ? "off" : "on"}. Change the
-            amount and rules in Settings.
+            Programme is {settings.data?.referralEnabled === false ? "off" : "on"}. Reward
+            condition: {activeCondition?.display_name ?? settings.data?.referralCondition ?? "—"}.
           </p>
+          {activeCondition ? (
+            <p className="mt-1 text-xs text-muted-foreground">{activeCondition.description}</p>
+          ) : null}
         </section>
 
         <section className="space-y-3 rounded-2xl border border-border bg-card p-4">

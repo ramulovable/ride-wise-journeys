@@ -18,7 +18,11 @@ export const updateRiderPresence = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
 
     const [{ data: rider }, { data: activeRides }] = await Promise.all([
-      supabase.from("rider_details").select("is_online, is_blocked").eq("user_id", userId).maybeSingle(),
+      supabase
+        .from("rider_details")
+        .select("is_online, is_blocked")
+        .eq("user_id", userId)
+        .maybeSingle(),
       supabase
         .from("rides")
         .select("id, vehicle_id")
@@ -29,11 +33,12 @@ export const updateRiderPresence = createServerFn({ method: "POST" })
     ]);
 
     const active = activeRides?.[0];
-    const status = !rider?.is_online || rider.is_blocked
-      ? "offline"
-      : active
-        ? "online_on_ride"
-        : "online_available";
+    const status =
+      !rider?.is_online || rider.is_blocked
+        ? "offline"
+        : active
+          ? "online_on_ride"
+          : "online_available";
 
     const { error } = await supabase.from("rider_presence").upsert(
       {
@@ -133,24 +138,35 @@ export const getLiveDrivers = createServerFn({ method: "GET" })
     const rideIds = presence.map((row) => row.active_ride_id).filter(Boolean) as string[];
     const [profilesResult, vehiclesResult, stateResult, ridesResult] = await Promise.all([
       supabase.from("profiles").select("id, full_name, mobile").in("id", riderIds),
-      supabase.from("rider_vehicles").select("id, vehicle_number, seat_capacity").in("rider_id", riderIds),
+      supabase
+        .from("rider_vehicles")
+        .select("id, vehicle_number, seat_capacity")
+        .in("rider_id", riderIds),
       rideIds.length
         ? supabase.from("ride_route_state").select("*").in("ride_id", rideIds)
         : Promise.resolve({ data: [] as never[] }),
       rideIds.length
-        ? supabase.from("rides").select("id, status, passengers, from_location_id, to_location_id").in("id", rideIds)
+        ? supabase
+            .from("rides")
+            .select("id, status, passengers, from_location_id, to_location_id")
+            .in("id", rideIds)
         : Promise.resolve({ data: [] as never[] }),
     ]);
 
     return presence.map((row) => {
       const profile = profilesResult.data?.find((item) => item.id === row.rider_id);
       const vehicle = vehiclesResult.data?.find((item) => item.id === row.active_vehicle_id);
-      const state = (stateResult.data as Array<{ ride_id: string; route_progress: number | null; remaining_capacity: number | null; occupied_passenger_count: number | null }> | null)?.find(
-        (item) => item.ride_id === row.active_ride_id,
-      );
-      const ride = (ridesResult.data as Array<{ id: string; status: string; passengers: number }> | null)?.find(
-        (item) => item.id === row.active_ride_id,
-      );
+      const state = (
+        stateResult.data as Array<{
+          ride_id: string;
+          route_progress: number | null;
+          remaining_capacity: number | null;
+          occupied_passenger_count: number | null;
+        }> | null
+      )?.find((item) => item.ride_id === row.active_ride_id);
+      const ride = (
+        ridesResult.data as Array<{ id: string; status: string; passengers: number }> | null
+      )?.find((item) => item.id === row.active_ride_id);
       return {
         riderId: row.rider_id,
         name: profile?.full_name ?? "Driver",

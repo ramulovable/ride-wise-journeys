@@ -4,7 +4,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { rupees } from "@/lib/format";
-import { buildInviteMessage, fetchMyReferralCode } from "@/lib/referrals";
+import {
+  buildInviteLink,
+  buildInviteMessage,
+  fetchMyReferralCode,
+  fetchRewardConditions,
+} from "@/lib/referrals";
 import { useAppSettings } from "@/lib/settings";
 
 export function useMyReferralCode() {
@@ -23,14 +28,22 @@ export function ReferralCard() {
   const code = codeQuery.data ?? "";
   const reward = settings.data?.referralReward ?? 0;
   const enabled = settings.data?.referralEnabled ?? true;
+  const conditions = useQuery({
+    queryKey: ["referral-reward-conditions"],
+    staleTime: 5 * 60_000,
+    queryFn: fetchRewardConditions,
+  });
+  const activeCondition = conditions.data?.find(
+    (item) => item.code === settings.data?.referralCondition,
+  );
+  const conditionNote =
+    activeCondition?.event_type === "FIRST_COMPLETED_RIDE"
+      ? "after their first completed ride."
+      : "as soon as they create their account.";
 
+  const link = settings.data ? buildInviteLink(settings.data.referralInviteUrl, code) : "";
   const message = settings.data
-    ? buildInviteMessage(
-        settings.data.referralInviteMessage,
-        code,
-        reward,
-        settings.data.referralInviteUrl,
-      )
+    ? buildInviteMessage(settings.data.referralInviteMessage, code, reward, link)
     : "";
 
   async function copyCode() {
@@ -61,7 +74,7 @@ export function ReferralCard() {
       </p>
       {enabled ? (
         <p className="text-sm text-muted-foreground">
-          You and your friend each get {rupees(reward)} after their first completed ride.
+          You and your friend each get {rupees(reward)} {conditionNote}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">

@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.award_referral(uuid) FROM PUBLIC, anon, authenticated;

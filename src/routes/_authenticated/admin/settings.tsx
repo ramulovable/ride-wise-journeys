@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings } from "@/lib/settings";
+import { fetchRewardConditions } from "@/lib/referrals";
+import { useQuery } from "@tanstack/react-query";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
@@ -35,6 +37,10 @@ function SettingsPage() {
   useRoleGuard("admin");
   const qc = useQueryClient();
   const settings = useAppSettings();
+  const conditions = useQuery({
+    queryKey: ["referral-reward-conditions"],
+    queryFn: fetchRewardConditions,
+  });
   const [fee, setFee] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -239,14 +245,25 @@ function SettingsPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="refcond">Reward condition</Label>
-            <Input
+            <select
               id="refcond"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={referralCondition}
               onChange={(e) => setReferralCondition(e.target.value)}
-            />
+            >
+              {(conditions.data ?? []).map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.display_name}
+                </option>
+              ))}
+              {conditions.data?.some((item) => item.code === referralCondition) === false &&
+              referralCondition ? (
+                <option value={referralCondition}>{referralCondition}</option>
+              ) : null}
+            </select>
             <p className="text-xs text-muted-foreground">
-              Currently supported: first_ride (credited after the invited person&apos;s first
-              completed ride).
+              {conditions.data?.find((item) => item.code === referralCondition)?.description ??
+                "Choose when the referral reward is credited."}
             </p>
           </div>
           <div className="space-y-1.5">

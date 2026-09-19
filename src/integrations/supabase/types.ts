@@ -795,6 +795,42 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_reward_conditions: {
+        Row: {
+          code: string
+          created_at: string
+          description: string
+          display_name: string
+          event_type: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description: string
+          display_name: string
+          event_type: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string
+          display_name?: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       referral_transactions: {
         Row: {
           amount: number
@@ -2083,6 +2119,7 @@ export type Database = {
         Args: { _action: string; _ride_id: string }
         Returns: boolean
       }
+      award_referral: { Args: { _referral_id: string }; Returns: boolean }
       ensure_referral_code: { Args: { _user_id?: string }; Returns: string }
       ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
       generate_referral_code: { Args: never; Returns: string }

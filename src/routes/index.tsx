@@ -30,9 +30,6 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({
-    ref: typeof search["ref"] === "string" ? search["ref"] : undefined,
-  }),
   component: WelcomePage,
 });
 

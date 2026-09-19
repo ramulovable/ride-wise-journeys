@@ -44,6 +44,31 @@ export async function fetchReferralEarnings(userId: string): Promise<number> {
   return (data ?? []).reduce((total, row) => total + Number(row.amount), 0);
 }
 
+export type RewardCondition = {
+  code: string;
+  display_name: string;
+  description: string;
+  event_type: string;
+};
+
+/** Admin-managed list of reward conditions the referral engine supports. */
+export async function fetchRewardConditions(): Promise<RewardCondition[]> {
+  const { data, error } = await supabase
+    .from("referral_reward_conditions")
+    .select("code, display_name, description, event_type")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** Personal invite link: the configured landing URL plus the user's own code. */
+export function buildInviteLink(baseUrl: string, code: string): string {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  if (!code) return base;
+  return `${base}/?ref=${encodeURIComponent(code)}`;
+}
+
 export function buildInviteMessage(
   template: string,
   code: string,

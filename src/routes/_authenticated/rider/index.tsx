@@ -361,12 +361,9 @@ function RiderDashboard() {
                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                   <span>{offer.passengers} passenger(s)</span>
                   <span className="text-right font-bold text-primary">{rupees(offer.fare)}</span>
-                  <span>
-                    Detour {offer.detourKm == null ? "—" : `${offer.detourKm} km`}
-                  </span>
+                  <span>Detour {offer.detourKm == null ? "—" : `${offer.detourKm} km`}</span>
                   <span className="text-right">
-                    Extra{" "}
-                    {offer.additionalMinutes == null ? "—" : `${offer.additionalMinutes} min`}
+                    Extra {offer.additionalMinutes == null ? "—" : `${offer.additionalMinutes} min`}
                   </span>
                   <span>
                     {offer.deviationKm == null ? "" : `${offer.deviationKm} km from route`}

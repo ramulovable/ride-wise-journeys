@@ -124,6 +124,42 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcast_messages: {
+        Row: {
+          action_path: string
+          audience: string
+          body: string
+          created_at: string
+          delivered_count: number
+          id: string
+          recipient_count: number
+          sent_by: string | null
+          title: string
+        }
+        Insert: {
+          action_path?: string
+          audience: string
+          body: string
+          created_at?: string
+          delivered_count?: number
+          id?: string
+          recipient_count?: number
+          sent_by?: string | null
+          title: string
+        }
+        Update: {
+          action_path?: string
+          audience?: string
+          body?: string
+          created_at?: string
+          delivered_count?: number
+          id?: string
+          recipient_count?: number
+          sent_by?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       day_night_pricing_config: {
         Row: {
           applies_to_per_km: boolean

@@ -82,7 +82,12 @@ export function ReferralCard() {
         </p>
       )}
       <div className="flex gap-2">
-        <Button variant="outline" className="flex-1" disabled={!code} onClick={() => void copyCode()}>
+        <Button
+          variant="outline"
+          className="flex-1"
+          disabled={!code}
+          onClick={() => void copyCode()}
+        >
           <Copy className="mr-2 h-4 w-4" /> Copy code
         </Button>
         <Button className="flex-1" disabled={!code} onClick={() => void share()}>

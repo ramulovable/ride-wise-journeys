@@ -126,13 +126,48 @@ export const getLiveDrivers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data: presence, error } = await supabase
-      .from("rider_presence")
-      .select("*")
-      .order("last_seen_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    if (!presence?.length) return [];
+    const [presenceResult, onlineResult] = await Promise.all([
+      supabase
+        .from("rider_presence")
+        .select("*")
+        .order("last_seen_at", { ascending: false })
+        .limit(300),
+      supabase
+        .from("rider_details")
+        .select("user_id, is_online")
+        .eq("is_online", true)
+        .limit(300),
+    ]);
+    if (presenceResult.error) throw new Error(presenceResult.error.message);
+
+    type PresenceRow = {
+      rider_id: string;
+      status: string;
+      current_latitude: number | null;
+      current_longitude: number | null;
+      current_accuracy_meters: number | null;
+      active_vehicle_id: string | null;
+      active_ride_id: string | null;
+      last_location_at: string | null;
+      last_seen_at: string | null;
+    };
+
+    const presence: PresenceRow[] = (presenceResult.data ?? []).map((row) => ({ ...row }));
+    for (const rider of onlineResult.data ?? []) {
+      if (presence.some((row) => row.rider_id === rider.user_id)) continue;
+      presence.push({
+        rider_id: rider.user_id,
+        status: "online_available",
+        current_latitude: null,
+        current_longitude: null,
+        current_accuracy_meters: null,
+        active_vehicle_id: null,
+        active_ride_id: null,
+        last_location_at: null,
+        last_seen_at: null,
+      });
+    }
+    if (!presence.length) return [];
 
     const riderIds = presence.map((row) => row.rider_id);
     const rideIds = presence.map((row) => row.active_ride_id).filter(Boolean) as string[];

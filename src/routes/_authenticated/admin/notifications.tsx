@@ -1,10 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { listBroadcasts, sendBroadcast } from "@/lib/broadcast.functions";
 import { formatDateTime } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+
+const AUDIENCE_LABEL: Record<string, string> = {
+  all: "Everyone",
+  customers: "Customers only",
+  riders: "Drivers only",
+};
 
 export const Route = createFileRoute("/_authenticated/admin/notifications")({
   head: () => ({

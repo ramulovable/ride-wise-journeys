@@ -91,6 +91,72 @@ function NotificationsPage() {
         <p className="text-2xl font-bold">{devices.data ?? 0}</p>
       </div>
 
+      <section className="mb-4 space-y-3 rounded-2xl border border-border bg-card p-4">
+        <p className="font-semibold">Send an announcement</p>
+        <div className="space-y-1.5">
+          <Label htmlFor="bc-audience">Send to</Label>
+          <select
+            id="bc-audience"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={audience}
+            onChange={(e) => setAudience(e.target.value as typeof audience)}
+          >
+            <option value="all">Everyone (customers + drivers)</option>
+            <option value="customers">Customers only</option>
+            <option value="riders">Drivers only</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="bc-title">Title</Label>
+          <Input
+            id="bc-title"
+            value={title}
+            maxLength={80}
+            placeholder="Today's update"
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="bc-body">Message</Label>
+          <Textarea
+            id="bc-body"
+            value={body}
+            maxLength={500}
+            rows={3}
+            placeholder="Write the message people will see."
+            onChange={(e) => setBody(e.target.value)}
+          />
+        </div>
+        <Button
+          className="w-full"
+          disabled={send.isPending || title.trim().length < 2 || body.trim().length < 2}
+          onClick={() => send.mutate()}
+        >
+          {send.isPending ? "Sending…" : "Send now"}
+        </Button>
+        <p className="text-[11px] text-muted-foreground">
+          Everyone gets it inside the app; people who switched on alerts also get a phone
+          notification.
+        </p>
+      </section>
+
+      {(broadcasts.data?.length ?? 0) > 0 ? (
+        <section className="mb-4 space-y-2">
+          <p className="text-sm font-semibold">Announcements sent</p>
+          {broadcasts.data?.map((row) => (
+            <article key={row.id} className="rounded-2xl border border-border bg-card p-3">
+              <p className="text-sm font-medium">{row.title}</p>
+              <p className="text-sm text-muted-foreground">{row.body}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatDateTime(row.created_at)} · {AUDIENCE_LABEL[row.audience] ?? row.audience} ·{" "}
+                {row.recipient_count} people · {row.delivered_count} phone alerts
+              </p>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
+
       {history.isSuccess && history.data.length === 0 ? (
         <EmptyState
           title="No notifications yet"

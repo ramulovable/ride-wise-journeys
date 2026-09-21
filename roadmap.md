@@ -35,3 +35,8 @@
 
 ## Pending
 - Referral reward condition fully admin-configurable (DB table referral_reward_conditions); NEW_ACCOUNT_CREATED credits referrer wallet immediately on signup (idempotent, anti-abuse, limit enforced); remove hardcoded first_ride helper text; ?ref= link attribution; admin referral history detail.
+
+## In progress (Sep 21)
+- [x] Live drivers page: show every online driver, even without GPS yet
+- [x] Admin broadcast notifications (all / customers / drivers) + history
+- [ ] Full-screen new ride alert for drivers (in-app full-screen request screen, sticky until accept/reject/cancel/expiry, admin-configurable sound/vibration/timeout/priority, race-safe accept)

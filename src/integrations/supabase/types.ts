@@ -949,6 +949,51 @@ export type Database = {
           },
         ]
       }
+      ride_alert_settings: {
+        Row: {
+          alert_duration_seconds: number
+          alert_sound: string
+          created_at: string
+          full_screen_enabled: boolean
+          id: string
+          max_riders_notified: number
+          notification_priority: string
+          response_timeout_seconds: number
+          retry_interval_seconds: number
+          sound_enabled: boolean
+          updated_at: string
+          vibration_enabled: boolean
+        }
+        Insert: {
+          alert_duration_seconds?: number
+          alert_sound?: string
+          created_at?: string
+          full_screen_enabled?: boolean
+          id?: string
+          max_riders_notified?: number
+          notification_priority?: string
+          response_timeout_seconds?: number
+          retry_interval_seconds?: number
+          sound_enabled?: boolean
+          updated_at?: string
+          vibration_enabled?: boolean
+        }
+        Update: {
+          alert_duration_seconds?: number
+          alert_sound?: string
+          created_at?: string
+          full_screen_enabled?: boolean
+          id?: string
+          max_riders_notified?: number
+          notification_priority?: string
+          response_timeout_seconds?: number
+          retry_interval_seconds?: number
+          sound_enabled?: boolean
+          updated_at?: string
+          vibration_enabled?: boolean
+        }
+        Relationships: []
+      }
       ride_dismissals: {
         Row: {
           created_at: string

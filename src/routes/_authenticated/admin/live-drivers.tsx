@@ -65,7 +65,7 @@ function LiveDriversPage() {
                 <div>
                   Location:{" "}
                   {driver.latitude == null || driver.longitude == null
-                    ? "—"
+                    ? "Not shared yet"
                     : `${Number(driver.latitude).toFixed(5)}, ${Number(driver.longitude).toFixed(5)}`}
                 </div>
                 <div className="text-right">
@@ -82,6 +82,12 @@ function LiveDriversPage() {
                   {driver.remainingCapacity == null ? "" : ` · ${driver.remainingCapacity} free`}
                 </div>
               </dl>
+              {driver.latitude == null ? (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  This driver has not shared location yet. They must open the driver app while
+                  online and allow location access.
+                </p>
+              ) : null}
             </article>
           ))}
         </div>

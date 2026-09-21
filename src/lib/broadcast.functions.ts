@@ -9,19 +9,12 @@ const broadcastInput = z.object({
   actionPath: z.string().trim().min(1).max(200).default("/"),
 });
 
-async function assertAdmin(supabase: {
-  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }>;
-}) {
-  return supabase;
-}
-
 /** Admin: send one announcement to every customer, every driver, or both. */
 export const sendBroadcast = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => broadcastInput.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await assertAdmin(supabase as never);
 
     const { data: isAdmin } = await supabase.rpc("has_role", {
       _user_id: userId,

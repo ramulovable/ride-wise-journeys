@@ -38,6 +38,27 @@ export const Route = createFileRoute("/_authenticated/admin/notifications")({
 
 function NotificationsPage() {
   useRoleGuard("admin");
+  const qc = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [audience, setAudience] = useState<"all" | "customers" | "riders">("all");
+
+  const broadcasts = useQuery({ queryKey: ["admin-broadcasts"], queryFn: () => listBroadcasts() });
+
+  const send = useMutation({
+    mutationFn: () =>
+      sendBroadcast({
+        data: { title: title.trim(), body: body.trim(), audience, actionPath: "/notifications" },
+      }),
+    onSuccess: (result) => {
+      toast.success(`Sent to ${result.recipients} people (${result.delivered} phone alerts).`);
+      setTitle("");
+      setBody("");
+      void qc.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      void qc.invalidateQueries({ queryKey: ["admin-notifications"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const devices = useQuery({
     queryKey: ["admin-devices"],

@@ -12,6 +12,7 @@ import {
   Plus,
   RouteIcon,
   UserRound,
+  Wallet as WalletIcon,
 } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EnablePushButton } from "@/components/EnablePushButton";
@@ -375,7 +376,7 @@ function BookPage() {
           Book Ride Now <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
 
-        <section className="grid grid-cols-4 gap-2">
+        <section className="grid grid-cols-5 gap-2">
           {[
             { to: "/app/rides", label: "My Rides", icon: <ClipboardList className="h-5 w-5" /> },
             {
@@ -383,6 +384,7 @@ function BookPage() {
               label: "Fare Details",
               icon: <BadgeIndianRupee className="h-5 w-5" />,
             },
+            { to: "/wallet", label: "Wallet", icon: <WalletIcon className="h-5 w-5" /> },
             { to: "/support", label: "Help & Support", icon: <LifeBuoy className="h-5 w-5" /> },
             { to: "/profile", label: "My Profile", icon: <UserRound className="h-5 w-5" /> },
           ].map((item) => (

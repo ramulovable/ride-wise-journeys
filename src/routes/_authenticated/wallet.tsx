@@ -82,8 +82,20 @@ function WalletPage() {
       toast.error("Enter the amount you want to withdraw.");
       return;
     }
+    if (totals.balance < min) {
+      toast.error(`You need at least ${rupees(min)} in your wallet before you can withdraw.`);
+      return;
+    }
+    if (value < min) {
+      toast.error(`Minimum withdrawal amount is ${rupees(min)}.`);
+      return;
+    }
+    if (value > max) {
+      toast.error(`Maximum withdrawal amount is ${rupees(max)}.`);
+      return;
+    }
     if (value > totals.balance) {
-      toast.error("You do not have that much balance available.");
+      toast.error(`You only have ${rupees(totals.balance)} in your wallet.`);
       return;
     }
     setBusy(true);

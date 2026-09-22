@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listBroadcasts, sendBroadcast } from "@/lib/broadcast.functions";
 import { formatDateTime } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import { useRideAlertSettings, type RideAlertSettings } from "@/lib/rideAlerts";
 
 const AUDIENCE_LABEL: Record<string, string> = {
   all: "Everyone",
@@ -177,5 +178,82 @@ function NotificationsPage() {
         </div>
       )}
     </AdminShell>
+  );
+}
+
+function RideAlertSettingsSection() {
+  const qc = useQueryClient();
+  const settings = useRideAlertSettings();
+  const row = settings.data;
+
+  async function update(patch: Partial<RideAlertSettings>) {
+    if (!row?.id) return;
+    const { error } = await supabase.from("ride_alert_settings").update(patch).eq("id", row.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Ride alert settings saved.");
+      void qc.invalidateQueries({ queryKey: ["ride-alert-settings"] });
+    }
+  }
+
+  if (!row) return null;
+
+  const toggles: Array<[keyof RideAlertSettings, string]> = [
+    ["full_screen_enabled", "Show full-screen alert to drivers"],
+    ["sound_enabled", "Play alert sound"],
+    ["vibration_enabled", "Vibrate the phone"],
+  ];
+  const numbers: Array<[keyof RideAlertSettings, string]> = [
+    ["alert_duration_seconds", "Sound / vibration length (seconds)"],
+    ["response_timeout_seconds", "Driver response time (seconds)"],
+    ["max_riders_notified", "Drivers alerted per booking"],
+    ["retry_interval_seconds", "Gap before the next driver (seconds)"],
+  ];
+
+  return (
+    <section className="mb-4 space-y-3 rounded-2xl border border-border bg-card p-4">
+      <p className="font-semibold">New ride alert for drivers</p>
+      {toggles.map(([key, label]) => (
+        <label key={key} className="flex items-center justify-between gap-3 text-sm">
+          <span>{label}</span>
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={Boolean(row[key])}
+            onChange={(e) => void update({ [key]: e.target.checked } as Partial<RideAlertSettings>)}
+          />
+        </label>
+      ))}
+      <div className="grid grid-cols-2 gap-3">
+        {numbers.map(([key, label]) => (
+          <div key={key} className="space-y-1.5">
+            <Label htmlFor={`ra-${key}`}>{label}</Label>
+            <Input
+              id={`ra-${key}`}
+              type="number"
+              defaultValue={String(row[key])}
+              onBlur={(e) => {
+                const value = Number(e.target.value);
+                if (!Number.isFinite(value) || value < 1) return;
+                if (value === Number(row[key])) return;
+                void update({ [key]: Math.round(value) } as Partial<RideAlertSettings>);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="ra-sound">Alert tone</Label>
+        <select
+          id="ra-sound"
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          value={row.alert_sound}
+          onChange={(e) => void update({ alert_sound: e.target.value })}
+        >
+          <option value="chime">Chime</option>
+          <option value="siren">Siren</option>
+        </select>
+      </div>
+    </section>
   );
 }

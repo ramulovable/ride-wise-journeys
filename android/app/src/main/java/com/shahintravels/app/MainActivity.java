@@ -26,10 +26,17 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         try {
+            attachNativeBridge();
+        } catch (Throwable t) {
+            Log.w(TAG, "Native bridge unavailable", t);
+        }
+
+        try {
             RideAlertNotifier.createChannels(this);
         } catch (Throwable t) {
             Log.w(TAG, "Notification channels not created", t);
         }
+
 
         try {
             publishPushToken();
@@ -55,7 +62,30 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    /**
+     * Exposes the permission helpers to the web app as `window.ShahinNative`.
+     * The interface only applies from the next page load, so the first launch
+     * reloads the WebView once.
+     */
+    private void attachNativeBridge() {
+        if (getBridge() == null) return;
+        final WebView webView = getBridge().getWebView();
+        if (webView == null) return;
+        webView.addJavascriptInterface(new NativePermissions(this), "ShahinNative");
+        webView.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    webView.reload();
+                } catch (Throwable t) {
+                    Log.w(TAG, "Could not reload after bridge attach", t);
+                }
+            }
+        });
+    }
+
     /** Opens a specific in-app screen when the user taps a ride alert. */
+
     private void handleTargetPath(Intent intent) {
         if (intent == null) return;
         final String path = intent.getStringExtra(EXTRA_TARGET_PATH);

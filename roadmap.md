@@ -57,3 +57,12 @@
 - [ ] GitHub Actions workflow to build APK + AAB
 - [ ] Website /download page + buttons, admin-configurable APK URL
 - [ ] Single app for both customers and drivers (customer signup works in app)
+
+## Android app (APK + Play Store)
+- [x] Capacitor Android wrapper (com.shahintravels.app, one app for customers + drivers)
+- [x] Full-screen lock-screen ride alert activity + Firebase messaging service
+- [x] GitHub Actions workflow building signed APK + AAB into a Release
+- [x] Public /download page with admin-configurable APK / Play Store link
+- [x] Native FCM token saved to notification_devices (device_type android)
+- [ ] Firebase google-services.json + release keystore GitHub secrets (needs owner)
+- [ ] Play Store listing + first AAB upload (needs developer account)

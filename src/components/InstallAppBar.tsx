@@ -57,6 +57,7 @@ export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isNativeApp()) return;
     if (isStandalone()) return;
     if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
 

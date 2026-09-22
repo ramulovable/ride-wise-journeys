@@ -5,9 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
  * token on `window.__shahinNativePushToken`. Store it against the signed-in user
  * so ride alerts reach the phone even when the app is closed.
  */
-export function useNativePushToken() {
-  if (typeof window === "undefined") return;
-}
+
 
 async function save(token: string) {
   const { data: auth } = await supabase.auth.getUser();

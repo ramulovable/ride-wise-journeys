@@ -39,4 +39,4 @@
 ## In progress (Sep 21)
 - [x] Live drivers page: show every online driver, even without GPS yet
 - [x] Admin broadcast notifications (all / customers / drivers) + history
-- [ ] Full-screen new ride alert for drivers (in-app full-screen request screen, sticky until accept/reject/cancel/expiry, admin-configurable sound/vibration/timeout/priority, race-safe accept)
+- [x] Full-screen new ride alert (driver overlay + admin controls) for drivers (in-app full-screen request screen, sticky until accept/reject/cancel/expiry, admin-configurable sound/vibration/timeout/priority, race-safe accept)

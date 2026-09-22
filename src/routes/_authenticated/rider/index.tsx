@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -34,6 +34,8 @@ import {
   updateRiderRide,
 } from "@/lib/api.functions";
 import { useRiderPresenceBroadcast } from "@/lib/useRiderPresence";
+import { RideAlertOverlay } from "@/components/RideAlertOverlay";
+import { DEFAULT_RIDE_ALERT_SETTINGS, useRideAlertSettings } from "@/lib/rideAlerts";
 import { subscriptionActive, useAuth } from "@/lib/auth";
 import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { fetchLocations } from "@/lib/data";
@@ -283,8 +285,77 @@ function RiderDashboard() {
     { label: "On Time", value: "—" },
   ];
 
+  // ---- Full-screen new ride alert (rules come from the admin settings table) ----
+  const alertSettings = useRideAlertSettings().data ?? DEFAULT_RIDE_ALERT_SETTINGS;
+  const [handledRideIds, setHandledRideIds] = useState<string[]>([]);
+  const pendingRide = active.find(
+    (r) =>
+      r.rider_id === null &&
+      ["requested", "searching"].includes(r.status) &&
+      !handledRideIds.includes(r.id),
+  );
+  const alertCustomer = useQuery({
+    queryKey: ["ride-alert-customer", pendingRide?.customer_id],
+    enabled: Boolean(pendingRide?.customer_id),
+    queryFn: async () =>
+      (
+        await supabase
+          .from("profiles")
+          .select("full_name, mobile")
+          .eq("id", pendingRide!.customer_id)
+          .maybeSingle()
+      ).data,
+  });
+  const alertCategory = useQuery({
+    queryKey: ["ride-alert-category", pendingRide?.requested_category_id],
+    enabled: Boolean(pendingRide?.requested_category_id),
+    queryFn: async () =>
+      (
+        await supabase
+          .from("vehicle_categories")
+          .select("name")
+          .eq("id", pendingRide!.requested_category_id!)
+          .maybeSingle()
+      ).data,
+  });
+  const markHandled = useCallback((rideId: string) => {
+    setHandledRideIds((ids) => (ids.includes(rideId) ? ids : [...ids, rideId]));
+  }, []);
+  const showAlert =
+    alertSettings.full_screen_enabled && online && Boolean(pendingRide) && !action.isPending;
+
   return (
     <RiderShell title="Shahin Travels" subtitle="आपकी यात्रा, हमारी जिम्मेदारी!">
+      {showAlert && pendingRide ? (
+        <RideAlertOverlay
+          settings={alertSettings}
+          accepting={action.isPending}
+          rejecting={decline.isPending}
+          ride={{
+            rideId: pendingRide.id,
+            pickup: place(pendingRide.from_location_id),
+            destination: place(pendingRide.to_location_id),
+            customerName: alertCustomer.data?.full_name || "Customer",
+            customerMobile: alertCustomer.data?.mobile ?? null,
+            pickupNote: pendingRide.pickup_note,
+            category: alertCategory.data?.name || "—",
+            distanceKm: pendingRide.distance_km == null ? null : Number(pendingRide.distance_km),
+            fare: Number(pendingRide.total_fare),
+            passengers: pendingRide.passengers,
+            bookedAt: pendingRide.created_at,
+          }}
+          onAccept={() =>
+            action.mutate(
+              { rideId: pendingRide.id, next: "accept" },
+              { onSettled: () => markHandled(pendingRide.id) },
+            )
+          }
+          onReject={() =>
+            decline.mutate(pendingRide.id, { onSettled: () => markHandled(pendingRide.id) })
+          }
+          onExpire={() => markHandled(pendingRide.id)}
+        />
+      ) : null}
       <div className="space-y-4">
         <IstClock />
 

@@ -156,6 +156,7 @@ function NotificationsPage() {
         </section>
       ) : null}
 
+      <RideAlertSettingsSection />
 
       {history.isSuccess && history.data.length === 0 ? (
         <EmptyState

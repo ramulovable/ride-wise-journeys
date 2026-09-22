@@ -281,7 +281,8 @@ export const verifyOtp = createServerFn({ method: "POST" })
       throw new Error("We couldn't sign you in. Please log in with your password.");
     }
 
-    return { ticket: null as string | null, tokenHash: link.properties.hashed_token };
+    // A ticket is returned too so the user can set or reset their 4-digit PIN.
+    return { ticket: await issueTicket(mobile), tokenHash: link.properties.hashed_token };
   });
 
 export const assertSignupVerified = createServerFn({ method: "POST" })

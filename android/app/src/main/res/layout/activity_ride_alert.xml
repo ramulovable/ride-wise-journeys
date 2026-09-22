@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#0B1220"
+    android:padding="28dp">
+
+    <TextView
+        android:id="@+id/alert_kicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SHAHIN TRAVELS"
+        android:letterSpacing="0.18"
+        android:textColor="#FBBF24"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/alert_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="center"
+        android:text="New ride request"
+        android:textColor="#FFFFFF"
+        android:textSize="26sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/alert_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:textColor="#CBD5E1"
+        android:textSize="17sp" />
+
+    <Button
+        android:id="@+id/alert_accept"
+        android:layout_width="match_parent"
+        android:layout_height="62dp"
+        android:layout_marginTop="44dp"
+        android:backgroundTint="#16A34A"
+        android:text="ACCEPT"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/alert_decline"
+        android:layout_width="match_parent"
+        android:layout_height="62dp"
+        android:layout_marginTop="14dp"
+        android:backgroundTint="#DC2626"
+        android:text="DECLINE"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+</LinearLayout>

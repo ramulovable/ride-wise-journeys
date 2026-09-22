@@ -40,3 +40,13 @@
 - [x] Live drivers page: show every online driver, even without GPS yet
 - [x] Admin broadcast notifications (all / customers / drivers) + history
 - [x] Full-screen new ride alert (driver overlay + admin controls) for drivers (in-app full-screen request screen, sticky until accept/reject/cancel/expiry, admin-configurable sound/vibration/timeout/priority, race-safe accept)
+
+## Auth rebuild (Sep 22)
+- [ ] Language selection (DB-driven, i18n) before signup
+- [ ] Role choice: Driver signup / Customer signup (no public admin signup)
+- [ ] Mobile + OTP signup, 4-digit PIN login, forgot PIN via OTP
+- [ ] Permission onboarding screen (location, notifications) + DB policy table
+- [ ] Role-aware profile setup; rider vehicle step preserved
+- [ ] Existing users migrate to PIN via OTP; remove password UI for customer/rider
+- [ ] Admin -> Settings -> Authentication & Onboarding + Permissions
+- [ ] Wallet withdrawal history with rejection reason

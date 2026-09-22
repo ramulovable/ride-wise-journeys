@@ -54,21 +54,13 @@ jobs:
         if: ${{ env.GOOGLE_SERVICES_JSON != '' }}
         run: echo "${{ env.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
 
-      - name: Decode signing keystore (falls back to debug key when not set)
+      - name: Decode signing keystore (repo key is used when no secret is set)
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
             echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
           else
-            echo "No release keystore configured — generating a temporary debug keystore for this build."
-            keytool -genkey -v -keystore "$RUNNER_TEMP/debug.keystore" \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/debug.keystore" >> "$GITHUB_ENV"
-            echo "ANDROID_KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
-            echo "ANDROID_KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
-            echo "ANDROID_KEY_PASSWORD=android" >> "$GITHUB_ENV"
+            echo "No release keystore secret set — using the fixed repo key so every build has the same signature."
           fi
 
       - name: Build APK (direct download) and AAB (Play Store)

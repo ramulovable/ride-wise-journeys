@@ -66,3 +66,8 @@
 - [x] Native FCM token saved to notification_devices (device_type android)
 - [ ] Firebase google-services.json + release keystore GitHub secrets (needs owner)
 - [ ] Play Store listing + first AAB upload (needs developer account)
+
+## Android ride alerts (Sep 22)
+- [x] Removed the old browser "Turn on ride alerts" button (customer + driver)
+- [x] Native bridge window.ShahinNative: notifications, appear-on-top, battery unrestricted
+- [x] Driver dashboard "Ride alert setup" card (APK only) with one-tap Allow for all three

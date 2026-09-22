@@ -1,4 +1,4 @@
-name: Build Shahin Travels Driver App
+name: Build Shahin Travels App
 
 on:
   workflow_dispatch:
@@ -64,19 +64,19 @@ jobs:
       - name: Rename artifacts
         run: |
           mkdir -p dist-android
-          cp android/app/build/outputs/apk/release/*.apk "dist-android/ShahinTravels-Driver-v${ANDROID_VERSION_NAME}.apk"
-          cp android/app/build/outputs/bundle/release/*.aab "dist-android/ShahinTravels-Driver-v${ANDROID_VERSION_NAME}.aab"
+          cp android/app/build/outputs/apk/release/*.apk "dist-android/ShahinTravels-v${ANDROID_VERSION_NAME}.apk"
+          cp android/app/build/outputs/bundle/release/*.aab "dist-android/ShahinTravels-v${ANDROID_VERSION_NAME}.aab"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shahin-travels-driver-${{ env.ANDROID_VERSION_NAME }}
+          name: shahin-travels-app-${{ env.ANDROID_VERSION_NAME }}
           path: dist-android/*
 
       - name: Publish GitHub Release (public download link)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-v${{ env.ANDROID_VERSION_NAME }}
-          name: Shahin Travels Driver v${{ env.ANDROID_VERSION_NAME }}
+          name: Shahin Travels v${{ env.ANDROID_VERSION_NAME }}
           files: dist-android/*
           generate_release_notes: true
         env:

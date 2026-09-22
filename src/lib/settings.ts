@@ -17,6 +17,8 @@ export const DEFAULT_REFERRAL_INVITE_URL = "https://shahintravels.app";
 export const DEFAULT_REFERRAL_INVITE_MESSAGE =
   "Book rides with Shahin Travels. Use my referral code {code} and we both earn {reward}. {link}";
 export const DEFAULT_REFERRAL_COPY_TOAST = "Referral code copied.";
+export const DEFAULT_ANDROID_APP_VERSION = "1.0.0";
+
 
 export type AppSettings = {
   supportPhone: string;
@@ -34,6 +36,9 @@ export type AppSettings = {
   referralInviteUrl: string;
   referralInviteMessage: string;
   referralCopyToast: string;
+  androidApkUrl: string;
+  androidPlayStoreUrl: string;
+  androidAppVersion: string;
 };
 
 export async function fetchAppSettings(): Promise<AppSettings> {
@@ -61,6 +66,9 @@ export async function fetchAppSettings(): Promise<AppSettings> {
     referralInviteUrl: text.get("referral_invite_url") || DEFAULT_REFERRAL_INVITE_URL,
     referralInviteMessage: text.get("referral_invite_message") || DEFAULT_REFERRAL_INVITE_MESSAGE,
     referralCopyToast: text.get("referral_copy_toast") || DEFAULT_REFERRAL_COPY_TOAST,
+    androidApkUrl: text.get("android_apk_url") || "",
+    androidPlayStoreUrl: text.get("android_play_store_url") || "",
+    androidAppVersion: text.get("android_app_version") || DEFAULT_ANDROID_APP_VERSION,
   };
 }
 

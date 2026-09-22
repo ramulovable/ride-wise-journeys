@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Download, X } from "lucide-react";
+
 import { toast } from "sonner";
 import { BrandMark } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
@@ -98,10 +100,11 @@ export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">Shahin Travels App</p>
-          <p className="truncate text-[11px] font-medium text-primary">
-            ● Verified • Fast 1-Tap Install
-          </p>
+          <Link to="/download" className="truncate text-[11px] font-medium text-primary underline">
+            ● Android app download karein
+          </Link>
         </div>
+
         <Button size="sm" className="shrink-0 gap-1.5 rounded-full" onClick={install}>
           <Download className="h-4 w-4" />
           Install App

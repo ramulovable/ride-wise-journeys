@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { registerAppServiceWorker } from "@/lib/register-sw";
+import { listenForNativePushToken } from "@/lib/native-push";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -126,7 +127,9 @@ function RootComponent() {
 
   useEffect(() => {
     registerAppServiceWorker();
+    return listenForNativePushToken();
   }, []);
+
 
   return (
     <QueryClientProvider client={queryClient}>

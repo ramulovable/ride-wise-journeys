@@ -56,6 +56,9 @@ function SettingsPage() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [copyToast, setCopyToast] = useState("");
+  const [apkUrl, setApkUrl] = useState("");
+  const [playUrl, setPlayUrl] = useState("");
+  const [appVersion, setAppVersion] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -75,6 +78,9 @@ function SettingsPage() {
     setInviteUrl(settings.data.referralInviteUrl);
     setInviteMessage(settings.data.referralInviteMessage);
     setCopyToast(settings.data.referralCopyToast);
+    setApkUrl(settings.data.androidApkUrl);
+    setPlayUrl(settings.data.androidPlayStoreUrl);
+    setAppVersion(settings.data.androidAppVersion);
   }, [settings.data]);
 
   async function save() {
@@ -136,6 +142,9 @@ function SettingsPage() {
       ["referral_invite_url", inviteUrl.trim().replace(/\/$/, "")],
       ["referral_invite_message", inviteMessage.trim()],
       ["referral_copy_toast", copyToast.trim()],
+      ["android_apk_url", apkUrl.trim()],
+      ["android_play_store_url", playUrl.trim()],
+      ["android_app_version", appVersion.trim()],
     ];
     const results = await Promise.all([
       ...numbers.map(([key, value]) =>
@@ -286,6 +295,32 @@ function SettingsPage() {
             <Input id="reftoast" value={copyToast} onChange={(e) => setCopyToast(e.target.value)} />
           </div>
         </div>
+        <div className="space-y-3 rounded-2xl border border-border p-3">
+          <p className="font-semibold">Android app</p>
+          <div className="space-y-1.5">
+            <Label htmlFor="apkurl">APK download link</Label>
+            <Input
+              id="apkurl"
+              placeholder="https://github.com/…/ShahinTravels-v1.0.0.apk"
+              value={apkUrl}
+              onChange={(e) => setApkUrl(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="playurl">Google Play link (optional)</Label>
+            <Input
+              id="playurl"
+              placeholder="https://play.google.com/store/apps/details?id=com.shahintravels.app"
+              value={playUrl}
+              onChange={(e) => setPlayUrl(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="appver">App version</Label>
+            <Input id="appver" value={appVersion} onChange={(e) => setAppVersion(e.target.value)} />
+          </div>
+        </div>
+
         <Button className="w-full" onClick={() => void save()} disabled={busy}>
           {busy ? "Saving…" : "Save settings"}
         </Button>

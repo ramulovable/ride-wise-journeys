@@ -13,6 +13,17 @@ type InstallPromptEvent = Event & {
 
 const DISMISS_KEY = "shahin-install-dismissed";
 
+/** True when running inside the Shahin Travels Android app (Capacitor WebView). */
+function isNativeApp() {
+  if (typeof window === "undefined") return false;
+  const cap = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean; platform?: string } }).Capacitor;
+  if (cap) {
+    if (typeof cap.isNativePlatform === "function") return cap.isNativePlatform();
+    if (cap.platform && cap.platform !== "web") return true;
+  }
+  return /ShahinTravelsApp/i.test(window.navigator.userAgent);
+}
+
 function isStandalone() {
   if (typeof window === "undefined") return true;
   const navStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone;
@@ -46,6 +57,7 @@ export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isNativeApp()) return;
     if (isStandalone()) return;
     if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
 

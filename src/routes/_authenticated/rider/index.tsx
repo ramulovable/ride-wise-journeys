@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -34,6 +34,8 @@ import {
   updateRiderRide,
 } from "@/lib/api.functions";
 import { useRiderPresenceBroadcast } from "@/lib/useRiderPresence";
+import { RideAlertOverlay } from "@/components/RideAlertOverlay";
+import { DEFAULT_RIDE_ALERT_SETTINGS, useRideAlertSettings } from "@/lib/rideAlerts";
 import { subscriptionActive, useAuth } from "@/lib/auth";
 import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { fetchLocations } from "@/lib/data";

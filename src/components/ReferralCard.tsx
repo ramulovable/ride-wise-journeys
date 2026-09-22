@@ -74,7 +74,8 @@ export function ReferralCard() {
       </p>
       {enabled ? (
         <p className="text-sm text-muted-foreground">
-          You and your friend each get {rupees(reward)} {conditionNote}
+          You get {rupees(reward)} for every friend who joins with your code — credited{" "}
+          {conditionNote}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">

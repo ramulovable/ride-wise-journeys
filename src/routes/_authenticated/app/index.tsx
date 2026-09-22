@@ -12,6 +12,7 @@ import {
   Plus,
   RouteIcon,
   UserRound,
+  Wallet as WalletIcon,
 } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EnablePushButton } from "@/components/EnablePushButton";

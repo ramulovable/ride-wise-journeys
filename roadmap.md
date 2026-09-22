@@ -51,3 +51,9 @@
 - [x] Admin -> Sign-in page: auth rules, permissions, languages
 - [x] Wallet withdrawal history with rejection reason
 - [ ] Translate remaining 21 languages (English, Hindi, Maithili done; others fall back to English)
+
+## Android app (APK/Play Store)
+- [ ] Capacitor Android wrapper + full-screen ride alert (native)
+- [ ] GitHub Actions workflow to build APK + AAB
+- [ ] Website /download page + buttons, admin-configurable APK URL
+- [ ] Single app for both customers and drivers (customer signup works in app)

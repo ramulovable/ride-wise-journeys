@@ -52,14 +52,7 @@ const LANG_KEY = "shahin_language";
 const PIN_LENGTH = 4;
 
 type Step =
-  | "language"
-  | "role"
-  | "mobile"
-  | "otp"
-  | "permissions"
-  | "profile"
-  | "pin-create"
-  | "pin-login";
+  "language" | "role" | "mobile" | "otp" | "permissions" | "profile" | "pin-create" | "pin-login";
 
 type Mode = "signup" | "login" | "reset";
 
@@ -183,7 +176,8 @@ function Onboarding() {
       const upload = await supabase.storage
         .from("profile-photos")
         .upload(path, photo, { upsert: true, contentType: photo.type });
-      if (!upload.error) await supabase.from("profiles").update({ photo_url: path }).eq("id", userId);
+      if (!upload.error)
+        await supabase.from("profiles").update({ photo_url: path }).eq("id", userId);
     }
   }
 
@@ -484,13 +478,7 @@ function MobileStep({
   );
 }
 
-function PermissionStep({
-  role,
-  onDone,
-}: {
-  role: "customer" | "rider";
-  onDone: () => void;
-}) {
+function PermissionStep({ role, onDone }: { role: "customer" | "rider"; onDone: () => void }) {
   const { t } = useI18n();
   const [states, setStates] = useState<Record<string, PermissionState>>({});
   const policies = useQuery({
@@ -502,7 +490,10 @@ function PermissionStep({
     const list = policies.data ?? [];
     if (!list.length) return;
     void Promise.all(
-      list.map(async (policy) => [policy.permission_key, await readPermission(policy.permission_key)] as const),
+      list.map(
+        async (policy) =>
+          [policy.permission_key, await readPermission(policy.permission_key)] as const,
+      ),
     ).then((entries) => setStates(Object.fromEntries(entries)));
   }, [policies.data]);
 
@@ -723,7 +714,9 @@ function PinCreateStep({
     <div className="space-y-5">
       <div>
         <h2 className="text-base font-semibold">
-          {stage === "create" ? t("pin.createTitle", { length: PIN_LENGTH }) : t("pin.confirmTitle")}
+          {stage === "create"
+            ? t("pin.createTitle", { length: PIN_LENGTH })
+            : t("pin.confirmTitle")}
         </h2>
         <p className="text-xs text-muted-foreground">
           {mode === "signup"

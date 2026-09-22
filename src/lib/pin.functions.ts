@@ -52,7 +52,12 @@ async function securitySettings(db: Admin): Promise<SecuritySettings> {
   const { data } = await db
     .from("app_settings")
     .select("key, numeric_value")
-    .in("key", ["pin_length", "max_failed_pin_attempts", "pin_lockout_minutes", "pin_login_enabled"]);
+    .in("key", [
+      "pin_length",
+      "max_failed_pin_attempts",
+      "pin_lockout_minutes",
+      "pin_login_enabled",
+    ]);
   const map = new Map((data ?? []).map((row) => [row.key, Number(row.numeric_value)]));
   return {
     pinLength: map.get("pin_length") ?? 4,
@@ -62,12 +67,22 @@ async function securitySettings(db: Admin): Promise<SecuritySettings> {
   };
 }
 
-async function logAttempt(db: Admin, mobile: string, kind: string, success: boolean, detail?: string) {
+async function logAttempt(
+  db: Admin,
+  mobile: string,
+  kind: string,
+  success: boolean,
+  detail?: string,
+) {
   await db.from("auth_attempt_logs").insert({ mobile, kind, success, detail: detail ?? null });
 }
 
 async function profileByMobile(db: Admin, mobile: string) {
-  const { data } = await db.from("profiles").select("id, is_blocked").eq("mobile", mobile).maybeSingle();
+  const { data } = await db
+    .from("profiles")
+    .select("id, is_blocked")
+    .eq("mobile", mobile)
+    .maybeSingle();
   return data;
 }
 
@@ -171,9 +186,7 @@ export const loginWithPin = createServerFn({ method: "POST" })
       throw new Error("No PIN set for this number yet. Please use 'Forgot PIN' to create one.");
     }
     if (security.locked_until && new Date(security.locked_until).getTime() > Date.now()) {
-      const minutes = Math.ceil(
-        (new Date(security.locked_until).getTime() - Date.now()) / 60_000,
-      );
+      const minutes = Math.ceil((new Date(security.locked_until).getTime() - Date.now()) / 60_000);
       throw new Error(`Too many wrong attempts. Please try again in ${minutes} minute(s).`);
     }
 

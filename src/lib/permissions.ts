@@ -13,7 +13,9 @@ export type PermissionState = "granted" | "denied" | "prompt" | "unsupported";
 
 const PENDING_KEY = "shahin_permission_results";
 
-export async function fetchPermissionPolicies(role: "customer" | "rider"): Promise<PermissionPolicy[]> {
+export async function fetchPermissionPolicies(
+  role: "customer" | "rider",
+): Promise<PermissionPolicy[]> {
   const { data } = await supabase
     .from("permission_policies")
     .select("permission_key, display_name, description, required_for, is_mandatory, sort_order")

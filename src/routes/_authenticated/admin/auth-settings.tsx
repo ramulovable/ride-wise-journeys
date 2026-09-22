@@ -77,7 +77,9 @@ function AuthSettingsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("permission_policies")
-        .select("id, permission_key, display_name, description, required_for, is_mandatory, is_active, sort_order")
+        .select(
+          "id, permission_key, display_name, description, required_for, is_mandatory, is_active, sort_order",
+        )
         .order("sort_order");
       return data ?? [];
     },
@@ -116,7 +118,10 @@ function AuthSettingsPage() {
   }
 
   async function toggleLanguage(code: string, active: boolean) {
-    const { error } = await supabase.from("languages").update({ is_active: active }).eq("code", code);
+    const { error } = await supabase
+      .from("languages")
+      .update({ is_active: active })
+      .eq("code", code);
     if (error) {
       toast.error(error.message);
       return;
@@ -149,7 +154,9 @@ function AuthSettingsPage() {
                 id={item.key}
                 type="number"
                 value={values[item.key] ?? ""}
-                onChange={(e) => setValues((current) => ({ ...current, [item.key]: e.target.value }))}
+                onChange={(e) =>
+                  setValues((current) => ({ ...current, [item.key]: e.target.value }))
+                }
               />
             </div>
           ))}

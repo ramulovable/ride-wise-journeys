@@ -15,7 +15,6 @@ import {
   Wallet as WalletIcon,
 } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
-import { EnablePushButton } from "@/components/EnablePushButton";
 import { EmptyState } from "@/components/EmptyState";
 import { IstClock } from "@/components/IstClock";
 import { LocationPicker } from "@/components/LocationPicker";
@@ -132,9 +131,6 @@ function BookPage() {
         <PromoCarousel />
         <IstClock />
 
-        <div className="flex justify-end">
-          <EnablePushButton label="Turn on ride updates" doneLabel="Ride updates on" />
-        </div>
 
         <section className="rounded-2xl border border-border bg-card p-4">
           {noLocations ? (

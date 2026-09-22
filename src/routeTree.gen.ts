@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AdminLoginRouteImport } from './routes/admin-login'
+import { Route as DownloadRouteImport } from './routes/download'
 import { Route as AuthenticatedFaresRouteImport } from './routes/_authenticated/fares'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -57,6 +58,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin-login',
   path: '/admin-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DownloadRoute = DownloadRouteImport.update({
+  id: '/download',
+  path: '/download',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedFaresRoute = AuthenticatedFaresRouteImport.update({
@@ -241,6 +247,7 @@ const AuthenticatedRiderRideRideIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin-login': typeof AdminLoginRoute
+  '/download': typeof DownloadRoute
   '/fares': typeof AuthenticatedFaresRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-login': typeof AdminLoginRoute
+  '/download': typeof DownloadRoute
   '/fares': typeof AuthenticatedFaresRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/admin-login': typeof AdminLoginRoute
+  '/download': typeof DownloadRoute
   '/_authenticated/fares': typeof AuthenticatedFaresRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -353,6 +362,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin-login'
+    | '/download'
     | '/fares'
     | '/notifications'
     | '/profile'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin-login'
+    | '/download'
     | '/fares'
     | '/notifications'
     | '/profile'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/admin-login'
+    | '/download'
     | '/_authenticated/fares'
     | '/_authenticated/notifications'
     | '/_authenticated/profile'
@@ -464,6 +476,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminLoginRoute: typeof AdminLoginRoute
+  DownloadRoute: typeof DownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -487,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/admin-login'
       fullPath: '/admin-login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/download': {
+      id: '/download'
+      path: '/download'
+      fullPath: '/download'
+      preLoaderRoute: typeof DownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/fares': {
@@ -793,6 +813,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminLoginRoute: AdminLoginRoute,
+  DownloadRoute: DownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

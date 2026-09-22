@@ -2,14 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Download, X } from "lucide-react";
 
-import { toast } from "sonner";
 import { BrandMark } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
-
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
 
 const DISMISS_KEY = "shahin-install-dismissed";
 
@@ -37,22 +31,7 @@ function isMobileBrowser() {
   );
 }
 
-function isIOS() {
-  if (typeof window === "undefined") return false;
-  return (
-    /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream
-  );
-}
-
-function fallbackInstallMessage() {
-  if (isIOS()) {
-    return "Tap the Share button in Safari, then select 'Add to Home Screen' to install Shahin Travels.";
-  }
-  return "Tap the browser menu (⋮) at the top right and select 'Install app' or 'Add to Home screen'.";
-}
-
 export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
-  const [deferredPrompt, setDeferredPrompt] = useState<InstallPromptEvent | null>(null);
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
@@ -60,44 +39,10 @@ export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
     if (isNativeApp()) return;
     if (isStandalone()) return;
     if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
-
-    // On mobile browsers, show the bar by default even before beforeinstallprompt fires.
     if (isMobileBrowser()) setHidden(false);
-
-    function onBeforeInstall(event: Event) {
-      event.preventDefault();
-      setDeferredPrompt(event as InstallPromptEvent);
-      setHidden(false);
-    }
-    function onInstalled() {
-      setHidden(true);
-      setDeferredPrompt(null);
-    }
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstall);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
   }, []);
 
   if (hidden) return null;
-
-  async function install() {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === "accepted") setHidden(true);
-      setDeferredPrompt(null);
-      return;
-    }
-
-    toast.info(fallbackInstallMessage(), {
-      duration: 8000,
-      position: "top-center",
-    });
-  }
 
   function dismiss() {
     if (typeof window !== "undefined") window.localStorage.setItem(DISMISS_KEY, "1");
@@ -112,20 +57,20 @@ export function InstallAppBar({ offsetNav = true }: { offsetNav?: boolean }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">Shahin Travels App</p>
-          <Link to="/download" className="truncate text-[11px] font-medium text-primary underline">
-            ● Android app download karein
-          </Link>
+          <p className="truncate text-[11px] text-muted-foreground">Android app download karein</p>
         </div>
 
-        <Button size="sm" className="shrink-0 gap-1.5 rounded-full" onClick={install}>
-          <Download className="h-4 w-4" />
-          Install App
+        <Button asChild size="sm" className="shrink-0 gap-1.5 rounded-full">
+          <Link to="/download">
+            <Download className="h-4 w-4" />
+            Download App
+          </Link>
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="size-8 shrink-0"
-          aria-label="Dismiss install banner"
+          aria-label="Dismiss download banner"
           onClick={dismiss}
         >
           <X className="h-4 w-4" />

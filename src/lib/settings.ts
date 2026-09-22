@@ -36,7 +36,6 @@ export type AppSettings = {
   referralInviteUrl: string;
   referralInviteMessage: string;
   referralCopyToast: string;
-  referralCopyToast: string;
   androidApkUrl: string;
   androidPlayStoreUrl: string;
   androidAppVersion: string;

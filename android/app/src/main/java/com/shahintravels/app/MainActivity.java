@@ -67,11 +67,15 @@ public class MainActivity extends BridgeActivity {
      * The interface only applies from the next page load, so the first launch
      * reloads the WebView once.
      */
+    private static boolean bridgeReloadDone = false;
+
     private void attachNativeBridge() {
         if (getBridge() == null) return;
         final WebView webView = getBridge().getWebView();
         if (webView == null) return;
         webView.addJavascriptInterface(new NativePermissions(this), "ShahinNative");
+        if (bridgeReloadDone) return;
+        bridgeReloadDone = true;
         webView.post(new Runnable() {
             @Override
             public void run() {
@@ -83,6 +87,7 @@ public class MainActivity extends BridgeActivity {
             }
         });
     }
+
 
     /** Opens a specific in-app screen when the user taps a ride alert. */
 

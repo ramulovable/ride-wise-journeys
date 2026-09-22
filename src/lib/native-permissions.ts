@@ -13,7 +13,39 @@ export type NativeBridge = {
   requestOverlay?: () => void;
   requestBattery?: () => void;
   openAppSettings?: () => void;
+  appVersionName?: () => string;
+  openExternal?: (url: string) => void;
 };
+
+/** Version of the installed Android app, or null in a browser. */
+export function nativeAppVersion(): string | null {
+  const bridge = nativeBridge();
+  try {
+    const version = bridge?.appVersionName?.();
+    return version ? String(version) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Compares "1.0.10" style versions. Returns true when b is newer than a. */
+export function isNewerVersion(current: string, latest: string): boolean {
+  const parse = (v: string) =>
+    v
+      .trim()
+      .split(".")
+      .map((part) => Number.parseInt(part.replace(/\D/g, ""), 10) || 0);
+  const a = parse(current);
+  const b = parse(latest);
+  const length = Math.max(a.length, b.length);
+  for (let i = 0; i < length; i += 1) {
+    const left = a[i] ?? 0;
+    const right = b[i] ?? 0;
+    if (right > left) return true;
+    if (right < left) return false;
+  }
+  return false;
+}
 
 export type AlertPermissionKey = "notifications" | "overlay" | "battery";
 

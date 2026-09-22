@@ -16,6 +16,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { registerAppServiceWorker } from "@/lib/register-sw";
 import { listenForNativePushToken } from "@/lib/native-push";
 import { Toaster } from "@/components/ui/sonner";
+import { AppUpdatePrompt } from "@/components/AppUpdatePrompt";
 
 function NotFoundComponent() {
   return (
@@ -137,6 +138,7 @@ function RootComponent() {
         <AuthProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
+          <AppUpdatePrompt />
           <Toaster position="top-center" richColors />
         </AuthProvider>
       </I18nProvider>

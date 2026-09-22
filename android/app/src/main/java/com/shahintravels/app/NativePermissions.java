@@ -33,6 +33,31 @@ public class NativePermissions {
         return true;
     }
 
+    /** Version name of the installed app, e.g. "1.0.0". */
+    @android.webkit.JavascriptInterface
+    public String appVersionName() {
+        try {
+            return activity.getPackageManager()
+                .getPackageInfo(activity.getPackageName(), 0).versionName;
+        } catch (Throwable t) {
+            Log.w(TAG, "appVersionName failed", t);
+            return "";
+        }
+    }
+
+    /** Opens a download link (new APK) in the phone browser. */
+    @android.webkit.JavascriptInterface
+    public void openExternal(String url) {
+        try {
+            if (url == null || url.isEmpty()) return;
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+        } catch (Throwable t) {
+            Log.w(TAG, "openExternal failed", t);
+        }
+    }
+
     @android.webkit.JavascriptInterface
     public boolean notificationsEnabled() {
         try {

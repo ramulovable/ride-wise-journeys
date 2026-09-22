@@ -23,13 +23,21 @@ android {
     }
     signingConfigs {
         release {
-            // Supplied by CI (GitHub Actions secrets) for Play Store ready builds.
-            def storePath = System.getenv("ANDROID_KEYSTORE_PATH")
-            if (storePath) {
-                storeFile file(storePath)
+            // Every build must be signed with the SAME key, otherwise Android
+            // refuses to install a new APK over the old one. CI secrets win;
+            // otherwise the shared key stored in the repo is used.
+            def envStorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (envStorePath) {
+                storeFile file(envStorePath)
                 storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("ANDROID_KEY_ALIAS")
                 keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            } else {
+                storeFile file("../keystore/shahin-release.p12")
+                storeType "PKCS12"
+                storePassword "shahintravels"
+                keyAlias "shahin"
+                keyPassword "shahintravels"
             }
         }
     }
@@ -37,9 +45,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
-                signingConfig signingConfigs.release
-            }
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {

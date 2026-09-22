@@ -19,7 +19,7 @@ import {
 import { RiderShell } from "@/components/shells";
 import { ProfileAvatar, VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { EmptyState } from "@/components/EmptyState";
-import { EnablePushButton } from "@/components/EnablePushButton";
+import { DriverAlertSetup } from "@/components/DriverAlertSetup";
 import { IstClock } from "@/components/IstClock";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -482,9 +482,8 @@ function RiderDashboard() {
           </section>
         ) : null}
 
-        <div className="flex justify-end">
-          <EnablePushButton />
-        </div>
+        <DriverAlertSetup />
+
 
         <section className="grid grid-cols-2 gap-3">
           {stats.map((stat) => (

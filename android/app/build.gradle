@@ -1,14 +1,19 @@
 apply plugin: 'com.android.application'
 
+def envVersionCode = System.getenv("ANDROID_VERSION_CODE")
+def envVersionName = System.getenv("ANDROID_VERSION_NAME")
+def appVersionCode = (envVersionCode != null && envVersionCode.trim().isInteger()) ? envVersionCode.trim().toInteger() : 1
+def appVersionName = (envVersionName != null && !envVersionName.trim().isEmpty()) ? envVersionName.trim() : "1.0.0"
+
 android {
     namespace = "com.shahintravels.app"
-    compileSdk = rootProject.ext.compileSdkVersion
+    compileSdk = 36
     defaultConfig {
         applicationId "com.shahintravels.app"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("ANDROID_VERSION_NAME") ?: "1.0.0"
+        minSdkVersion 24
+        targetSdkVersion 36
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.shahintravels.driver"
+    namespace = "com.shahintravels.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.shahintravels.driver"
+        applicationId "com.shahintravels.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()

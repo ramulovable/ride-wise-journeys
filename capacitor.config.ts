@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.shahintravels.driver",
-  appName: "Shahin Travels Driver",
+  appId: "com.shahintravels.app",
+  appName: "Shahin Travels",
   webDir: "www",
   server: {
     url: "https://shahintravels.app",

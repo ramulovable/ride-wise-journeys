@@ -1,4 +1,4 @@
-package com.shahintravels.driver;
+package com.shahintravels.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;

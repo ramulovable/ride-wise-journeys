@@ -212,7 +212,25 @@ function WalletPage() {
                   {request.reference_utr ? (
                     <p className="text-xs">Reference: {request.reference_utr}</p>
                   ) : null}
-                  {request.admin_note ? <p className="text-xs">{request.admin_note}</p> : null}
+                  {request.admin_note ? (
+                    <p
+                      className={`text-xs ${
+                        ["REJECTED", "FAILED", "REVERSED"].includes(request.status)
+                          ? "font-medium text-destructive"
+                          : ""
+                      }`}
+                    >
+                      {["REJECTED", "FAILED", "REVERSED"].includes(request.status)
+                        ? `Reason: ${request.admin_note}`
+                        : request.admin_note}
+                    </p>
+                  ) : null}
+                  {["REJECTED", "FAILED", "REVERSED"].includes(request.status) &&
+                  !request.admin_note ? (
+                    <p className="text-xs text-muted-foreground">
+                      Reason: not provided. Contact support for details.
+                    </p>
+                  ) : null}
                 </div>
                 <span className="text-sm font-medium">
                   {WITHDRAWAL_STATUS_LABEL[request.status] ?? request.status}

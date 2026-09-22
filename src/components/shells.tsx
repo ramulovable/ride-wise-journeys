@@ -13,6 +13,7 @@ import {
   LifeBuoy,
   MapPin,
   Settings,
+  ShieldCheck,
   User,
   Users,
   QrCode,
@@ -63,6 +64,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
   { to: "/admin/qr", label: "QR", icon: icon(<QrCode className="h-4 w-4" />) },
   { to: "/admin/settings", label: "Settings", icon: icon(<Settings className="h-4 w-4" />) },
+  { to: "/admin/auth-settings", label: "Sign-in", icon: icon(<ShieldCheck className="h-4 w-4" />) },
 ];
 
 export function CustomerShell({

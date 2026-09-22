@@ -42,11 +42,12 @@
 - [x] Full-screen new ride alert (driver overlay + admin controls) for drivers (in-app full-screen request screen, sticky until accept/reject/cancel/expiry, admin-configurable sound/vibration/timeout/priority, race-safe accept)
 
 ## Auth rebuild (Sep 22)
-- [ ] Language selection (DB-driven, i18n) before signup
-- [ ] Role choice: Driver signup / Customer signup (no public admin signup)
-- [ ] Mobile + OTP signup, 4-digit PIN login, forgot PIN via OTP
-- [ ] Permission onboarding screen (location, notifications) + DB policy table
-- [ ] Role-aware profile setup; rider vehicle step preserved
-- [ ] Existing users migrate to PIN via OTP; remove password UI for customer/rider
-- [ ] Admin -> Settings -> Authentication & Onboarding + Permissions
-- [ ] Wallet withdrawal history with rejection reason
+- [x] Language selection (DB-driven, i18n) before signup
+- [x] Role choice: Driver signup / Customer signup (no public admin signup)
+- [x] Mobile + OTP signup, 4-digit PIN login, forgot PIN via OTP
+- [x] Permission onboarding screen (location, notifications) + DB policy table
+- [x] Role-aware profile setup; rider vehicle step preserved (existing /rider/vehicle page)
+- [x] Existing users migrate to PIN via OTP; password UI removed for customer/rider
+- [x] Admin -> Sign-in page: auth rules, permissions, languages
+- [x] Wallet withdrawal history with rejection reason
+- [ ] Translate remaining 21 languages (English, Hindi, Maithili done; others fall back to English)

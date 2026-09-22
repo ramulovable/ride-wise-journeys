@@ -124,6 +124,33 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_attempt_logs: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          mobile: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: string
+          mobile: string
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          mobile?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
       broadcast_messages: {
         Row: {
           action_path: string
@@ -533,6 +560,36 @@ export type Database = {
           },
         ]
       }
+      languages: {
+        Row: {
+          code: string
+          created_at: string
+          english_name: string
+          is_active: boolean
+          native_name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          english_name: string
+          is_active?: boolean
+          native_name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          english_name?: string
+          is_active?: boolean
+          native_name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           area: string | null
@@ -688,40 +745,94 @@ export type Database = {
           },
         ]
       }
+      permission_policies: {
+        Row: {
+          created_at: string
+          description: string
+          display_name: string
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          permission_key: string
+          required_for: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          permission_key: string
+          required_for?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          permission_key?: string
+          required_for?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
           created_at: string
+          date_of_birth: string | null
+          first_name: string | null
           full_name: string
           id: string
           is_blocked: boolean
+          last_name: string | null
           mobile: string
           my_referral_code: string | null
+          onboarding_step: string
           photo_url: string | null
+          preferred_language: string
           referral_code: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          first_name?: string | null
           full_name?: string
           id: string
           is_blocked?: boolean
+          last_name?: string | null
           mobile: string
           my_referral_code?: string | null
+          onboarding_step?: string
           photo_url?: string | null
+          preferred_language?: string
           referral_code?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          first_name?: string | null
           full_name?: string
           id?: string
           is_blocked?: boolean
+          last_name?: string | null
           mobile?: string
           my_referral_code?: string | null
+          onboarding_step?: string
           photo_url?: string | null
+          preferred_language?: string
           referral_code?: string | null
           updated_at?: string
         }
@@ -1804,6 +1915,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permission_status: {
+        Row: {
+          created_at: string
+          denied_at: string | null
+          granted_at: string | null
+          id: string
+          last_checked_at: string
+          permission_key: string
+          platform: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          denied_at?: string | null
+          granted_at?: string | null
+          id?: string
+          last_checked_at?: string
+          permission_key: string
+          platform?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          denied_at?: string | null
+          granted_at?: string | null
+          id?: string
+          last_checked_at?: string
+          permission_key?: string
+          platform?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1821,6 +1971,39 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_security: {
+        Row: {
+          created_at: string
+          failed_attempts: number
+          locked_until: string | null
+          pin_hash: string | null
+          pin_salt: string | null
+          pin_set_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          failed_attempts?: number
+          locked_until?: string | null
+          pin_hash?: string | null
+          pin_salt?: string | null
+          pin_set_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          failed_attempts?: number
+          locked_until?: string | null
+          pin_hash?: string | null
+          pin_salt?: string | null
+          pin_set_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

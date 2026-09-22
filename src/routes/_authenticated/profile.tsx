@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { ProfilePhotoManager, VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { useAppSettings } from "@/lib/settings";
 
@@ -35,6 +36,24 @@ function ProfilePage() {
   const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
+  const { language, setLanguage } = useI18n();
+  const languages = useQuery({
+    queryKey: ["languages"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("languages")
+        .select("code, native_name, english_name")
+        .eq("is_active", true)
+        .order("sort_order");
+      return data ?? [];
+    },
+  });
+
+  async function changeLanguage(code: string) {
+    setLanguage(code);
+    if (profile) await supabase.from("profiles").update({ preferred_language: code }).eq("id", profile.id);
+  }
+
   const reviews = useQuery({
     queryKey: ["rider-reviews", user?.id],
     enabled: role === "rider" && Boolean(user),
@@ -103,6 +122,21 @@ function ProfilePage() {
         <div className="space-y-1.5">
           <Label htmlFor="p-address">Address</Label>
           <Textarea id="p-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="p-language">Preferred language</Label>
+          <select
+            id="p-language"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={language}
+            onChange={(e) => void changeLanguage(e.target.value)}
+          >
+            {(languages.data ?? []).map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.native_name} ({item.english_name})
+              </option>
+            ))}
+          </select>
         </div>
         <Button className="w-full" onClick={save} disabled={busy}>
           {busy ? "Saving…" : "Save profile"}

@@ -19,6 +19,7 @@ import { Route as AuthenticatedReferralRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminAuthSettingsRouteImport } from './routes/_authenticated/admin/auth-settings'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin/catalog'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
@@ -94,6 +95,12 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminAuthSettingsRoute =
+  AuthenticatedAdminAuthSettingsRouteImport.update({
+    id: '/admin/auth-settings',
+    path: '/admin/auth-settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminBannersRoute =
   AuthenticatedAdminBannersRouteImport.update({
     id: '/admin/banners',
@@ -240,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/referral': typeof AuthenticatedReferralRoute
   '/support': typeof AuthenticatedSupportRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -275,6 +283,7 @@ export interface FileRoutesByTo {
   '/referral': typeof AuthenticatedReferralRoute
   '/support': typeof AuthenticatedSupportRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -312,6 +321,7 @@ export interface FileRoutesById {
   '/_authenticated/referral': typeof AuthenticatedReferralRoute
   '/_authenticated/support': typeof AuthenticatedSupportRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
+  '/_authenticated/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -349,6 +359,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/support'
     | '/wallet'
+    | '/admin/auth-settings'
     | '/admin/banners'
     | '/admin/catalog'
     | '/admin/customers'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/support'
     | '/wallet'
+    | '/admin/auth-settings'
     | '/admin/banners'
     | '/admin/catalog'
     | '/admin/customers'
@@ -420,6 +432,7 @@ export interface FileRouteTypes {
     | '/_authenticated/referral'
     | '/_authenticated/support'
     | '/_authenticated/wallet'
+    | '/_authenticated/admin/auth-settings'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/customers'
@@ -523,6 +536,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/auth-settings': {
+      id: '/_authenticated/admin/auth-settings'
+      path: '/admin/auth-settings'
+      fullPath: '/admin/auth-settings'
+      preLoaderRoute: typeof AuthenticatedAdminAuthSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/banners': {
@@ -703,6 +723,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReferralRoute: typeof AuthenticatedReferralRoute
   AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
+  AuthenticatedAdminAuthSettingsRoute: typeof AuthenticatedAdminAuthSettingsRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
@@ -737,6 +758,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReferralRoute: AuthenticatedReferralRoute,
   AuthenticatedSupportRoute: AuthenticatedSupportRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
+  AuthenticatedAdminAuthSettingsRoute: AuthenticatedAdminAuthSettingsRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,

@@ -166,7 +166,7 @@ function SettingsPage() {
           <Input id="fee" type="number" value={fee} onChange={(e) => setFee(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="reward">Referral reward per side (₹)</Label>
+          <Label htmlFor="reward">Referral reward for the referrer (₹)</Label>
           <Input
             id="reward"
             type="number"

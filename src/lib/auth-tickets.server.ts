@@ -56,7 +56,7 @@ export async function hashPin(pin: string, salt: string): Promise<string> {
     {
       name: "PBKDF2",
       salt: new TextEncoder().encode(salt),
-      iterations: 120_000,
+      iterations: 100_000,
       hash: "SHA-256",
     },
     key,

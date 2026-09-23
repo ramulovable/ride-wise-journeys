@@ -2,8 +2,11 @@ apply plugin: 'com.android.application'
 
 def envVersionCode = System.getenv("ANDROID_VERSION_CODE")
 def envVersionName = System.getenv("ANDROID_VERSION_NAME")
+def versionFile = file("../version.txt")
+def fileVersionName = versionFile.exists() ? versionFile.text.trim() : "1.0.0"
 def appVersionCode = (envVersionCode != null && envVersionCode.trim().isInteger()) ? envVersionCode.trim().toInteger() : 1
-def appVersionName = (envVersionName != null && !envVersionName.trim().isEmpty()) ? envVersionName.trim() : "1.0.0"
+def appVersionName = (envVersionName != null && !envVersionName.trim().isEmpty()) ? envVersionName.trim() : fileVersionName
+
 
 android {
     namespace = "com.shahintravels.app"

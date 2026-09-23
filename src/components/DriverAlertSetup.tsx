@@ -69,6 +69,7 @@ const ITEMS: {
  */
 export function DriverAlertSetup() {
   const [native, setNative] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [status, setStatus] = useState<AlertPermissionStatus>({
     notifications: false,
     overlay: false,
@@ -77,12 +78,23 @@ export function DriverAlertSetup() {
 
   const refresh = useCallback(() => {
     if (!isNativeApp()) return;
-    setStatus(readAlertPermissions());
+    const live = readAlertPermissions();
+    const marks = readMarks();
+    setStatus({
+      notifications: live.notifications || marks.notifications,
+      overlay: live.overlay || marks.overlay,
+      battery: live.battery || marks.battery,
+    });
   }, []);
 
   useEffect(() => {
     if (!isNativeApp()) return;
     setNative(true);
+    try {
+      setHidden(window.localStorage.getItem(HIDE_KEY) === "1");
+    } catch {
+      // ignore
+    }
     refresh();
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
@@ -97,24 +109,32 @@ export function DriverAlertSetup() {
     };
   }, [refresh]);
 
-  if (!native) return null;
+  if (!native || hidden) return null;
 
   const allDone = ITEMS.every((item) => status[item.key]);
-  if (allDone) {
-    return (
-      <section className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 p-3">
-        <CheckCircle2 className="h-5 w-5 text-primary" aria-hidden="true" />
-        <p className="text-sm font-medium text-foreground">
-          Ride alerts fully active — lock screen par bhi call jaisi ring aayegi.
-        </p>
-      </section>
-    );
-  }
+  if (allDone) return null;
+
+  const dismiss = () => {
+    try {
+      window.localStorage.setItem(HIDE_KEY, "1");
+    } catch {
+      // ignore
+    }
+    setHidden(true);
+  };
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
+    <section className="relative rounded-2xl border border-border bg-card p-4">
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Hide ride alert setup"
+        className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted"
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
       <h2 className="text-sm font-semibold text-foreground">Ride alert setup</h2>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 pr-6 text-xs text-muted-foreground">
         Teeno allow karne ke baad phone lock hone par bhi ride aate hi screen on ho jayegi.
       </p>
       <ul className="mt-3 space-y-3">
@@ -140,7 +160,9 @@ export function DriverAlertSetup() {
                   size="sm"
                   onClick={() => {
                     requestAlertPermission(item.key);
-                    window.setTimeout(refresh, 1200);
+                    writeMark(item.key);
+                    setStatus((prev) => ({ ...prev, [item.key]: true }));
+                    window.setTimeout(refresh, 1500);
                   }}
                 >
                   Allow
@@ -153,3 +175,4 @@ export function DriverAlertSetup() {
     </section>
   );
 }
+

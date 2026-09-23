@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BatteryCharging, Bell, CheckCircle2, Smartphone } from "lucide-react";
+import { BatteryCharging, Bell, CheckCircle2, Smartphone, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,33 @@ import {
   readAlertPermissions,
   requestAlertPermission,
 } from "@/lib/native-permissions";
+
+const MARK_PREFIX = "shahin.alertPermission.";
+const HIDE_KEY = "shahin.alertSetup.hidden";
+
+function readMarks(): AlertPermissionStatus {
+  const get = (key: AlertPermissionKey) => {
+    try {
+      return window.localStorage.getItem(MARK_PREFIX + key) === "1";
+    } catch {
+      return false;
+    }
+  };
+  return {
+    notifications: get("notifications"),
+    overlay: get("overlay"),
+    battery: get("battery"),
+  };
+}
+
+function writeMark(key: AlertPermissionKey) {
+  try {
+    window.localStorage.setItem(MARK_PREFIX + key, "1");
+  } catch {
+    // Private mode storage is simply unavailable.
+  }
+}
+
 
 const ITEMS: {
   key: AlertPermissionKey;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1094301147309",
+    "project_id": "shahin-travels",
+    "storage_bucket": "shahin-travels.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1094301147309:android:0c87c25eddafd5bf846624",
+        "android_client_info": {
+          "package_name": "com.shahintravels.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbwsxZpYgSOpCfImI3_W5fFRu9WjKJQZY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

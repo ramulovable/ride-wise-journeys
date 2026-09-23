@@ -24,7 +24,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      ANDROID_VERSION_NAME: ${{ github.event.inputs.version_name || '1.0.0' }}
       ANDROID_VERSION_CODE: ${{ github.event.inputs.version_code || github.run_number }}
       GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -34,6 +33,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve version name (manual input wins, else android/version.txt)
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version_name }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="$(tr -d ' \n\r' < android/version.txt)"
+          fi
+          echo "ANDROID_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "Building version $VERSION"
+
 
       - uses: oven-sh/setup-bun@v2
         with:

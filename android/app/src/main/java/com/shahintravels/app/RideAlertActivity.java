@@ -87,19 +87,60 @@ public class RideAlertActivity extends AppCompatActivity {
         }
     }
 
+    private android.speech.tts.TextToSpeech tts;
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private int savedAlarmVolume = -1;
+    private boolean ringing = false;
+    private String spokenText = "Shahin Travels. Nayi ride request aayi hai. Kripya jaldi accept karein.";
+
+    private static final AudioAttributes ALARM_ATTRS = new AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ALARM)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build();
+
+    /** Rings on the ALARM stream at full volume so it is heard even on silent / vibrate. */
     private void startRinging() {
+        ringing = true;
         try {
-            Uri ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am != null) {
+                savedAlarmVolume = am.getStreamVolume(android.media.AudioManager.STREAM_ALARM);
+                am.setStreamVolume(android.media.AudioManager.STREAM_ALARM,
+                    am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM), 0);
+            }
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            Uri ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            if (ringtone == null) ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
             player = new MediaPlayer();
             player.setDataSource(this, ringtone);
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build());
+            player.setAudioAttributes(ALARM_ATTRS);
             player.setLooping(true);
+            player.setVolume(0.35f, 0.35f);
             player.prepare();
             player.start();
         } catch (Exception ignored) {
+        }
+
+        String body = getIntent().getStringExtra(EXTRA_BODY);
+        if (body != null && !body.isEmpty()) {
+            spokenText = "Shahin Travels. Nayi ride request aayi hai. " + body.replace("•", ",").replace("Rs", "rupaye")
+                + ". Kripya jaldi accept karein.";
+        }
+        try {
+            tts = new android.speech.tts.TextToSpeech(this, status -> {
+                if (status != android.speech.tts.TextToSpeech.SUCCESS || tts == null) return;
+                try {
+                    int r = tts.setLanguage(new java.util.Locale("hi", "IN"));
+                    if (r < 0) tts.setLanguage(java.util.Locale.ENGLISH);
+                    tts.setAudioAttributes(ALARM_ATTRS);
+                } catch (Throwable ignored) {
+                }
+                speakLoop();
+            });
+        } catch (Throwable ignored) {
         }
 
         vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
@@ -113,7 +154,27 @@ public class RideAlertActivity extends AppCompatActivity {
         }
     }
 
+    /** Repeats the voice announcement every few seconds while the alert is open. */
+    private void speakLoop() {
+        if (!ringing || tts == null) return;
+        try {
+            tts.speak(spokenText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "ride");
+        } catch (Throwable ignored) {
+        }
+        handler.postDelayed(this::speakLoop, 9000);
+    }
+
     private void stopRinging() {
+        ringing = false;
+        handler.removeCallbacksAndMessages(null);
+        if (tts != null) {
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Throwable ignored) {
+            }
+            tts = null;
+        }
         if (player != null) {
             try {
                 player.stop();
@@ -125,6 +186,14 @@ public class RideAlertActivity extends AppCompatActivity {
         if (vibrator != null) {
             vibrator.cancel();
             vibrator = null;
+        }
+        if (savedAlarmVolume >= 0) {
+            try {
+                android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am != null) am.setStreamVolume(android.media.AudioManager.STREAM_ALARM, savedAlarmVolume, 0);
+            } catch (Throwable ignored) {
+            }
+            savedAlarmVolume = -1;
         }
     }
 

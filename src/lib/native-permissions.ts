@@ -15,7 +15,42 @@ export type NativeBridge = {
   openAppSettings?: () => void;
   appVersionName?: () => string;
   openExternal?: (url: string) => void;
+  installUpdate?: (url: string) => void;
+  updateState?: () => string;
+  updateProgress?: () => number;
 };
+
+/** True when the app can download and install the update by itself. */
+export function supportsInAppUpdate(): boolean {
+  return typeof nativeBridge()?.installUpdate === "function";
+}
+
+/** Starts the in-app update download; falls back to a browser download. */
+export function startInAppUpdate(url: string) {
+  const bridge = nativeBridge();
+  try {
+    if (bridge?.installUpdate) {
+      bridge.installUpdate(url);
+      return;
+    }
+    if (bridge?.openExternal) bridge.openExternal(url);
+    else window.open(url, "_blank", "noopener");
+  } catch {
+    window.open(url, "_blank", "noopener");
+  }
+}
+
+export function readUpdateProgress(): { state: string; progress: number } {
+  const bridge = nativeBridge();
+  try {
+    return {
+      state: bridge?.updateState?.() ?? "idle",
+      progress: Number(bridge?.updateProgress?.() ?? 0),
+    };
+  } catch {
+    return { state: "idle", progress: 0 };
+  }
+}
 
 /** Version of the installed Android app, or null in a browser. */
 export function nativeAppVersion(): string | null {

@@ -23,9 +23,29 @@ public class NativePermissions {
 
     private static final String TAG = "ShahinTravels";
     private final Activity activity;
+    private final AppUpdater updater;
 
     public NativePermissions(Activity activity) {
         this.activity = activity;
+        this.updater = new AppUpdater(activity);
+    }
+
+    /** Downloads the new APK inside the app and opens the system installer. */
+    @android.webkit.JavascriptInterface
+    public void installUpdate(String url) {
+        activity.runOnUiThread(() -> updater.start(url));
+    }
+
+    /** "idle", "downloading", "installing" or "error". */
+    @android.webkit.JavascriptInterface
+    public String updateState() {
+        return updater.getState();
+    }
+
+    /** Download progress 0-100. */
+    @android.webkit.JavascriptInterface
+    public int updateProgress() {
+        return updater.getProgress();
     }
 
     @android.webkit.JavascriptInterface

@@ -72,10 +72,30 @@ public class ShahinFirebaseMessagingService extends FirebaseMessagingService {
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) manager.notify(1001, notification);
 
-        // Older Android versions do not always honour full-screen intents from
-        // the background, so launch the alert screen directly as well.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            startActivity(full);
+        // Wake the screen so the alert is visible even when the phone is locked.
+        try {
+            android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
+            if (pm != null) {
+                @SuppressWarnings("deprecation")
+                android.os.PowerManager.WakeLock wl = pm.newWakeLock(
+                    android.os.PowerManager.FULL_WAKE_LOCK
+                        | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP
+                        | android.os.PowerManager.ON_AFTER_RELEASE,
+                    "shahin:ridealert");
+                wl.acquire(10_000);
+            }
+        } catch (Throwable ignored) {
+        }
+
+        // Launch the call-style screen directly when allowed (older Android, or
+        // "Appear on top" granted), instead of relying only on the banner.
+        boolean canLaunch = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+            || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && android.provider.Settings.canDrawOverlays(this));
+        if (canLaunch) {
+            try {
+                startActivity(full);
+            } catch (Throwable ignored) {
+            }
         }
     }
 

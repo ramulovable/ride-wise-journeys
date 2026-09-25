@@ -52,7 +52,7 @@ public class RideVoiceService extends Service {
     private PowerManager.WakeLock wakeLock;
     private int savedAlarmVolume = -1;
     private boolean running = false;
-    private String spokenText = "Shahin Travels. Nayi ride request aayi hai.";
+    private String spokenText = "शाहीन ट्रैवल्स। नई राइड रिक्वेस्ट आई है।";
 
     public static void start(Context context, String text, int timeoutSec, Notification notification) {
         pendingNotification = notification;
@@ -164,10 +164,13 @@ public class RideVoiceService extends Service {
             tts = new TextToSpeech(getApplicationContext(), status -> {
                 if (status != TextToSpeech.SUCCESS || tts == null) return;
                 try {
-                    int r = tts.setLanguage(new Locale("hi", "IN"));
+                    Locale hindi = new Locale("hi", "IN");
+                    int r = tts.setLanguage(hindi);
                     if (r < 0) tts.setLanguage(Locale.ENGLISH);
+                    selectIndianVoice();
                     tts.setAudioAttributes(ALARM_ATTRS);
-                    tts.setSpeechRate(0.95f);
+                    tts.setSpeechRate(0.92f);
+                    tts.setPitch(1.0f);
                 } catch (Throwable ignored) {
                 }
                 speakLoop();
@@ -175,6 +178,28 @@ public class RideVoiceService extends Service {
         } catch (Throwable ignored) {
         }
     }
+
+    /** Picks the best installed Indian Hindi voice so the alert sounds natural. */
+    private void selectIndianVoice() {
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || tts == null) return;
+            android.speech.tts.Voice best = null;
+            for (android.speech.tts.Voice v : tts.getVoices()) {
+                Locale l = v.getLocale();
+                if (l == null) continue;
+                String lang = l.getLanguage();
+                if (!"hi".equalsIgnoreCase(lang) && !"hin".equalsIgnoreCase(lang)) continue;
+                boolean network = v.isNetworkConnectionRequired();
+                if (best == null) { best = v; continue; }
+                boolean bestNetwork = best.isNetworkConnectionRequired();
+                if (bestNetwork && !network) { best = v; continue; }
+                if (bestNetwork == network && v.getQuality() > best.getQuality()) best = v;
+            }
+            if (best != null) tts.setVoice(best);
+        } catch (Throwable ignored) {
+        }
+    }
+
 
     private void speakLoop() {
         if (!running || tts == null) return;

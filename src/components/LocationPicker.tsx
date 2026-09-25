@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown, LoaderCircle, MapPin, Mic, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ type LocationPickerProps = {
   onChange: (location: Location) => void;
   placeholder: string;
   disabled?: boolean;
+  /** Controlled open state (optional). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Text pushed into the search box from outside (e.g. voice search). */
+  seedQuery?: string;
+  /** Custom trigger element; falls back to the standard combobox button. */
+  trigger?: ReactNode;
 };
 
 type LiveSuggestion = { placeId: string; label: string };
@@ -23,8 +30,20 @@ export function LocationPicker({
   onChange,
   placeholder,
   disabled = false,
+  open: openProp,
+  onOpenChange,
+  seedQuery,
+  trigger,
 }: LocationPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (onOpenChange) onOpenChange(next);
+      if (openProp === undefined) setInternalOpen(next);
+    },
+    [onOpenChange, openProp],
+  );
   const [query, setQuery] = useState("");
   const [liveResults, setLiveResults] = useState<LiveSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -33,6 +52,12 @@ export function LocationPicker({
   const [sessionToken, setSessionToken] = useState(() => crypto.randomUUID());
   const requestNumber = useRef(0);
   const selected = locations.find((location) => location.id === value);
+
+  useEffect(() => {
+    if (seedQuery) setQuery(seedQuery);
+  }, [seedQuery]);
+
+
   const normalizedQuery = query.trim().toLocaleLowerCase("en-IN");
   const presetMatches = useMemo(
     () =>
@@ -113,20 +138,23 @@ export function LocationPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className="h-auto min-h-10 w-full justify-between gap-2 px-3 py-2 text-left font-normal"
-        >
-          <span className={cn("line-clamp-2", !selected && "text-muted-foreground")}>
-            {selected?.label ?? placeholder}
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-        </Button>
+        {trigger ?? (
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            className="h-auto min-h-10 w-full justify-between gap-2 px-3 py-2 text-left font-normal"
+          >
+            <span className={cn("line-clamp-2", !selected && "text-muted-foreground")}>
+              {selected?.label ?? placeholder}
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+          </Button>
+        )}
       </PopoverTrigger>
+
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
         <div className="flex items-center border-b px-3">
           <Search className="mr-2 size-4 shrink-0 text-muted-foreground" />
@@ -215,33 +243,33 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-/** Microphone button: speak the place name instead of typing (Hindi / English). */
-function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
+/** Shared voice search: native Android recognizer, else the browser Speech API. */
+export function useVoiceSearch(onText: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
-
-  const nativeVoice = () =>
-    (window as unknown as { ShahinNative?: { startVoiceSearch?: (lang: string) => void } })
-      .ShahinNative;
+  const onTextRef = useRef(onText);
+  onTextRef.current = onText;
 
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>;
-    const hasNative = typeof nativeVoice()?.startVoiceSearch === "function";
+    const native = (window as unknown as { ShahinNative?: { startVoiceSearch?: unknown } })
+      .ShahinNative;
+    const hasNative = typeof native?.startVoiceSearch === "function";
     setSupported(hasNative || Boolean(w["SpeechRecognition"] || w["webkitSpeechRecognition"]));
     return () => recRef.current?.stop();
   }, []);
 
-  if (!supported) return null;
-
-  function toggle() {
-    const native = nativeVoice();
+  const start = useCallback(() => {
+    const native = (
+      window as unknown as { ShahinNative?: { startVoiceSearch?: (lang: string) => void } }
+    ).ShahinNative;
     if (typeof native?.startVoiceSearch === "function") {
       const handler = (e: Event) => {
         window.removeEventListener("shahin-voice-result", handler);
         setListening(false);
         const text = String((e as CustomEvent).detail ?? "").trim();
-        if (text) onText(text);
+        if (text) onTextRef.current(text);
       };
       window.addEventListener("shahin-voice-result", handler);
       setListening(true);
@@ -266,7 +294,7 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
     rec.maxAlternatives = 1;
     rec.onresult = (event) => {
       const text = event.results[0]?.[0]?.transcript;
-      if (text) onText(text.trim());
+      if (text) onTextRef.current(text.trim());
     };
     rec.onerror = () => setListening(false);
     rec.onend = () => setListening(false);
@@ -277,18 +305,26 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
     } catch {
       setListening(false);
     }
-  }
+  }, [listening]);
 
+  return { supported, listening, start };
+}
+
+/** Microphone button: speak the place name instead of typing (Hindi / English). */
+function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
+  const { supported, listening, start } = useVoiceSearch(onText);
+  if (!supported) return null;
   return (
     <Button
       type="button"
       variant={listening ? "default" : "ghost"}
       size="icon"
       className={cn("size-8 shrink-0 rounded-full", listening && "animate-pulse")}
-      onClick={toggle}
+      onClick={start}
       aria-label={listening ? "Stop voice search" : "Search by voice"}
     >
       <Mic className="size-4" />
     </Button>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown, LoaderCircle, MapPin, Mic, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ type LocationPickerProps = {
   onChange: (location: Location) => void;
   placeholder: string;
   disabled?: boolean;
+  /** Controlled open state (optional). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Text pushed into the search box from outside (e.g. voice search). */
+  seedQuery?: string;
+  /** Custom trigger element; falls back to the standard combobox button. */
+  trigger?: ReactNode;
 };
 
 type LiveSuggestion = { placeId: string; label: string };
@@ -23,8 +30,20 @@ export function LocationPicker({
   onChange,
   placeholder,
   disabled = false,
+  open: openProp,
+  onOpenChange,
+  seedQuery,
+  trigger,
 }: LocationPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (onOpenChange) onOpenChange(next);
+      if (openProp === undefined) setInternalOpen(next);
+    },
+    [onOpenChange, openProp],
+  );
   const [query, setQuery] = useState("");
   const [liveResults, setLiveResults] = useState<LiveSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -33,6 +52,12 @@ export function LocationPicker({
   const [sessionToken, setSessionToken] = useState(() => crypto.randomUUID());
   const requestNumber = useRef(0);
   const selected = locations.find((location) => location.id === value);
+
+  useEffect(() => {
+    if (seedQuery) setQuery(seedQuery);
+  }, [seedQuery]);
+
+
   const normalizedQuery = query.trim().toLocaleLowerCase("en-IN");
   const presetMatches = useMemo(
     () =>

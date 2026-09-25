@@ -30,6 +30,7 @@ import { resolveVehicleImage, useVehicleImages } from "@/lib/vehicleImages";
 import { rupees } from "@/lib/format";
 import { createBooking, getFareOptions } from "@/lib/api.functions";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import watermark from "@/assets/darbhanga-watermark.png";
 
 
 export const Route = createFileRoute("/_authenticated/app/")({

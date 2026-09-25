@@ -37,6 +37,19 @@ function RiderQr() {
     },
   });
 
+  const profile = useQuery({
+    queryKey: ["qr-profile", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, my_referral_code")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   function download(id: string, numberValue: string) {
     const svg = document.getElementById(`qr-page-${id}`);
     if (!svg) return;
@@ -57,24 +70,34 @@ function RiderQr() {
           {(vehicles.data ?? []).map((vehicle) => (
             <article
               key={vehicle.id}
-              className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4"
+              className="overflow-hidden rounded-3xl border border-border bg-card shadow-lg"
             >
-              <div>
-                <p className="font-semibold text-foreground">{vehicle.vehicle_number}</p>
-                <Button
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => download(vehicle.id, vehicle.vehicle_number)}
-                >
+              <div className="bg-primary px-5 py-4 text-primary-foreground">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">Shahin Travels</p>
+                <p className="mt-1 text-xl font-bold">{profile.data?.full_name ?? "Driver"}</p>
+                <p className="text-sm opacity-90">{vehicle.vehicle_number}</p>
+              </div>
+              <div className="flex flex-col items-center gap-3 p-5">
+                <div className="rounded-2xl border-4 border-primary bg-background p-3">
+                  <QRCodeSVG
+                    id={`qr-page-${vehicle.id}`}
+                    value={`${typeof window === "undefined" ? "https://shahintravels.app" : window.location.origin}/vehicle/${vehicle.qr_token}`}
+                    size={180}
+                    level="H"
+                    marginSize={2}
+                  />
+                </div>
+                <p className="text-center text-sm text-muted-foreground">
+                  Scan karein, app download karein aur ride book karein
+                </p>
+                {profile.data?.my_referral_code ? (
+                  <p className="rounded-xl bg-muted px-4 py-1.5 font-mono text-lg font-bold text-foreground">
+                    Code: {profile.data.my_referral_code}
+                  </p>
+                ) : null}
+                <Button size="sm" onClick={() => download(vehicle.id, vehicle.vehicle_number)}>
                   Download QR
                 </Button>
-              </div>
-              <div className="rounded-lg bg-white p-2">
-                <QRCodeSVG
-                  id={`qr-page-${vehicle.id}`}
-                  value={`${typeof window === "undefined" ? "https://shahintravels.app" : window.location.origin}/vehicle/${vehicle.qr_token}`}
-                  size={112}
-                />
               </div>
             </article>
           ))}

@@ -19,6 +19,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedReferralRouteImport } from './routes/_authenticated/referral'
 import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
+import { Route as VehicleTokenRouteImport } from './routes/vehicle.$token'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminAuthSettingsRouteImport } from './routes/_authenticated/admin/auth-settings'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
@@ -95,6 +96,11 @@ const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const VehicleTokenRoute = VehicleTokenRouteImport.update({
+  id: '/vehicle/$token',
+  path: '/vehicle/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/referral': typeof AuthenticatedReferralRoute
   '/support': typeof AuthenticatedSupportRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/vehicle/$token': typeof VehicleTokenRoute
   '/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
@@ -291,6 +298,7 @@ export interface FileRoutesByTo {
   '/referral': typeof AuthenticatedReferralRoute
   '/support': typeof AuthenticatedSupportRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/vehicle/$token': typeof VehicleTokenRoute
   '/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
@@ -330,6 +338,7 @@ export interface FileRoutesById {
   '/_authenticated/referral': typeof AuthenticatedReferralRoute
   '/_authenticated/support': typeof AuthenticatedSupportRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
+  '/vehicle/$token': typeof VehicleTokenRoute
   '/_authenticated/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
@@ -369,6 +378,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/support'
     | '/wallet'
+    | '/vehicle/$token'
     | '/admin/auth-settings'
     | '/admin/banners'
     | '/admin/catalog'
@@ -406,6 +416,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/support'
     | '/wallet'
+    | '/vehicle/$token'
     | '/admin/auth-settings'
     | '/admin/banners'
     | '/admin/catalog'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/_authenticated/referral'
     | '/_authenticated/support'
     | '/_authenticated/wallet'
+    | '/vehicle/$token'
     | '/_authenticated/admin/auth-settings'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/catalog'
@@ -477,6 +489,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminLoginRoute: typeof AdminLoginRoute
   DownloadRoute: typeof DownloadRoute
+  VehicleTokenRoute: typeof VehicleTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -550,6 +563,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/wallet'
       preLoaderRoute: typeof AuthenticatedWalletRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/vehicle/$token': {
+      id: '/vehicle/$token'
+      path: '/vehicle/$token'
+      fullPath: '/vehicle/$token'
+      preLoaderRoute: typeof VehicleTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
@@ -814,6 +834,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminLoginRoute: AdminLoginRoute,
   DownloadRoute: DownloadRoute,
+  VehicleTokenRoute: VehicleTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

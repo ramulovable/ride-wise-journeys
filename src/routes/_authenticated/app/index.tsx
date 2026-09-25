@@ -373,31 +373,6 @@ function BookPage() {
               ) : null}
             </div>
 
-            {/* Darbhanga quick suggestions. */}
-            {quickPicks.length > 0 ? (
-              <div className="rounded-2xl border border-border bg-card">
-                {quickPicks.map((location, index) => (
-                  <button
-                    key={location.id}
-                    type="button"
-                    onClick={() => selectLocation(location, "to")}
-                    className={`flex w-full items-center gap-3 px-4 py-3 text-left ${
-                      index > 0 ? "border-t border-dashed border-border" : ""
-                    }`}
-                  >
-                    <Clock className="size-5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">
-                        {location.name}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {location.area ?? location.formattedAddress ?? "Darbhanga, Bihar"}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
 
             {routeReady ? (
             <section className="space-y-3 rounded-2xl border border-border bg-card p-4">

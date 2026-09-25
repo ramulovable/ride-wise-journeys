@@ -223,7 +223,7 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
 
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>;
-    setSupported(Boolean(w.SpeechRecognition || w.webkitSpeechRecognition));
+    setSupported(Boolean(w["SpeechRecognition"] || w["webkitSpeechRecognition"]));
     return () => recRef.current?.stop();
   }, []);
 
@@ -235,7 +235,8 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
       return;
     }
     const w = window as unknown as Record<string, new () => SpeechRecognitionLike>;
-    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    const Ctor = w["SpeechRecognition"] || w["webkitSpeechRecognition"];
+    if (!Ctor) return;
     const rec = new Ctor();
     rec.lang = "hi-IN";
     rec.interimResults = false;

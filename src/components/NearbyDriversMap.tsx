@@ -15,10 +15,8 @@ export function NearbyDriversMap({
   drivers: Point[];
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<{
-    fitBounds: (b: unknown, p?: number) => void;
-    panTo: (p: Point) => void;
-  } | null>(null);
+  type Api = Awaited<ReturnType<typeof loadMaps>>;
+  const mapRef = useRef<InstanceType<Api["Map"]> | null>(null);
   const apiRef = useRef<Awaited<ReturnType<typeof loadMaps>> | null>(null);
   const overlays = useRef<MapObj[]>([]);
   const [ready, setReady] = useState(false);

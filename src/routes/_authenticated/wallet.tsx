@@ -127,6 +127,13 @@ function WalletPage() {
         </div>
       </section>
 
+      {role === "rider" ? (
+        <p className="rounded-2xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+          Ride ka pura kiraya customer se direct cash me lijiye. Wallet me sirf Refer &amp; Earn
+          ka reward credit hota hai, aur wahi amount UPI par withdraw kiya ja sakta hai.
+        </p>
+      ) : null}
+
       <ReferralCard />
 
       <section className="grid grid-cols-2 gap-3">

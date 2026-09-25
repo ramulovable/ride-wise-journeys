@@ -30,6 +30,7 @@ import { resolveVehicleImage, useVehicleImages } from "@/lib/vehicleImages";
 import { rupees } from "@/lib/format";
 import { createBooking, getFareOptions } from "@/lib/api.functions";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import watermark from "@/assets/darbhanga-watermark.png";
 
 
 export const Route = createFileRoute("/_authenticated/app/")({
@@ -419,6 +420,7 @@ function BookPage() {
               </div>
             ) : null}
 
+            {routeReady ? (
             <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
 
 
@@ -478,10 +480,13 @@ function BookPage() {
                 maxLength={300}
               />
             </section>
+            ) : null}
           </>
         )}
 
 
+        {routeReady ? (
+        <>
         <section>
           <h2 className="mb-2 text-sm font-semibold text-foreground">Choose Vehicle Type</h2>
           {categories.isSuccess && categories.data.length === 0 ? (
@@ -613,6 +618,31 @@ function BookPage() {
         >
           Book Ride Now <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
+        </>
+        ) : (
+          <section className="relative overflow-hidden rounded-2xl border border-border bg-card">
+            <img
+              src={watermark}
+              alt=""
+              aria-hidden="true"
+              width={1024}
+              height={1024}
+              loading="lazy"
+              className="h-64 w-full object-cover opacity-60"
+            />
+            <div className="pointer-events-none absolute inset-0 flex flex-col justify-center px-5">
+              <span className="text-2xl font-extrabold italic tracking-tight text-muted-foreground">
+                #gowithShahintravels
+              </span>
+              <span className="mt-2 text-sm font-medium text-muted-foreground">
+                🇮🇳 Made for India
+              </span>
+              <span className="text-sm font-medium text-muted-foreground">
+                ❤️ Pride of Darbhanga
+              </span>
+            </div>
+          </section>
+        )}
 
         <section className="grid grid-cols-5 gap-2">
           {[

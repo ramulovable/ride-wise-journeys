@@ -479,6 +479,7 @@ function BookPage() {
                 maxLength={300}
               />
             </section>
+            ) : null}
           </>
         )}
 

@@ -142,6 +142,46 @@ function BookPage() {
     lng: number;
     heading?: number | null;
   } | null>(null);
+  // Tapping the map moves the green pickup dot instantly while the address loads.
+  const [tappedPickup, setTappedPickup] = useState<{ lat: number; lng: number } | null>(null);
+
+  async function pickPickupFromMap(point: { lat: number; lng: number }) {
+    setTappedPickup(point);
+    try {
+      const place = await nearestPlaceForGps({
+        data: { latitude: point.lat, longitude: point.lng },
+      });
+      if (!place) {
+        toast.error("इस जगह का पता नहीं मिला। थोड़ा पास की जगह चुनें।");
+        setTappedPickup(null);
+        return;
+      }
+      const loc = await selectIndiaPlace({
+        data: { placeId: place.placeId, sessionToken: crypto.randomUUID() },
+      });
+      selectLocation(
+        {
+          id: loc.id,
+          name: loc.name,
+          area: loc.area,
+          formattedAddress: loc.formatted_address,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          source: "google",
+          pinCode: null,
+          isActive: loc.is_active,
+          label: loc.formatted_address || loc.area || loc.name,
+        } as Location,
+        "from",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "इस जगह का पता नहीं मिला।");
+    } finally {
+      setTappedPickup(null);
+    }
+  }
+
+
 
   // Live blue arrow: follow the phone's own position while the page is open.
   useEffect(() => {

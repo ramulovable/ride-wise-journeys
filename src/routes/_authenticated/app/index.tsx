@@ -426,9 +426,10 @@ function BookPage() {
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={300}
               />
-            </div>
-          )}
-        </section>
+            </section>
+          </>
+        )}
+
 
         <section>
           <h2 className="mb-2 text-sm font-semibold text-foreground">Choose Vehicle Type</h2>

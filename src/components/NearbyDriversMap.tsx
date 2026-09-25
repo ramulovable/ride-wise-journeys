@@ -29,6 +29,9 @@ export function NearbyDriversMap({
   const overlays = useRef<MapObj[]>([]);
   const meMarker = useRef<MarkerObj | null>(null);
   const haloMarker = useRef<MarkerObj | null>(null);
+  const lastMe = useRef<Point | null>(null);
+  const lastHeading = useRef(0);
+  const centeredOnMe = useRef(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
 
@@ -101,9 +104,8 @@ export function NearbyDriversMap({
       );
       if (!drop) bounds.extend(d);
     });
-    if (me) bounds.extend({ lat: me.lat, lng: me.lng });
     if (!bounds.isEmpty()) {
-      if (pickup && !drop && drivers.length === 0 && !me) map.panTo(pickup);
+      if (pickup && !drop && drivers.length === 0) map.panTo(pickup);
       else map.fitBounds(bounds, 40);
     }
   }, [ready, pickup?.lat, pickup?.lng, drop?.lat, drop?.lng, drivers]);
@@ -121,6 +123,21 @@ export function NearbyDriversMap({
       return;
     }
     const position = { lat: me.lat, lng: me.lng };
+    const prev = lastMe.current;
+    let rotation = lastHeading.current;
+    if (typeof me.heading === "number" && !Number.isNaN(me.heading)) {
+      rotation = me.heading;
+    } else if (prev && (prev.lat !== position.lat || prev.lng !== position.lng)) {
+      const toRad = Math.PI / 180;
+      const dLng = (position.lng - prev.lng) * toRad;
+      const y = Math.sin(dLng) * Math.cos(position.lat * toRad);
+      const x =
+        Math.cos(prev.lat * toRad) * Math.sin(position.lat * toRad) -
+        Math.sin(prev.lat * toRad) * Math.cos(position.lat * toRad) * Math.cos(dLng);
+      rotation = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+    }
+    lastHeading.current = rotation;
+    lastMe.current = position;
     const arrowIcon = {
       path: api.SymbolPath["FORWARD_CLOSED_ARROW"],
       scale: 5,
@@ -128,7 +145,7 @@ export function NearbyDriversMap({
       fillOpacity: 1,
       strokeColor: "#ffffff",
       strokeWeight: 2,
-      rotation: typeof me.heading === "number" && !Number.isNaN(me.heading) ? me.heading : 0,
+      rotation,
     };
     if (!haloMarker.current) {
       haloMarker.current = new api.Marker({
@@ -161,7 +178,11 @@ export function NearbyDriversMap({
       meMarker.current.setPosition(position);
       meMarker.current.setIcon?.(arrowIcon);
     }
-  }, [ready, me?.lat, me?.lng, me?.heading]);
+    if (!centeredOnMe.current && !pickup && !drop) {
+      centeredOnMe.current = true;
+      map.panTo(position);
+    }
+  }, [ready, me?.lat, me?.lng, me?.heading, pickup, drop]);
 
   if (error) return null;
   return (

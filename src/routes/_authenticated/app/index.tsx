@@ -167,14 +167,18 @@ function BookPage() {
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
-      (pos) =>
+      (pos) => {
+        // Ignore very inaccurate or stale readings so the blue arrow never jumps.
+        if (typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 150) return;
+        if (Date.now() - pos.timestamp > 60_000) return;
         setMyPosition({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           heading: pos.coords.heading,
-        }),
+        });
+      },
       () => {},
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);

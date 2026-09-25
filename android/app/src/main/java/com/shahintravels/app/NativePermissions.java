@@ -30,6 +30,14 @@ public class NativePermissions {
         this.updater = new AppUpdater(activity);
     }
 
+    /** Stops the background voice ride alert (offer accepted, declined, taken or expired). */
+    @android.webkit.JavascriptInterface
+    public void stopRideAlert() {
+        RideVoiceService.stop(activity.getApplicationContext());
+        android.app.NotificationManager nm = activity.getSystemService(android.app.NotificationManager.class);
+        if (nm != null) nm.cancel(1001);
+    }
+
     /** Downloads the new APK inside the app and opens the system installer. */
     @android.webkit.JavascriptInterface
     public void installUpdate(String url) {

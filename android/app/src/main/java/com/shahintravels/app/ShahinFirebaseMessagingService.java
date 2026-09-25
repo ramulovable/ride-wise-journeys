@@ -52,23 +52,26 @@ public class ShahinFirebaseMessagingService extends FirebaseMessagingService {
         }
     }
 
-    /** Builds the Hindi announcement with pickup, drop and fare. */
+    /** Builds the Hindi (Devanagari) announcement with pickup, drop and fare. */
     private static String buildSpeech(Map<String, String> data, String body) {
         String pickup = data.get("pickup");
         String drop = data.get("drop");
         if (drop == null) drop = data.get("destination");
         String fare = data.get("fare");
-        StringBuilder sb = new StringBuilder("Shahin Travels. Nayi ride request. ");
+        StringBuilder sb = new StringBuilder("शाहीन ट्रैवल्स। नई राइड रिक्वेस्ट आई है। ");
         if (pickup != null && !pickup.isEmpty()) {
-            sb.append("Pickup, ").append(pickup).append(". ");
-            if (drop != null && !drop.isEmpty()) sb.append("Drop, ").append(drop).append(". ");
-            if (fare != null && !fare.isEmpty()) sb.append("Kiraya ").append(fare.replace("₹", "")).append(" rupaye. ");
+            sb.append("पिकअप, ").append(pickup).append("। ");
+            if (drop != null && !drop.isEmpty()) sb.append("ड्रॉप, ").append(drop).append("। ");
+            if (fare != null && !fare.isEmpty()) {
+                sb.append("किराया ").append(fare.replace("₹", "").trim()).append(" रुपये। ");
+            }
         } else if (body != null && !body.isEmpty()) {
-            sb.append(body.replace("•", ",").replace("→", " se ").replace("₹", "").replace("Rs", "rupaye")).append(". ");
+            sb.append(body.replace("•", ",").replace("→", " से ").replace("₹", "").replace("Rs", "रुपये")).append("। ");
         }
-        sb.append("Accept karne ke liye screen dabayein.");
+        sb.append("राइड स्वीकार करने के लिए स्क्रीन दबाएं।");
         return sb.toString();
     }
+
 
     private void showRideAlert(Map<String, String> data, String rideId, String title, String body, String path) {
         Intent full = new Intent(this, RideAlertActivity.class);

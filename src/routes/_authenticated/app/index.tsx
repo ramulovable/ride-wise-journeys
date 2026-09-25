@@ -419,6 +419,7 @@ function BookPage() {
               </div>
             ) : null}
 
+            {routeReady ? (
             <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
 
 

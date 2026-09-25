@@ -241,94 +241,135 @@ function BookPage() {
   return (
     <CustomerShell title="Shahin Travels" subtitle="आपकी यात्रा, हमारी जिम्मेदारी!">
       <div className="space-y-4">
-        <PromoCarousel />
-        <IstClock />
-
-
-        <section className="rounded-2xl border border-border bg-card p-4">
-          {noLocations ? (
-            <EmptyState
-              title="No locations yet"
-              description="The admin has not added any pickup or drop points yet. Please check back soon."
-            />
-          ) : (
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center pt-3">
-                  <span className="size-3 rounded-full bg-primary" aria-hidden="true" />
-                  <span
-                    className="my-1 w-px flex-1 border-l border-dashed border-border"
-                    aria-hidden="true"
-                  />
-                  <span className="size-3 rounded-full bg-destructive" aria-hidden="true" />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div>
-                    <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                      Pickup location
-                    </p>
-                    <LocationPicker
-                      locations={allLocations}
-                      value={fromId}
-                      onChange={(location) => selectLocation(location, "from")}
-                      placeholder="Search pickup anywhere in India"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => useMyLocation(false)}
-                      disabled={locating}
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary"
-                    >
-                      <LocateFixed className="size-3.5" />
-                      {locating ? "Finding your location…" : "Use my current location"}
-                    </button>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                      Destination
-                    </p>
-                    <LocationPicker
-                      locations={allLocations}
-                      value={toId}
-                      onChange={(location) => selectLocation(location, "to")}
-                      placeholder="Search destination anywhere in India"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full"
-                    onClick={() => {
-                      setFromId(toId);
-                      setToId(fromId);
-                      setSelection(null);
-                    }}
-                    aria-label="Swap pickup and destination"
-                  >
-                    <ArrowLeftRight className="h-4 w-4" />
-                  </Button>
+        {noLocations ? (
+          <EmptyState
+            title="No locations yet"
+            description="The admin has not added any pickup or drop points yet. Please check back soon."
+          />
+        ) : (
+          <>
+            {/* Live map with the pickup point on top, exactly like a ride app home. */}
+            <section className="overflow-hidden rounded-2xl border border-border bg-card">
+              <div className="relative">
+                <NearbyDriversMap
+                  pickup={pickupPoint}
+                  drop={dropPoint}
+                  drivers={nearby.data?.drivers ?? []}
+                  me={myPosition}
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
+                  <span className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg">
+                    Pickup Point
+                  </span>
                 </div>
               </div>
-
-              {pickupPoint || myPosition ? (
-                <div className="space-y-1">
-                  <NearbyDriversMap
-                    pickup={pickupPoint}
-                    drop={dropPoint}
-                    drivers={nearby.data?.drivers ?? []}
-                    me={myPosition}
+              <div className="flex items-center gap-1 border-t border-border px-3 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <LocationPicker
+                    locations={allLocations}
+                    value={fromId}
+                    onChange={(location) => selectLocation(location, "from")}
+                    placeholder="Pickup location"
+                    trigger={
+                      <button
+                        type="button"
+                        className="flex min-h-11 w-full min-w-0 items-center gap-2 text-left"
+                      >
+                        <span
+                          className="size-3 shrink-0 rounded-full border-[3px] border-primary"
+                          aria-hidden="true"
+                        />
+                        <span className="line-clamp-1 flex-1 text-sm font-medium text-foreground">
+                          {pickupLoc?.label ?? "Pickup location चुनें"}
+                        </span>
+                      </button>
+                    }
                   />
-                  {nearby.isSuccess ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      {nearby.data.drivers.length > 0
-                        ? `${nearby.data.drivers.length} driver aapke paas online hain`
-                        : "Abhi paas me koi driver online nahi dikh raha"}
-                    </p>
-                  ) : null}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="min-h-11 min-w-11 shrink-0 rounded-full text-primary"
+                  onClick={() => useMyLocation(false)}
+                  disabled={locating}
+                  aria-label="Use my current location"
+                >
+                  <LocateFixed className="size-5" />
+                </Button>
+              </div>
+            </section>
+
+            {/* Big destination search + one-touch mic. */}
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <LocationPicker
+                  locations={allLocations}
+                  value={toId}
+                  onChange={(location) => selectLocation(location, "to")}
+                  placeholder="कहाँ जाना है?"
+                  open={destOpen}
+                  onOpenChange={setDestOpen}
+                  seedQuery={voiceQuery}
+                  trigger={
+                    <button
+                      type="button"
+                      className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full border border-border bg-card px-4 text-left shadow-sm"
+                    >
+                      <Search className="size-5 shrink-0 text-foreground" />
+                      <span
+                        className={`line-clamp-1 flex-1 text-base font-semibold ${
+                          dropLoc ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {dropLoc?.label ?? "कहाँ जाना है?"}
+                      </span>
+                    </button>
+                  }
+                />
+              </div>
+              {voice.supported ? (
+                <button
+                  type="button"
+                  onClick={voice.start}
+                  aria-label="बोल कर destination खोजें"
+                  className={`flex h-14 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-base font-semibold text-accent-foreground shadow-sm ${
+                    voice.listening ? "animate-pulse" : ""
+                  }`}
+                >
+                  <Mic className="size-5" />
+                  बोलें
+                </button>
               ) : null}
+            </div>
+
+            {/* Darbhanga quick suggestions. */}
+            {quickPicks.length > 0 ? (
+              <div className="rounded-2xl border border-border bg-card">
+                {quickPicks.map((location, index) => (
+                  <button
+                    key={location.id}
+                    type="button"
+                    onClick={() => selectLocation(location, "to")}
+                    className={`flex w-full items-center gap-3 px-4 py-3 text-left ${
+                      index > 0 ? "border-t border-dashed border-border" : ""
+                    }`}
+                  >
+                    <Clock className="size-5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        {location.name}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {location.area ?? location.formattedAddress ?? "Darbhanga, Bihar"}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+
 
               {routeReady ? (
                 <div className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm">

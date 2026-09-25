@@ -68,14 +68,25 @@ function BookPage() {
   const [booking, setBooking] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
+  const [destOpen, setDestOpen] = useState(false);
+  const [voiceQuery, setVoiceQuery] = useState("");
 
   const locations = useQuery({ queryKey: ["locations"], queryFn: () => fetchLocations(true) });
   const categories = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories(true) });
   const vehicleImages = useVehicleImages();
 
+  // One-touch mic: speak the destination without opening the search box first.
+  const onVoiceText = useCallback((text: string) => {
+    setVoiceQuery(text);
+    setDestOpen(true);
+  }, []);
+  const voice = useVoiceSearch(onVoiceText);
+
   const allLocations = [...(locations.data ?? []), ...selectedLocations].filter(
     (location, index, values) => values.findIndex((item) => item.id === location.id) === index,
   );
+  const quickPicks = (locations.data ?? []).filter((l) => l.source === "preset").slice(0, 6);
+
   const routeReady = Boolean(fromId && toId && fromId !== toId);
   const quote = useQuery({
     queryKey: ["fare-options", fromId, toId, passengers],

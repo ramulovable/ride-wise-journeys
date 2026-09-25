@@ -165,7 +165,10 @@ export const selectIndiaPlace = createServerFn({ method: "POST" })
     if (country?.shortText?.toUpperCase() !== "IN") {
       throw new Error("Please select a location in India.");
     }
-    const name = place.displayName?.text?.trim();
+    // Rural addresses from reverse geocoding often have no display name; the
+    // first part of the formatted address is a good human-readable fallback.
+    const name =
+      place.displayName?.text?.trim() || place.formattedAddress?.split(",")[0]?.trim() || "";
     const latitude = place.location?.latitude;
     const longitude = place.location?.longitude;
     if (!place.id || !name || !place.formattedAddress || latitude == null || longitude == null) {
@@ -2200,7 +2203,12 @@ export const getAdminRiderWallet = createServerFn({ method: "GET" })
     };
   });
 
-/** Finds the nearest named place to the customer's GPS position (auto pickup). */
+/**
+ * Finds the nearest named place to the customer's GPS position (auto pickup).
+ * Villages and rural roads often have no Google place within a few hundred
+ * metres, so the radius widens step by step and finally falls back to reverse
+ * geocoding the exact coordinates, which always returns an address in India.
+ */
 export const nearestPlaceForGps = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) =>
@@ -2209,24 +2217,43 @@ export const nearestPlaceForGps = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/places/v1/places:searchNearby`, {
-      method: "POST",
-      headers: googleHeaders("places.id,places.displayName"),
-      body: JSON.stringify({
-        maxResultCount: 1,
-        rankPreference: "DISTANCE",
-        locationRestriction: {
-          circle: { center: { latitude: data.latitude, longitude: data.longitude }, radius: 300 },
-        },
-      }),
-    });
-    if (!response.ok) await throwGoogleError(response);
-    const payload = (await response.json()) as {
-      places?: Array<{ id?: string; displayName?: { text?: string } }>;
+    for (const radius of [300, 1500, 5000]) {
+      const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/places/v1/places:searchNearby`, {
+        method: "POST",
+        headers: googleHeaders("places.id,places.displayName"),
+        body: JSON.stringify({
+          maxResultCount: 1,
+          rankPreference: "DISTANCE",
+          locationRestriction: {
+            circle: { center: { latitude: data.latitude, longitude: data.longitude }, radius },
+          },
+        }),
+      });
+      if (!response.ok) await throwGoogleError(response);
+      const payload = (await response.json()) as {
+        places?: Array<{ id?: string; displayName?: { text?: string } }>;
+      };
+      const place = payload.places?.[0];
+      if (place?.id) {
+        return { placeId: place.id, label: place.displayName?.text ?? "Current location" };
+      }
+    }
+
+    // Final fallback: reverse geocode the exact GPS point.
+    const geocodeUrl = new URL(`${GOOGLE_MAPS_GATEWAY}/maps/api/geocode/json`);
+    geocodeUrl.searchParams.set("latlng", `${data.latitude},${data.longitude}`);
+    const geo = await fetch(geocodeUrl, { headers: googleHeaders() });
+    if (!geo.ok) await throwGoogleError(geo);
+    const geoPayload = (await geo.json()) as {
+      status?: string;
+      results?: Array<{ place_id?: string; formatted_address?: string }>;
     };
-    const place = payload.places?.[0];
-    if (!place?.id) return null;
-    return { placeId: place.id, label: place.displayName?.text ?? "Current location" };
+    const match = geoPayload.results?.find((result) => result.place_id);
+    if (!match?.place_id) return null;
+    return {
+      placeId: match.place_id,
+      label: match.formatted_address ?? "Current location",
+    };
   });
 
 /**

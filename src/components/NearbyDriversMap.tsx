@@ -83,10 +83,24 @@ export function NearbyDriversMap({
     const bounds = new api.LatLngBounds();
     if (pickup) {
       overlays.current.push(
-        new api.Marker({ map, position: pickup, label: { text: "P", color: "white" }, zIndex: 10 }),
+        new api.Marker({
+          map,
+          position: pickup,
+          title: "Pickup point",
+          zIndex: 12,
+          icon: {
+            path: api.SymbolPath["CIRCLE"],
+            scale: 9,
+            fillColor: "#16a34a",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 3,
+          },
+        }),
       );
       bounds.extend(pickup);
     }
+
     if (drop) {
       overlays.current.push(
         new api.Marker({ map, position: drop, label: { text: "D", color: "white" }, zIndex: 10 }),

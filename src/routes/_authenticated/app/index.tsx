@@ -6,19 +6,14 @@ import { NearbyDriversMap } from "@/components/NearbyDriversMap";
 import { toast } from "sonner";
 import {
   ArrowRight,
-  BadgeIndianRupee,
-  ClipboardList,
-  Clock,
-  LifeBuoy,
   LocateFixed,
   Mic,
   Minus,
   Plus,
   RouteIcon,
   Search,
-  UserRound,
-  Wallet as WalletIcon,
 } from "lucide-react";
+
 import { CustomerShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { LocationPicker, useVoiceSearch } from "@/components/LocationPicker";
@@ -86,27 +81,6 @@ function BookPage() {
   const allLocations = [...(locations.data ?? []), ...selectedLocations].filter(
     (location, index, values) => values.findIndex((item) => item.id === location.id) === index,
   );
-  // Popular Darbhanga places first, then the rest of the preset list.
-  const popularOrder = [
-    "tower",
-    "railway",
-    "station",
-    "bus stand",
-    "delhi more",
-    "donar",
-    "laheriasarai",
-    "airport",
-  ];
-  const quickPicks = (locations.data ?? [])
-    .filter((l) => l.source === "preset")
-    .map((l) => {
-      const name = l.name.toLocaleLowerCase("en-IN");
-      const rank = popularOrder.findIndex((key) => name.includes(key));
-      return { location: l, rank: rank === -1 ? 99 : rank };
-    })
-    .sort((a, b) => a.rank - b.rank)
-    .slice(0, 6)
-    .map((item) => item.location);
 
 
   const routeReady = Boolean(fromId && toId && fromId !== toId);
@@ -163,6 +137,46 @@ function BookPage() {
     lng: number;
     heading?: number | null;
   } | null>(null);
+  // Tapping the map moves the green pickup dot instantly while the address loads.
+  const [tappedPickup, setTappedPickup] = useState<{ lat: number; lng: number } | null>(null);
+
+  async function pickPickupFromMap(point: { lat: number; lng: number }) {
+    setTappedPickup(point);
+    try {
+      const place = await nearestPlaceForGps({
+        data: { latitude: point.lat, longitude: point.lng },
+      });
+      if (!place) {
+        toast.error("इस जगह का पता नहीं मिला। थोड़ा पास की जगह चुनें।");
+        setTappedPickup(null);
+        return;
+      }
+      const loc = await selectIndiaPlace({
+        data: { placeId: place.placeId, sessionToken: crypto.randomUUID() },
+      });
+      selectLocation(
+        {
+          id: loc.id,
+          name: loc.name,
+          area: loc.area,
+          formattedAddress: loc.formatted_address,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          source: "google",
+          pinCode: null,
+          isActive: loc.is_active,
+          label: loc.formatted_address || loc.area || loc.name,
+        } as Location,
+        "from",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "इस जगह का पता नहीं मिला।");
+    } finally {
+      setTappedPickup(null);
+    }
+  }
+
+
 
   // Live blue arrow: follow the phone's own position while the page is open.
   useEffect(() => {
@@ -304,11 +318,14 @@ function BookPage() {
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className="relative">
                 <NearbyDriversMap
-                  pickup={pickupPoint}
+                  pickup={tappedPickup ?? pickupPoint}
                   drop={dropPoint}
                   drivers={nearby.data?.drivers ?? []}
                   me={myPosition}
+                  onPick={pickPickupFromMap}
+                  className="h-[52vh] min-h-[320px] w-full"
                 />
+
                 <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
                   <span className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg">
                     Pickup Point
@@ -394,31 +411,6 @@ function BookPage() {
               ) : null}
             </div>
 
-            {/* Darbhanga quick suggestions. */}
-            {quickPicks.length > 0 ? (
-              <div className="rounded-2xl border border-border bg-card">
-                {quickPicks.map((location, index) => (
-                  <button
-                    key={location.id}
-                    type="button"
-                    onClick={() => selectLocation(location, "to")}
-                    className={`flex w-full items-center gap-3 px-4 py-3 text-left ${
-                      index > 0 ? "border-t border-dashed border-border" : ""
-                    }`}
-                  >
-                    <Clock className="size-5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">
-                        {location.name}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {location.area ?? location.formattedAddress ?? "Darbhanga, Bihar"}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
 
             {routeReady ? (
             <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
@@ -644,26 +636,6 @@ function BookPage() {
           </section>
         )}
 
-        <section className="grid grid-cols-5 gap-2">
-          {[
-            { to: "/app/rides", label: "My Rides", icon: <ClipboardList className="h-5 w-5" /> },
-            {
-              to: "/fares",
-              label: "Fare Details",
-              icon: <BadgeIndianRupee className="h-5 w-5" />,
-            },
-            { to: "/wallet", label: "Wallet", icon: <WalletIcon className="h-5 w-5" /> },
-            { to: "/support", label: "Help & Support", icon: <LifeBuoy className="h-5 w-5" /> },
-            { to: "/profile", label: "My Profile", icon: <UserRound className="h-5 w-5" /> },
-          ].map((item) => (
-            <Link key={item.to} to={item.to} className="flex flex-col items-center gap-1.5">
-              <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                {item.icon}
-              </span>
-              <span className="text-center text-[11px] text-muted-foreground">{item.label}</span>
-            </Link>
-          ))}
-        </section>
 
         <Link
           to="/"

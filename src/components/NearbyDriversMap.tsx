@@ -219,7 +219,12 @@ export function NearbyDriversMap({
   if (error) return null;
   return (
     <div className="relative">
-      <div ref={ref} className="h-44 w-full overflow-hidden rounded-xl border border-border" />
+      <div
+        ref={ref}
+        className={className ?? "h-44 w-full overflow-hidden rounded-xl border border-border"}
+        style={{ touchAction: "none" }}
+      />
+
       {me ? (
         <button
           type="button"

@@ -101,10 +101,11 @@ export function NearbyDriversMap({
       );
       if (!drop) bounds.extend(d);
     });
-    if (me) bounds.extend({ lat: me.lat, lng: me.lng });
     if (!bounds.isEmpty()) {
-      if (pickup && !drop && drivers.length === 0 && !me) map.panTo(pickup);
-      else map.fitBounds(bounds, 40);
+      if (pickup && !drop && drivers.length === 0) {
+        map.panTo(pickup);
+        map.setZoom?.(16);
+      } else map.fitBounds(bounds, 40);
     }
   }, [ready, pickup?.lat, pickup?.lng, drop?.lat, drop?.lng, drivers]);
 

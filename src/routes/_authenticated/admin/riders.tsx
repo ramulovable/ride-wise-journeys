@@ -39,6 +39,7 @@ function Riders() {
   const [amount, setAmount] = useState("99");
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
   const [reviewsFor, setReviewsFor] = useState<string | null>(null);
+  const [walletFor, setWalletFor] = useState<string | null>(null);
 
   const riders = useQuery({
     queryKey: ["admin-riders"],

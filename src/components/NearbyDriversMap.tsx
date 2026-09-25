@@ -101,12 +101,82 @@ export function NearbyDriversMap({
       );
       if (!drop) bounds.extend(d);
     });
+    if (me) bounds.extend({ lat: me.lat, lng: me.lng });
     if (!bounds.isEmpty()) {
-      if (pickup && !drop && drivers.length === 0) map.panTo(pickup);
+      if (pickup && !drop && drivers.length === 0 && !me) map.panTo(pickup);
       else map.fitBounds(bounds, 40);
     }
   }, [ready, pickup?.lat, pickup?.lng, drop?.lat, drop?.lng, drivers]);
 
+  // Live blue arrow for the customer's own position; moves as the phone moves.
+  useEffect(() => {
+    const api = apiRef.current;
+    const map = mapRef.current;
+    if (!ready || !api || !map) return;
+    if (!me) {
+      meMarker.current?.setMap(null);
+      haloMarker.current?.setMap(null);
+      meMarker.current = null;
+      haloMarker.current = null;
+      return;
+    }
+    const position = { lat: me.lat, lng: me.lng };
+    const arrowIcon = {
+      path: api.SymbolPath["FORWARD_CLOSED_ARROW"],
+      scale: 5,
+      fillColor: "#2563eb",
+      fillOpacity: 1,
+      strokeColor: "#ffffff",
+      strokeWeight: 2,
+      rotation: typeof me.heading === "number" && !Number.isNaN(me.heading) ? me.heading : 0,
+    };
+    if (!haloMarker.current) {
+      haloMarker.current = new api.Marker({
+        map,
+        position,
+        clickable: false,
+        zIndex: 18,
+        icon: {
+          path: api.SymbolPath["CIRCLE"],
+          scale: 14,
+          fillColor: "#2563eb",
+          fillOpacity: 0.15,
+          strokeColor: "#2563eb",
+          strokeOpacity: 0.3,
+          strokeWeight: 1,
+        },
+      }) as MarkerObj;
+    } else {
+      haloMarker.current.setPosition(position);
+    }
+    if (!meMarker.current) {
+      meMarker.current = new api.Marker({
+        map,
+        position,
+        title: "You are here",
+        zIndex: 20,
+        icon: arrowIcon,
+      }) as MarkerObj;
+    } else {
+      meMarker.current.setPosition(position);
+      meMarker.current.setIcon?.(arrowIcon);
+    }
+  }, [ready, me?.lat, me?.lng, me?.heading]);
+
   if (error) return null;
-  return <div ref={ref} className="h-44 w-full overflow-hidden rounded-xl border border-border" />;
+  return (
+    <div className="relative">
+      <div ref={ref} className="h-44 w-full overflow-hidden rounded-xl border border-border" />
+      {me ? (
+        <button
+          type="button"
+          onClick={() => mapRef.current?.panTo({ lat: me.lat, lng: me.lng })}
+          aria-label="Center map on my location"
+          className="absolute bottom-2 right-2 rounded-full border border-border bg-card p-2 shadow-sm"
+        >
+          <LocateFixed className="size-4 text-primary" />
+        </button>
+      ) : null}
+    </div>
+  );
 }

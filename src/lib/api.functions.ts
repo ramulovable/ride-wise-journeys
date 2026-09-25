@@ -165,7 +165,10 @@ export const selectIndiaPlace = createServerFn({ method: "POST" })
     if (country?.shortText?.toUpperCase() !== "IN") {
       throw new Error("Please select a location in India.");
     }
-    const name = place.displayName?.text?.trim();
+    // Rural addresses from reverse geocoding often have no display name; the
+    // first part of the formatted address is a good human-readable fallback.
+    const name =
+      place.displayName?.text?.trim() || place.formattedAddress?.split(",")[0]?.trim() || "";
     const latitude = place.location?.latitude;
     const longitude = place.location?.longitude;
     if (!place.id || !name || !place.formattedAddress || latitude == null || longitude == null) {

@@ -1,24 +1,34 @@
 import { useEffect, useRef, useState } from "react";
+import { LocateFixed } from "lucide-react";
 import { loadMaps } from "@/components/LiveRideMap";
 
 type Point = { lat: number; lng: number };
+type MePoint = { lat: number; lng: number; heading?: number | null };
 type MapObj = { setMap: (m: unknown) => void };
+type MarkerObj = MapObj & {
+  setPosition: (p: Point) => void;
+  setIcon?: (icon: unknown) => void;
+};
 
 /** Small live map on customer home: pickup, drop, route line and nearby drivers. */
 export function NearbyDriversMap({
   pickup,
   drop,
   drivers,
+  me,
 }: {
   pickup: Point | null;
   drop: Point | null;
   drivers: Point[];
+  me?: MePoint | null;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   type Api = Awaited<ReturnType<typeof loadMaps>>;
   const mapRef = useRef<InstanceType<Api["Map"]> | null>(null);
   const apiRef = useRef<Awaited<ReturnType<typeof loadMaps>> | null>(null);
   const overlays = useRef<MapObj[]>([]);
+  const meMarker = useRef<MarkerObj | null>(null);
+  const haloMarker = useRef<MarkerObj | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
 

@@ -71,3 +71,10 @@
 - [x] Removed the old browser "Turn on ride alerts" button (customer + driver)
 - [x] Native bridge window.ShahinNative: notifications, appear-on-top, battery unrestricted
 - [x] Driver dashboard "Ride alert setup" card (APK only) with one-tap Allow for all three
+
+## Wallet + QR + alerts (Sep 24)
+- [x] Admin driver list: live wallet balance + pending payout badge, "View wallet" dialog (balance, payout requests, full wallet history)
+- [ ] Existing drivers' QR auto-upgraded to stylish per-driver referral QR (no re-registration)
+- [ ] Android v1.0.4: continuous loud voice alert until accept/decline (silent/vibrate bypass)
+- [ ] Android v1.0.4: in-app direct APK updater (no browser download)
+- [ ] Customer home extras inside existing UI: auto GPS pickup, mic voice search, live nearby drivers on map, per-vehicle ETA

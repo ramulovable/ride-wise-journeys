@@ -2115,3 +2115,82 @@ async function closeRideAssignment(rideId: string, riderId: string) {
     console.error("Route close-out failed", error);
   }
 }
+
+/** Admin: wallet balance and pending payout for every driver in one call. */
+export const getAdminRiderWalletSummaries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ riderIds: z.array(z.string().uuid()) }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    if (!data.riderIds.length) return [] as Array<{ riderId: string; balance: number; onHold: number }>;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [txnResult, withdrawalResult] = await Promise.all([
+      supabaseAdmin
+        .from("wallet_transactions")
+        .select("user_id, amount")
+        .in("user_id", data.riderIds),
+      supabaseAdmin
+        .from("withdrawal_requests")
+        .select("user_id, amount, status")
+        .in("user_id", data.riderIds)
+        .in("status", ["PENDING", "APPROVED", "PROCESSING"]),
+    ]);
+    const balances = new Map<string, number>();
+    for (const row of txnResult.data ?? []) {
+      balances.set(row.user_id, (balances.get(row.user_id) ?? 0) + Number(row.amount));
+    }
+    const holds = new Map<string, number>();
+    for (const row of withdrawalResult.data ?? []) {
+      holds.set(row.user_id, (holds.get(row.user_id) ?? 0) + Number(row.amount));
+    }
+    return data.riderIds.map((riderId) => ({
+      riderId,
+      balance: balances.get(riderId) ?? 0,
+      onHold: holds.get(riderId) ?? 0,
+    }));
+  });
+
+/** Admin: full wallet ledger and payout requests for one driver. */
+export const getAdminRiderWallet = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminRiderInput.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [profileResult, txnResult, withdrawalResult] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("full_name, mobile")
+        .eq("id", data.riderId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("wallet_transactions")
+        .select("id, type, amount, note, created_at")
+        .eq("user_id", data.riderId)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabaseAdmin
+        .from("withdrawal_requests")
+        .select("id, amount, upi_id, status, reference_utr, admin_note, created_at, processed_at")
+        .eq("user_id", data.riderId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+    const txns = (txnResult.data ?? []).map((row) => ({ ...row, amount: Number(row.amount) }));
+    const withdrawals = (withdrawalResult.data ?? []).map((row) => ({
+      ...row,
+      amount: Number(row.amount),
+    }));
+    const balance = txns.reduce((total, row) => total + row.amount, 0);
+    const onHold = withdrawals
+      .filter((row) => ["PENDING", "APPROVED", "PROCESSING"].includes(row.status))
+      .reduce((total, row) => total + row.amount, 0);
+    return {
+      name: profileResult.data?.full_name ?? "Driver",
+      mobile: profileResult.data?.mobile ?? null,
+      balance,
+      onHold,
+      transactions: txns,
+      withdrawals,
+    };
+  });

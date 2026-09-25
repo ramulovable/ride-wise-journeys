@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { BadgeCheck, Star } from "lucide-react";
+import { BadgeCheck, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
@@ -20,12 +20,16 @@ import {
   deleteRiderAccount,
   getAdminRiderProfile,
   getAdminRiderReviews,
+  getAdminRiderWallet,
+  getAdminRiderWalletSummaries,
   recordSubscription,
   setRiderApproval,
   setRiderBlocked,
   setRiderVerified,
 } from "@/lib/api.functions";
+import { formatDateTime, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import { WALLET_TXN_LABEL, WITHDRAWAL_STATUS_LABEL } from "@/lib/wallet";
 
 export const Route = createFileRoute("/_authenticated/admin/riders")({ component: Riders });
 
@@ -35,6 +39,7 @@ function Riders() {
   const [amount, setAmount] = useState("99");
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
   const [reviewsFor, setReviewsFor] = useState<string | null>(null);
+  const [walletFor, setWalletFor] = useState<string | null>(null);
 
   const riders = useQuery({
     queryKey: ["admin-riders"],
@@ -54,6 +59,14 @@ function Riders() {
       }));
     },
   });
+
+  const riderIds = (riders.data ?? []).map((r) => r.user_id);
+  const wallets = useQuery({
+    queryKey: ["admin-rider-wallets", riderIds.join(",")],
+    enabled: riderIds.length > 0,
+    queryFn: () => getAdminRiderWalletSummaries({ data: { riderIds } }),
+  });
+  const walletOf = (id: string) => wallets.data?.find((w) => w.riderId === id);
 
   async function run(fn: Promise<unknown>, message: string) {
     try {
@@ -96,6 +109,17 @@ function Riders() {
                     <p className="mt-1 text-xs">
                       Subscription: {r.subscription_valid_until || "not paid"}
                     </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                        <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+                        Wallet: {wallets.isPending ? "…" : rupees(walletOf(r.user_id)?.balance ?? 0)}
+                      </span>
+                      {(walletOf(r.user_id)?.onHold ?? 0) > 0 ? (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-700 dark:text-amber-400">
+                          Payout pending: {rupees(walletOf(r.user_id)!.onHold)}
+                        </span>
+                      ) : null}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -104,6 +128,10 @@ function Riders() {
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setReviewsFor(r.user_id)}>
                     Ratings &amp; reviews
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setWalletFor(r.user_id)}>
+                    <Wallet className="mr-1.5 h-4 w-4" />
+                    View wallet
                   </Button>
                   <Button
                     size="sm"
@@ -181,6 +209,7 @@ function Riders() {
 
       <RiderDetailsDialog riderId={detailsFor} onClose={() => setDetailsFor(null)} />
       <RiderReviewsDialog riderId={reviewsFor} onClose={() => setReviewsFor(null)} />
+      <RiderWalletDialog riderId={walletFor} onClose={() => setWalletFor(null)} />
     </AdminShell>
   );
 }
@@ -320,6 +349,98 @@ function RiderReviewsDialog({ riderId, onClose }: { riderId: string | null; onCl
                 ))}
               </div>
             )}
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RiderWalletDialog({ riderId, onClose }: { riderId: string | null; onClose: () => void }) {
+  const wallet = useQuery({
+    queryKey: ["admin-rider-wallet", riderId],
+    enabled: Boolean(riderId),
+    queryFn: () => getAdminRiderWallet({ data: { riderId: riderId! } }),
+  });
+
+  return (
+    <Dialog open={Boolean(riderId)} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Driver wallet</DialogTitle>
+          <DialogDescription>Balance, earnings history and payout requests.</DialogDescription>
+        </DialogHeader>
+        {wallet.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+        {wallet.data ? (
+          <div className="space-y-4 text-sm">
+            <div className="rounded-2xl border bg-muted/40 p-4">
+              <p className="font-semibold">{wallet.data.name}</p>
+              <p className="text-xs text-muted-foreground">{wallet.data.mobile || "—"}</p>
+              <p className="mt-3 text-3xl font-bold text-primary">{rupees(wallet.data.balance)}</p>
+              <p className="text-xs text-muted-foreground">Available balance</p>
+              {wallet.data.onHold > 0 ? (
+                <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  {rupees(wallet.data.onHold)} held for pending payout requests
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <h3 className="mb-2 font-semibold">Payout requests</h3>
+              {wallet.data.withdrawals.length === 0 ? (
+                <p className="text-muted-foreground">No payout requests yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {wallet.data.withdrawals.map((row) => (
+                    <li key={row.id} className="rounded-xl border p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium">{rupees(row.amount)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {WITHDRAWAL_STATUS_LABEL[row.status] ?? row.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">UPI: {row.upi_id}</p>
+                      {row.reference_utr ? (
+                        <p className="text-xs text-muted-foreground">UTR: {row.reference_utr}</p>
+                      ) : null}
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(row.created_at)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Process payments from the Withdrawals page.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 font-semibold">Wallet history</h3>
+              {wallet.data.transactions.length === 0 ? (
+                <p className="text-muted-foreground">No wallet activity yet.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {wallet.data.transactions.map((txn) => (
+                    <article key={txn.id} className="flex items-center justify-between gap-3 py-2">
+                      <div>
+                        <p className="font-medium">{WALLET_TXN_LABEL[txn.type] ?? txn.type}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {txn.note || formatDateTime(txn.created_at)}
+                        </p>
+                      </div>
+                      <span
+                        className={
+                          txn.amount < 0 ? "font-semibold text-destructive" : "font-semibold"
+                        }
+                      >
+                        {rupees(txn.amount)}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </DialogContent>

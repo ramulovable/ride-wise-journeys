@@ -11,6 +11,7 @@ import android.os.Build;
 public final class RideAlertNotifier {
 
     public static final String RIDE_CHANNEL_ID = "shahin_ride_requests";
+    public static final String RIDE_VOICE_CHANNEL_ID = "shahin_ride_voice";
     public static final String GENERAL_CHANNEL_ID = "shahin_general";
 
     private RideAlertNotifier() {}
@@ -37,6 +38,20 @@ public final class RideAlertNotifier {
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build());
         manager.createNotificationChannel(ride);
+
+        // v1.0.4: silent full-screen channel — the voice service plays the sound
+        // on the ALARM stream, so the banner itself must not ring over it.
+        NotificationChannel voice = new NotificationChannel(
+            RIDE_VOICE_CHANNEL_ID,
+            "Ride requests (voice)",
+            NotificationManager.IMPORTANCE_HIGH
+        );
+        voice.setDescription("Full-screen ride offer with spoken pickup, drop and fare");
+        voice.enableVibration(false);
+        voice.setSound(null, null);
+        voice.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+        voice.setBypassDnd(true);
+        manager.createNotificationChannel(voice);
 
         NotificationChannel general = new NotificationChannel(
             GENERAL_CHANNEL_ID,

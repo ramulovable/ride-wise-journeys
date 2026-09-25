@@ -37,15 +37,40 @@ public class ShahinFirebaseMessagingService extends FirebaseMessagingService {
             if (message.getNotification().getBody() != null) body = message.getNotification().getBody();
         }
 
+        if ("ride_taken".equals(type) || "ride_cancelled".equals(type) || "ride_expired".equals(type)) {
+            RideVoiceService.stop(this);
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.cancel(1001);
+            return;
+        }
+
         boolean isRideOffer = "ride_offer".equals(type) || data.containsKey("ride_id");
         if (isRideOffer) {
-            showRideAlert(data.get("ride_id"), title, body, data.get("path"));
+            showRideAlert(data, data.get("ride_id"), title, body, data.get("path"));
         } else {
             showSimple(title, body, data.get("path"));
         }
     }
 
-    private void showRideAlert(String rideId, String title, String body, String path) {
+    /** Builds the Hindi announcement with pickup, drop and fare. */
+    private static String buildSpeech(Map<String, String> data, String body) {
+        String pickup = data.get("pickup");
+        String drop = data.get("drop");
+        if (drop == null) drop = data.get("destination");
+        String fare = data.get("fare");
+        StringBuilder sb = new StringBuilder("Shahin Travels. Nayi ride request. ");
+        if (pickup != null && !pickup.isEmpty()) {
+            sb.append("Pickup, ").append(pickup).append(". ");
+            if (drop != null && !drop.isEmpty()) sb.append("Drop, ").append(drop).append(". ");
+            if (fare != null && !fare.isEmpty()) sb.append("Kiraya ").append(fare.replace("₹", "")).append(" rupaye. ");
+        } else if (body != null && !body.isEmpty()) {
+            sb.append(body.replace("•", ",").replace("→", " se ").replace("₹", "").replace("Rs", "rupaye")).append(". ");
+        }
+        sb.append("Accept karne ke liye screen dabayein.");
+        return sb.toString();
+    }
+
+    private void showRideAlert(Map<String, String> data, String rideId, String title, String body, String path) {
         Intent full = new Intent(this, RideAlertActivity.class);
         full.putExtra(RideAlertActivity.EXTRA_RIDE_ID, rideId == null ? "" : rideId);
         full.putExtra(RideAlertActivity.EXTRA_TITLE, title);
@@ -56,21 +81,38 @@ public class ShahinFirebaseMessagingService extends FirebaseMessagingService {
         PendingIntent fullScreen = PendingIntent.getActivity(
             this, 1001, full, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Notification notification = new NotificationCompat.Builder(this, RideAlertNotifier.RIDE_CHANNEL_ID)
+        Notification notification = new NotificationCompat.Builder(this, RideAlertNotifier.RIDE_VOICE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_directions)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSilent(true)
             .setAutoCancel(true)
-            .setOngoing(false)
+            .setOngoing(true)
             .setContentIntent(fullScreen)
             .setFullScreenIntent(fullScreen, true)
             .build();
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager != null) manager.notify(1001, notification);
+        int timeout = 60;
+        try {
+            String t = data.get("timeout");
+            if (t == null) t = data.get("expires_in");
+            if (t != null) timeout = Integer.parseInt(t.trim());
+        } catch (Throwable ignored) {
+        }
+
+        boolean voiceStarted = false;
+        try {
+            RideVoiceService.start(this, buildSpeech(data, body), timeout, notification);
+            voiceStarted = true;
+        } catch (Throwable ignored) {
+        }
+        if (!voiceStarted) {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.notify(1001, notification);
+        }
 
         // Wake the screen so the alert is visible even when the phone is locked.
         try {

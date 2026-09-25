@@ -120,6 +120,21 @@ export function NearbyDriversMap({
       return;
     }
     const position = { lat: me.lat, lng: me.lng };
+    const prev = lastMe.current;
+    let rotation = lastHeading.current;
+    if (typeof me.heading === "number" && !Number.isNaN(me.heading)) {
+      rotation = me.heading;
+    } else if (prev && (prev.lat !== position.lat || prev.lng !== position.lng)) {
+      const toRad = Math.PI / 180;
+      const dLng = (position.lng - prev.lng) * toRad;
+      const y = Math.sin(dLng) * Math.cos(position.lat * toRad);
+      const x =
+        Math.cos(prev.lat * toRad) * Math.sin(position.lat * toRad) -
+        Math.sin(prev.lat * toRad) * Math.cos(position.lat * toRad) * Math.cos(dLng);
+      rotation = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+    }
+    lastHeading.current = rotation;
+    lastMe.current = position;
     const arrowIcon = {
       path: api.SymbolPath["FORWARD_CLOSED_ARROW"],
       scale: 5,
@@ -127,7 +142,7 @@ export function NearbyDriversMap({
       fillOpacity: 1,
       strokeColor: "#ffffff",
       strokeWeight: 2,
-      rotation: typeof me.heading === "number" && !Number.isNaN(me.heading) ? me.heading : 0,
+      rotation,
     };
     if (!haloMarker.current) {
       haloMarker.current = new api.Marker({

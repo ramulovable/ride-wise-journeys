@@ -29,6 +29,9 @@ export function NearbyDriversMap({
   const overlays = useRef<MapObj[]>([]);
   const meMarker = useRef<MarkerObj | null>(null);
   const haloMarker = useRef<MarkerObj | null>(null);
+  const lastMe = useRef<Point | null>(null);
+  const lastHeading = useRef(0);
+  const centeredOnMe = useRef(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
 

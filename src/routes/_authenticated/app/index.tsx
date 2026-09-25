@@ -311,12 +311,13 @@ function BookPage() {
                 </div>
               </div>
 
-              {pickupPoint ? (
+              {pickupPoint || myPosition ? (
                 <div className="space-y-1">
                   <NearbyDriversMap
                     pickup={pickupPoint}
                     drop={dropPoint}
                     drivers={nearby.data?.drivers ?? []}
+                    me={myPosition}
                   />
                   {nearby.isSuccess ? (
                     <p className="text-[11px] text-muted-foreground">

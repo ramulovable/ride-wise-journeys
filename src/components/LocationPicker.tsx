@@ -243,33 +243,33 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-/** Microphone button: speak the place name instead of typing (Hindi / English). */
-function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
+/** Shared voice search: native Android recognizer, else the browser Speech API. */
+export function useVoiceSearch(onText: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
-
-  const nativeVoice = () =>
-    (window as unknown as { ShahinNative?: { startVoiceSearch?: (lang: string) => void } })
-      .ShahinNative;
+  const onTextRef = useRef(onText);
+  onTextRef.current = onText;
 
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>;
-    const hasNative = typeof nativeVoice()?.startVoiceSearch === "function";
+    const native = (window as unknown as { ShahinNative?: { startVoiceSearch?: unknown } })
+      .ShahinNative;
+    const hasNative = typeof native?.startVoiceSearch === "function";
     setSupported(hasNative || Boolean(w["SpeechRecognition"] || w["webkitSpeechRecognition"]));
     return () => recRef.current?.stop();
   }, []);
 
-  if (!supported) return null;
-
-  function toggle() {
-    const native = nativeVoice();
+  const start = useCallback(() => {
+    const native = (
+      window as unknown as { ShahinNative?: { startVoiceSearch?: (lang: string) => void } }
+    ).ShahinNative;
     if (typeof native?.startVoiceSearch === "function") {
       const handler = (e: Event) => {
         window.removeEventListener("shahin-voice-result", handler);
         setListening(false);
         const text = String((e as CustomEvent).detail ?? "").trim();
-        if (text) onText(text);
+        if (text) onTextRef.current(text);
       };
       window.addEventListener("shahin-voice-result", handler);
       setListening(true);
@@ -294,7 +294,7 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
     rec.maxAlternatives = 1;
     rec.onresult = (event) => {
       const text = event.results[0]?.[0]?.transcript;
-      if (text) onText(text.trim());
+      if (text) onTextRef.current(text.trim());
     };
     rec.onerror = () => setListening(false);
     rec.onend = () => setListening(false);
@@ -305,18 +305,26 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
     } catch {
       setListening(false);
     }
-  }
+  }, [listening]);
 
+  return { supported, listening, start };
+}
+
+/** Microphone button: speak the place name instead of typing (Hindi / English). */
+function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
+  const { supported, listening, start } = useVoiceSearch(onText);
+  if (!supported) return null;
   return (
     <Button
       type="button"
       variant={listening ? "default" : "ghost"}
       size="icon"
       className={cn("size-8 shrink-0 rounded-full", listening && "animate-pulse")}
-      onClick={toggle}
+      onClick={start}
       aria-label={listening ? "Stop voice search" : "Search by voice"}
     >
       <Mic className="size-4" />
     </Button>
   );
 }
+

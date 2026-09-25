@@ -598,26 +598,6 @@ function BookPage() {
           </section>
         )}
 
-        <section className="grid grid-cols-5 gap-2">
-          {[
-            { to: "/app/rides", label: "My Rides", icon: <ClipboardList className="h-5 w-5" /> },
-            {
-              to: "/fares",
-              label: "Fare Details",
-              icon: <BadgeIndianRupee className="h-5 w-5" />,
-            },
-            { to: "/wallet", label: "Wallet", icon: <WalletIcon className="h-5 w-5" /> },
-            { to: "/support", label: "Help & Support", icon: <LifeBuoy className="h-5 w-5" /> },
-            { to: "/profile", label: "My Profile", icon: <UserRound className="h-5 w-5" /> },
-          ].map((item) => (
-            <Link key={item.to} to={item.to} className="flex flex-col items-center gap-1.5">
-              <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                {item.icon}
-              </span>
-              <span className="text-center text-[11px] text-muted-foreground">{item.label}</span>
-            </Link>
-          ))}
-        </section>
 
         <Link
           to="/"

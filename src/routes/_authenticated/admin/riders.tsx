@@ -129,6 +129,10 @@ function Riders() {
                   <Button size="sm" variant="outline" onClick={() => setReviewsFor(r.user_id)}>
                     Ratings &amp; reviews
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setWalletFor(r.user_id)}>
+                    <Wallet className="mr-1.5 h-4 w-4" />
+                    View wallet
+                  </Button>
                   <Button
                     size="sm"
                     variant={r.is_verified ? "secondary" : "outline"}

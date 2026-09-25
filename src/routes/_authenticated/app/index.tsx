@@ -1,27 +1,27 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { LocateFixed } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
 import { NearbyDriversMap } from "@/components/NearbyDriversMap";
 import { toast } from "sonner";
 import {
-  ArrowLeftRight,
   ArrowRight,
   BadgeIndianRupee,
   ClipboardList,
+  Clock,
   LifeBuoy,
+  LocateFixed,
+  Mic,
   Minus,
   Plus,
   RouteIcon,
+  Search,
   UserRound,
   Wallet as WalletIcon,
 } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
-import { IstClock } from "@/components/IstClock";
-import { LocationPicker } from "@/components/LocationPicker";
-import { PromoCarousel } from "@/components/PromoCarousel";
+import { LocationPicker, useVoiceSearch } from "@/components/LocationPicker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchCategories, fetchLocations, type Location } from "@/lib/data";
@@ -30,6 +30,7 @@ import { resolveVehicleImage, useVehicleImages } from "@/lib/vehicleImages";
 import { rupees } from "@/lib/format";
 import { createBooking, getFareOptions } from "@/lib/api.functions";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({

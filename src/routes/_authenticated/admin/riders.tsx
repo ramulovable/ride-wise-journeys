@@ -60,6 +60,14 @@ function Riders() {
     },
   });
 
+  const riderIds = (riders.data ?? []).map((r) => r.user_id);
+  const wallets = useQuery({
+    queryKey: ["admin-rider-wallets", riderIds.join(",")],
+    enabled: riderIds.length > 0,
+    queryFn: () => getAdminRiderWalletSummaries({ data: { riderIds } }),
+  });
+  const walletOf = (id: string) => wallets.data?.find((w) => w.riderId === id);
+
   async function run(fn: Promise<unknown>, message: string) {
     try {
       await fn;

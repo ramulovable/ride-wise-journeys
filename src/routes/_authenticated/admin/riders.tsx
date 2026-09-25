@@ -355,3 +355,95 @@ function RiderReviewsDialog({ riderId, onClose }: { riderId: string | null; onCl
     </Dialog>
   );
 }
+
+function RiderWalletDialog({ riderId, onClose }: { riderId: string | null; onClose: () => void }) {
+  const wallet = useQuery({
+    queryKey: ["admin-rider-wallet", riderId],
+    enabled: Boolean(riderId),
+    queryFn: () => getAdminRiderWallet({ data: { riderId: riderId! } }),
+  });
+
+  return (
+    <Dialog open={Boolean(riderId)} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Driver wallet</DialogTitle>
+          <DialogDescription>Balance, earnings history and payout requests.</DialogDescription>
+        </DialogHeader>
+        {wallet.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+        {wallet.data ? (
+          <div className="space-y-4 text-sm">
+            <div className="rounded-2xl border bg-muted/40 p-4">
+              <p className="font-semibold">{wallet.data.name}</p>
+              <p className="text-xs text-muted-foreground">{wallet.data.mobile || "—"}</p>
+              <p className="mt-3 text-3xl font-bold text-primary">{rupees(wallet.data.balance)}</p>
+              <p className="text-xs text-muted-foreground">Available balance</p>
+              {wallet.data.onHold > 0 ? (
+                <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  {rupees(wallet.data.onHold)} held for pending payout requests
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <h3 className="mb-2 font-semibold">Payout requests</h3>
+              {wallet.data.withdrawals.length === 0 ? (
+                <p className="text-muted-foreground">No payout requests yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {wallet.data.withdrawals.map((row) => (
+                    <li key={row.id} className="rounded-xl border p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium">{rupees(row.amount)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {WITHDRAWAL_STATUS_LABEL[row.status] ?? row.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">UPI: {row.upi_id}</p>
+                      {row.reference_utr ? (
+                        <p className="text-xs text-muted-foreground">UTR: {row.reference_utr}</p>
+                      ) : null}
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(row.created_at)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Process payments from the Withdrawals page.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 font-semibold">Wallet history</h3>
+              {wallet.data.transactions.length === 0 ? (
+                <p className="text-muted-foreground">No wallet activity yet.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {wallet.data.transactions.map((txn) => (
+                    <article key={txn.id} className="flex items-center justify-between gap-3 py-2">
+                      <div>
+                        <p className="font-medium">{WALLET_TXN_LABEL[txn.type] ?? txn.type}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {txn.note || formatDateTime(txn.created_at)}
+                        </p>
+                      </div>
+                      <span
+                        className={
+                          txn.amount < 0 ? "font-semibold text-destructive" : "font-semibold"
+                        }
+                      >
+                        {rupees(txn.amount)}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}

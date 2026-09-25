@@ -209,6 +209,7 @@ function Riders() {
 
       <RiderDetailsDialog riderId={detailsFor} onClose={() => setDetailsFor(null)} />
       <RiderReviewsDialog riderId={reviewsFor} onClose={() => setReviewsFor(null)} />
+      <RiderWalletDialog riderId={walletFor} onClose={() => setWalletFor(null)} />
     </AdminShell>
   );
 }

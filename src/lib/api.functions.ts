@@ -1005,6 +1005,19 @@ async function deliverPush(args: {
     .in("user_id", userIds);
   if (!devices?.length) return;
 
+  const isOffer = !("stage" in payloadData);
+  const str = (v: unknown) => (v == null ? "" : String(v));
+  const pushData: Record<string, string> = {
+    type: isOffer ? "ride_offer" : "ride_update",
+    path,
+    bookingId: rideId,
+    title,
+    body,
+    timeout: "60",
+  };
+  for (const [k, v] of Object.entries(payloadData)) pushData[k] = str(v);
+  if (isOffer) pushData["ride_id"] = rideId;
+
   await Promise.all(
     devices.map(async (device) => {
       const response = await fetch(
@@ -1019,18 +1032,10 @@ async function deliverPush(args: {
           body: JSON.stringify({
             message: {
               token: device.push_token,
-              notification: { title, body },
-              data: { path, bookingId: rideId, title, body },
-              android: {
-                priority: "HIGH",
-                notification: {
-                  sound: "default",
-                  default_vibrate_timings: false,
-                  vibrate_timings: ["0s", "0.5s", "0.3s", "0.5s"],
-                  channel_id: "ride_alerts",
-                  notification_priority: "PRIORITY_MAX",
-                },
-              },
+              // DATA-only for Android so the app's own service runs even when
+              // closed/locked and starts the loud voice alert (alarm stream).
+              data: pushData,
+              android: { priority: "HIGH", ttl: "120s" },
               apns: {
                 headers: { "apns-priority": "10" },
                 payload: { aps: { sound: "default", "interruption-level": "time-sensitive" } },

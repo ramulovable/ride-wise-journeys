@@ -88,6 +88,33 @@ public class MainActivity extends BridgeActivity {
         });
     }
 
+    @Override
+    @SuppressWarnings("deprecation")
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != NativePermissions.VOICE_REQUEST) return;
+        String text = "";
+        try {
+            if (resultCode == RESULT_OK && data != null) {
+                java.util.ArrayList<String> r =
+                    data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);
+                if (r != null && !r.isEmpty() && r.get(0) != null) text = r.get(0);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "voice result failed", t);
+        }
+        sendVoiceResult(text);
+    }
+
+    /** Sends recognized speech (or "" on cancel) back to the web app. */
+    public void sendVoiceResult(String text) {
+        if (getBridge() == null) return;
+        final WebView webView = getBridge().getWebView();
+        if (webView == null) return;
+        final String js = "window.dispatchEvent(new CustomEvent('shahin-voice-result',{detail:"
+            + JSONUtil.quote(text == null ? "" : text) + "}));";
+        webView.post(() -> webView.evaluateJavascript(js, null));
+    }
 
     /** Opens a specific in-app screen when the user taps a ride alert. */
 

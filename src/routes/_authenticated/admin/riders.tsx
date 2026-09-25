@@ -109,6 +109,17 @@ function Riders() {
                     <p className="mt-1 text-xs">
                       Subscription: {r.subscription_valid_until || "not paid"}
                     </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                        <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+                        Wallet: {wallets.isPending ? "…" : rupees(walletOf(r.user_id)?.balance ?? 0)}
+                      </span>
+                      {(walletOf(r.user_id)?.onHold ?? 0) > 0 ? (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-700 dark:text-amber-400">
+                          Payout pending: {rupees(walletOf(r.user_id)!.onHold)}
+                        </span>
+                      ) : null}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">

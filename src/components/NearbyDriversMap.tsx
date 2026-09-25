@@ -16,11 +16,15 @@ export function NearbyDriversMap({
   drop,
   drivers,
   me,
+  onPick,
+  className,
 }: {
   pickup: Point | null;
   drop: Point | null;
   drivers: Point[];
   me?: MePoint | null;
+  onPick?: (point: Point) => void;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   type Api = Awaited<ReturnType<typeof loadMaps>>;
@@ -32,6 +36,8 @@ export function NearbyDriversMap({
   const lastMe = useRef<Point | null>(null);
   const lastHeading = useRef(0);
   const centeredOnMe = useRef(false);
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
 
@@ -41,12 +47,23 @@ export function NearbyDriversMap({
       .then((api) => {
         if (cancelled || !ref.current || mapRef.current) return;
         apiRef.current = api;
-        mapRef.current = new api.Map(ref.current, {
+        const map = new api.Map(ref.current, {
           center: pickup ?? (me ? { lat: me.lat, lng: me.lng } : { lat: 26.1542, lng: 85.8918 }),
           zoom: 15,
           disableDefaultUI: true,
-          gestureHandling: "cooperative",
+          // One finger pans and zooms, exactly like other ride apps.
+          gestureHandling: "greedy",
+          clickableIcons: false,
         });
+        mapRef.current = map;
+        (map as unknown as { addListener: (e: string, cb: (ev: unknown) => void) => void }).addListener(
+          "click",
+          (event: unknown) => {
+            const latLng = (event as { latLng?: { lat: () => number; lng: () => number } })?.latLng;
+            if (!latLng || !onPickRef.current) return;
+            onPickRef.current({ lat: latLng.lat(), lng: latLng.lng() });
+          },
+        );
         setReady(true);
       })
       .catch(() => setError(true));
@@ -55,6 +72,7 @@ export function NearbyDriversMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   useEffect(() => {
     const api = apiRef.current;

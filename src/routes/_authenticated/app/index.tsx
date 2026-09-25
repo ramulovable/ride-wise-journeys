@@ -1,6 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LocateFixed } from "lucide-react";
+import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
+import { NearbyDriversMap } from "@/components/NearbyDriversMap";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
@@ -96,6 +99,94 @@ function BookPage() {
     setSelection(null);
   }
 
+  const pickupLoc = allLocations.find((l) => l.id === fromId) ?? null;
+  const dropLoc = allLocations.find((l) => l.id === toId) ?? null;
+  const pickupPoint =
+    pickupLoc?.latitude != null && pickupLoc?.longitude != null
+      ? { lat: Number(pickupLoc.latitude), lng: Number(pickupLoc.longitude) }
+      : null;
+  const dropPoint =
+    dropLoc?.latitude != null && dropLoc?.longitude != null
+      ? { lat: Number(dropLoc.latitude), lng: Number(dropLoc.longitude) }
+      : null;
+  const nearby = useQuery({
+    queryKey: ["nearby-drivers", pickupPoint?.lat, pickupPoint?.lng],
+    enabled: Boolean(pickupPoint),
+    queryFn: () =>
+      getNearbyDrivers({ data: { latitude: pickupPoint!.lat, longitude: pickupPoint!.lng } }),
+    refetchInterval: 30_000,
+  });
+  const etaByCategory = useMemo(
+    () => new Map((nearby.data?.etas ?? []).map((e) => [e.categoryId, e])),
+    [nearby.data],
+  );
+
+  const [locating, setLocating] = useState(false);
+  const autoTried = useRef(false);
+
+  function useMyLocation(silent: boolean) {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      if (!silent) toast.error("GPS is not available on this phone.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const place = await nearestPlaceForGps({
+            data: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+          });
+          if (!place) {
+            if (!silent) toast.error("Could not find a place near you. Please search pickup.");
+            return;
+          }
+          const loc = await selectIndiaPlace({
+            data: { placeId: place.placeId, sessionToken: crypto.randomUUID() },
+          });
+          selectLocation(
+            {
+              id: loc.id,
+              name: loc.name,
+              area: loc.area,
+              formattedAddress: loc.formatted_address,
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              source: "google",
+              pinCode: null,
+              isActive: loc.is_active,
+              label: loc.formatted_address || loc.area || loc.name,
+            } as Location,
+            "from",
+          );
+        } catch (error) {
+          if (!silent) toast.error(error instanceof Error ? error.message : "Could not use GPS.");
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        if (!silent) toast.error("Please allow location to use your current position.");
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  }
+
+  // Auto-fill pickup from GPS once (only if permission is already granted).
+  useEffect(() => {
+    if (autoTried.current || fromId) return;
+    autoTried.current = true;
+    const perms = (navigator as Navigator & { permissions?: Permissions }).permissions;
+    if (!perms?.query) return;
+    perms
+      .query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (status.state === "granted") useMyLocation(true);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function bookRide() {
     if (!selection) {
       toast.error("Choose a vehicle type first.");
@@ -160,6 +251,15 @@ function BookPage() {
                       onChange={(location) => selectLocation(location, "from")}
                       placeholder="Search pickup anywhere in India"
                     />
+                    <button
+                      type="button"
+                      onClick={() => useMyLocation(false)}
+                      disabled={locating}
+                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary"
+                    >
+                      <LocateFixed className="size-3.5" />
+                      {locating ? "Finding your location…" : "Use my current location"}
+                    </button>
                   </div>
                   <div>
                     <p className="text-[11px] font-medium uppercase text-muted-foreground">
@@ -189,6 +289,23 @@ function BookPage() {
                   </Button>
                 </div>
               </div>
+
+              {pickupPoint ? (
+                <div className="space-y-1">
+                  <NearbyDriversMap
+                    pickup={pickupPoint}
+                    drop={dropPoint}
+                    drivers={nearby.data?.drivers ?? []}
+                  />
+                  {nearby.isSuccess ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      {nearby.data.drivers.length > 0
+                        ? `${nearby.data.drivers.length} driver aapke paas online hain`
+                        : "Abhi paas me koi driver online nahi dikh raha"}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               {routeReady ? (
                 <div className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm">
@@ -318,6 +435,11 @@ function BookPage() {
                           ? `Seats ${category.seat_capacity} only`
                           : ((option?.fares ?? [])[0]?.reason ??
                             "Fare currently unavailable for this vehicle")}
+                      </span>
+                    ) : null}
+                    {etaByCategory.get(category.id) ? (
+                      <span className="text-[11px] font-medium text-foreground">
+                        {etaByCategory.get(category.id)!.etaMinutes} min door
                       </span>
                     ) : null}
                     {selected && best?.nightPricingApplied ? (

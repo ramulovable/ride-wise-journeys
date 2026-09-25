@@ -42,7 +42,7 @@ async function resolveBrowserKey(): Promise<{ key: string; trackingId: string | 
   throw new Error("Map is not configured yet.");
 }
 
-function loadMaps(): Promise<MapsApi> {
+export function loadMaps(): Promise<MapsApi> {
   if (mapsPromise) return mapsPromise;
   mapsPromise = (async () => {
     const { key, trackingId } = await resolveBrowserKey();

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronsUpDown, LoaderCircle, MapPin, Search } from "lucide-react";
+import { Check, ChevronsUpDown, LoaderCircle, MapPin, Mic, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -137,6 +137,7 @@ export function LocationPicker({
             className="h-11 border-0 px-0 shadow-none focus-visible:ring-0"
             autoFocus
           />
+          <VoiceSearchButton onText={setQuery} />
         </div>
         <div className="max-h-72 overflow-y-auto p-1">
           {presetMatches.length > 0 ? (
@@ -200,5 +201,71 @@ export function LocationPicker({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+/** Microphone button: speak the place name instead of typing (Hindi / English). */
+function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const recRef = useRef<SpeechRecognitionLike | null>(null);
+
+  useEffect(() => {
+    const w = window as unknown as Record<string, unknown>;
+    setSupported(Boolean(w["SpeechRecognition"] || w["webkitSpeechRecognition"]));
+    return () => recRef.current?.stop();
+  }, []);
+
+  if (!supported) return null;
+
+  function toggle() {
+    if (listening) {
+      recRef.current?.stop();
+      return;
+    }
+    const w = window as unknown as Record<string, new () => SpeechRecognitionLike>;
+    const Ctor = w["SpeechRecognition"] || w["webkitSpeechRecognition"];
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.lang = "hi-IN";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript;
+      if (text) onText(text.trim());
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    recRef.current = rec;
+    setListening(true);
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant={listening ? "default" : "ghost"}
+      size="icon"
+      className={cn("size-8 shrink-0 rounded-full", listening && "animate-pulse")}
+      onClick={toggle}
+      aria-label={listening ? "Stop voice search" : "Search by voice"}
+    >
+      <Mic className="size-4" />
+    </Button>
   );
 }

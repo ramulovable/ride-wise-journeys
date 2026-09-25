@@ -2194,3 +2194,99 @@ export const getAdminRiderWallet = createServerFn({ method: "GET" })
       withdrawals,
     };
   });
+
+/** Finds the nearest named place to the customer's GPS position (auto pickup). */
+export const nearestPlaceForGps = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z
+      .object({ latitude: z.number().min(6).max(38), longitude: z.number().min(68).max(98) })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/places/v1/places:searchNearby`, {
+      method: "POST",
+      headers: googleHeaders("places.id,places.displayName"),
+      body: JSON.stringify({
+        maxResultCount: 1,
+        rankPreference: "DISTANCE",
+        locationRestriction: {
+          circle: { center: { latitude: data.latitude, longitude: data.longitude }, radius: 300 },
+        },
+      }),
+    });
+    if (!response.ok) await throwGoogleError(response);
+    const payload = (await response.json()) as {
+      places?: Array<{ id?: string; displayName?: { text?: string } }>;
+    };
+    const place = payload.places?.[0];
+    if (!place?.id) return null;
+    return { placeId: place.id, label: place.displayName?.text ?? "Current location" };
+  });
+
+/**
+ * Customer home: online drivers near a pickup point. Returns approximate
+ * positions (no driver identity) and, per vehicle type, the nearest distance
+ * and an ETA estimate for the vehicle cards.
+ */
+export const getNearbyDrivers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z
+      .object({ latitude: z.number().min(6).max(38), longitude: z.number().min(68).max(98) })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const since = new Date(Date.now() - 60 * 60_000).toISOString();
+    const { data: presence } = await supabaseAdmin
+      .from("rider_presence")
+      .select("current_latitude, current_longitude, active_vehicle_id, active_ride_id, status")
+      .eq("status", "online")
+      .is("active_ride_id", null)
+      .gte("last_location_at", since)
+      .not("current_latitude", "is", null)
+      .limit(300);
+    const rows = presence ?? [];
+    const vehicleIds = rows.map((r) => r.active_vehicle_id).filter((v): v is string => Boolean(v));
+    const { data: vehicles } = vehicleIds.length
+      ? await supabaseAdmin
+          .from("rider_vehicles")
+          .select("id, vehicle_category_id")
+          .in("id", vehicleIds)
+      : { data: [] as { id: string; vehicle_category_id: string }[] };
+    const catOf = new Map((vehicles ?? []).map((v) => [v.id, v.vehicle_category_id]));
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const km = (lat: number, lng: number) => {
+      const dLat = toRad(lat - data.latitude);
+      const dLng = toRad(lng - data.longitude);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(data.latitude)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
+      return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+    const drivers: { lat: number; lng: number; categoryId: string | null }[] = [];
+    const nearest = new Map<string, { km: number; count: number }>();
+    for (const r of rows) {
+      const lat = r.current_latitude as number;
+      const lng = r.current_longitude as number;
+      const dist = km(lat, lng);
+      if (dist > 10) continue;
+      const categoryId = r.active_vehicle_id ? (catOf.get(r.active_vehicle_id) ?? null) : null;
+      // ~100 m rounding so exact driver positions are not exposed.
+      drivers.push({ lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000, categoryId });
+      if (categoryId) {
+        const cur = nearest.get(categoryId);
+        nearest.set(categoryId, {
+          km: cur ? Math.min(cur.km, dist) : dist,
+          count: (cur?.count ?? 0) + 1,
+        });
+      }
+    }
+    const etas = [...nearest.entries()].map(([categoryId, v]) => ({
+      categoryId,
+      count: v.count,
+      etaMinutes: Math.max(2, Math.round((v.km * 1.3) / 22 * 60) + 1),
+    }));
+    return { drivers: drivers.slice(0, 60), etas };
+  });

@@ -120,9 +120,31 @@ function BookPage() {
     () => new Map((nearby.data?.etas ?? []).map((e) => [e.categoryId, e])),
     [nearby.data],
   );
+  const fallbackEta = nearby.data?.fallbackEtaMinutes ?? 5;
 
   const [locating, setLocating] = useState(false);
   const autoTried = useRef(false);
+  const [myPosition, setMyPosition] = useState<{
+    lat: number;
+    lng: number;
+    heading?: number | null;
+  } | null>(null);
+
+  // Live blue arrow: follow the phone's own position while the page is open.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) =>
+        setMyPosition({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          heading: pos.coords.heading,
+        }),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
 
   function useMyLocation(silent: boolean) {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -290,12 +312,13 @@ function BookPage() {
                 </div>
               </div>
 
-              {pickupPoint ? (
+              {pickupPoint || myPosition ? (
                 <div className="space-y-1">
                   <NearbyDriversMap
                     pickup={pickupPoint}
                     drop={dropPoint}
                     drivers={nearby.data?.drivers ?? []}
+                    me={myPosition}
                   />
                   {nearby.isSuccess ? (
                     <p className="text-[11px] text-muted-foreground">
@@ -441,7 +464,11 @@ function BookPage() {
                       <span className="text-[11px] font-medium text-foreground">
                         {etaByCategory.get(category.id)!.etaMinutes} min door
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        ~{fallbackEta}–{fallbackEta + 2} min door
+                      </span>
+                    )}
                     {selected && best?.nightPricingApplied ? (
                       <span className="text-[11px] font-medium text-primary">
                         Night fare applied

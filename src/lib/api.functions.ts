@@ -2288,5 +2288,12 @@ export const getNearbyDrivers = createServerFn({ method: "POST" })
       count: v.count,
       etaMinutes: Math.max(2, Math.round((v.km * 1.3) / 22 * 60) + 1),
     }));
-    return { drivers: drivers.slice(0, 60), etas };
+    // Fallback estimate for categories with no live driver right now, so the
+    // vehicle cards always show a realistic pickup time instead of blank.
+    const allDistances = [...nearest.values()].map((v) => v.km);
+    const avgKm = allDistances.length
+      ? allDistances.reduce((a, b) => a + b, 0) / allDistances.length
+      : 2.5;
+    const fallbackEtaMinutes = Math.max(4, Math.round((avgKm * 1.3) / 22 * 60) + 3);
+    return { drivers: drivers.slice(0, 60), etas, fallbackEtaMinutes };
   });

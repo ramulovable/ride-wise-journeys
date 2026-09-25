@@ -6,19 +6,14 @@ import { NearbyDriversMap } from "@/components/NearbyDriversMap";
 import { toast } from "sonner";
 import {
   ArrowRight,
-  BadgeIndianRupee,
-  ClipboardList,
-  Clock,
-  LifeBuoy,
   LocateFixed,
   Mic,
   Minus,
   Plus,
   RouteIcon,
   Search,
-  UserRound,
-  Wallet as WalletIcon,
 } from "lucide-react";
+
 import { CustomerShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
 import { LocationPicker, useVoiceSearch } from "@/components/LocationPicker";

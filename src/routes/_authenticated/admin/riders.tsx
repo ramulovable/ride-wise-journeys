@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { BadgeCheck, Star } from "lucide-react";
+import { BadgeCheck, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
@@ -20,12 +20,16 @@ import {
   deleteRiderAccount,
   getAdminRiderProfile,
   getAdminRiderReviews,
+  getAdminRiderWallet,
+  getAdminRiderWalletSummaries,
   recordSubscription,
   setRiderApproval,
   setRiderBlocked,
   setRiderVerified,
 } from "@/lib/api.functions";
+import { formatDateTime, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import { WALLET_TXN_LABEL, WITHDRAWAL_STATUS_LABEL } from "@/lib/wallet";
 
 export const Route = createFileRoute("/_authenticated/admin/riders")({ component: Riders });
 

@@ -25,7 +25,7 @@ function VehicleScan() {
   useEffect(() => {
     if (!info?.referralCode) return;
     try {
-      window.localStorage.setItem("shahin_ref", info.referralCode);
+      window.localStorage.setItem("shahin_referral_code", info.referralCode);
     } catch {
       // storage blocked
     }

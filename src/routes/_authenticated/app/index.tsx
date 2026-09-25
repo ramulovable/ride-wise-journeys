@@ -185,7 +185,7 @@ function BookPage() {
 
   function useMyLocation(silent: boolean) {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      if (!silent) toast.error("GPS is not available on this phone.");
+      if (!silent) toast.error("इस फ़ोन में GPS उपलब्ध नहीं है।");
       return;
     }
     setLocating(true);
@@ -196,7 +196,7 @@ function BookPage() {
             data: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
           });
           if (!place) {
-            if (!silent) toast.error("Could not find a place near you. Please search pickup.");
+            if (!silent) toast.error("आपकी लोकेशन नहीं मिल पाई। कृपया पिकअप सर्च करें।");
             return;
           }
           const loc = await selectIndiaPlace({
@@ -218,16 +218,30 @@ function BookPage() {
             "from",
           );
         } catch (error) {
-          if (!silent) toast.error(error instanceof Error ? error.message : "Could not use GPS.");
+          if (!silent) {
+            toast.error(error instanceof Error ? error.message : "GPS से लोकेशन नहीं मिल पाई।");
+          }
         } finally {
           setLocating(false);
         }
       },
-      () => {
+      (error) => {
         setLocating(false);
-        if (!silent) toast.error("Please allow location to use your current position.");
+        if (silent) return;
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error(
+            "कृपया ऐप को लोकेशन की अनुमति दें: Settings > Apps > Shahin Travels > Permissions > Location > Allow.",
+            { duration: 8000 },
+          );
+          return;
+        }
+        if (error.code === error.TIMEOUT) {
+          toast.error("लोकेशन मिलने में देर हो रही है। खुले आसमान के नीचे दोबारा कोशिश करें।");
+          return;
+        }
+        toast.error("लोकेशन नहीं मिल पाई। कृपया मोबाइल का GPS ऑन करें।");
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
     );
   }
 

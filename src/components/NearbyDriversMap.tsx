@@ -178,7 +178,11 @@ export function NearbyDriversMap({
       meMarker.current.setPosition(position);
       meMarker.current.setIcon?.(arrowIcon);
     }
-  }, [ready, me?.lat, me?.lng, me?.heading]);
+    if (!centeredOnMe.current && !pickup && !drop) {
+      centeredOnMe.current = true;
+      map.panTo(position);
+    }
+  }, [ready, me?.lat, me?.lng, me?.heading, pickup, drop]);
 
   if (error) return null;
   return (

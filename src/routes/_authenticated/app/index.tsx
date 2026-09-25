@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LocateFixed } from "lucide-react";
+import { nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
@@ -96,6 +98,72 @@ function BookPage() {
     setSelection(null);
   }
 
+  const [locating, setLocating] = useState(false);
+  const autoTried = useRef(false);
+
+  function useMyLocation(silent: boolean) {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      if (!silent) toast.error("GPS is not available on this phone.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const place = await nearestPlaceForGps({
+            data: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+          });
+          if (!place) {
+            if (!silent) toast.error("Could not find a place near you. Please search pickup.");
+            return;
+          }
+          const loc = await selectIndiaPlace({
+            data: { placeId: place.placeId, sessionToken: crypto.randomUUID() },
+          });
+          selectLocation(
+            {
+              id: loc.id,
+              name: loc.name,
+              area: loc.area,
+              formattedAddress: loc.formatted_address,
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              source: "google",
+              pinCode: null,
+              isActive: loc.is_active,
+              label: loc.formatted_address || loc.area || loc.name,
+            } as Location,
+            "from",
+          );
+        } catch (error) {
+          if (!silent) toast.error(error instanceof Error ? error.message : "Could not use GPS.");
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        if (!silent) toast.error("Please allow location to use your current position.");
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  }
+
+  // Auto-fill pickup from GPS once (only if permission is already granted).
+  useEffect(() => {
+    if (autoTried.current || fromId) return;
+    autoTried.current = true;
+    const perms = (navigator as Navigator & { permissions?: Permissions }).permissions;
+    if (!perms?.query) return;
+    perms
+      .query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (status.state === "granted") useMyLocation(true);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function bookRide() {
     if (!selection) {
       toast.error("Choose a vehicle type first.");
@@ -160,6 +228,15 @@ function BookPage() {
                       onChange={(location) => selectLocation(location, "from")}
                       placeholder="Search pickup anywhere in India"
                     />
+                    <button
+                      type="button"
+                      onClick={() => useMyLocation(false)}
+                      disabled={locating}
+                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary"
+                    >
+                      <LocateFixed className="size-3.5" />
+                      {locating ? "Finding your location…" : "Use my current location"}
+                    </button>
                   </div>
                   <div>
                     <p className="text-[11px] font-medium uppercase text-muted-foreground">

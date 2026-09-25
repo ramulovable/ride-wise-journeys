@@ -53,6 +53,7 @@ export function AppUpdatePrompt() {
 
   const startUpdate = () => {
     setFailed(false);
+    setNeedsPermission(false);
     startInAppUpdate(downloadUrl);
     if (!supportsInAppUpdate()) return;
     setBusy(true);

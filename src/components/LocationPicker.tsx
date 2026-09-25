@@ -221,15 +221,38 @@ function VoiceSearchButton({ onText }: { onText: (text: string) => void }) {
   const [supported, setSupported] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
 
+  const nativeVoice = () =>
+    (window as unknown as { ShahinNative?: { startVoiceSearch?: (lang: string) => void } })
+      .ShahinNative;
+
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>;
-    setSupported(Boolean(w["SpeechRecognition"] || w["webkitSpeechRecognition"]));
+    const hasNative = typeof nativeVoice()?.startVoiceSearch === "function";
+    setSupported(hasNative || Boolean(w["SpeechRecognition"] || w["webkitSpeechRecognition"]));
     return () => recRef.current?.stop();
   }, []);
 
   if (!supported) return null;
 
   function toggle() {
+    const native = nativeVoice();
+    if (typeof native?.startVoiceSearch === "function") {
+      const handler = (e: Event) => {
+        window.removeEventListener("shahin-voice-result", handler);
+        setListening(false);
+        const text = String((e as CustomEvent).detail ?? "").trim();
+        if (text) onText(text);
+      };
+      window.addEventListener("shahin-voice-result", handler);
+      setListening(true);
+      try {
+        native.startVoiceSearch("hi-IN");
+      } catch {
+        window.removeEventListener("shahin-voice-result", handler);
+        setListening(false);
+      }
+      return;
+    }
     if (listening) {
       recRef.current?.stop();
       return;

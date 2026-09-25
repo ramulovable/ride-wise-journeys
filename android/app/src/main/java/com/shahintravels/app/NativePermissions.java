@@ -61,6 +61,28 @@ public class NativePermissions {
         return true;
     }
 
+    public static final int VOICE_REQUEST = 4021;
+
+    /** Opens Android's speech recognizer; result goes to window event "shahin-voice-result". */
+    @android.webkit.JavascriptInterface
+    public void startVoiceSearch(String lang) {
+        activity.runOnUiThread(() -> {
+            try {
+                Intent intent = new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                String l = (lang == null || lang.isEmpty()) ? "hi-IN" : lang;
+                intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, l);
+                intent.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Jagah ka naam boliye");
+                intent.putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+                activity.startActivityForResult(intent, VOICE_REQUEST);
+            } catch (Throwable t) {
+                Log.w(TAG, "startVoiceSearch failed", t);
+                if (activity instanceof MainActivity) ((MainActivity) activity).sendVoiceResult("");
+            }
+        });
+    }
+
     /** Version name of the installed app, e.g. "1.0.0". */
     @android.webkit.JavascriptInterface
     public String appVersionName() {

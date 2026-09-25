@@ -120,6 +120,7 @@ function BookPage() {
     () => new Map((nearby.data?.etas ?? []).map((e) => [e.categoryId, e])),
     [nearby.data],
   );
+  const fallbackEta = nearby.data?.fallbackEtaMinutes ?? 5;
 
   const [locating, setLocating] = useState(false);
   const autoTried = useRef(false);
@@ -463,7 +464,11 @@ function BookPage() {
                       <span className="text-[11px] font-medium text-foreground">
                         {etaByCategory.get(category.id)!.etaMinutes} min door
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        ~{fallbackEta}–{fallbackEta + 2} min door
+                      </span>
+                    )}
                     {selected && best?.nightPricingApplied ? (
                       <span className="text-[11px] font-medium text-primary">
                         Night fare applied

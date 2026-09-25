@@ -138,20 +138,23 @@ export function LocationPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className="h-auto min-h-10 w-full justify-between gap-2 px-3 py-2 text-left font-normal"
-        >
-          <span className={cn("line-clamp-2", !selected && "text-muted-foreground")}>
-            {selected?.label ?? placeholder}
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-        </Button>
+        {trigger ?? (
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            className="h-auto min-h-10 w-full justify-between gap-2 px-3 py-2 text-left font-normal"
+          >
+            <span className={cn("line-clamp-2", !selected && "text-muted-foreground")}>
+              {selected?.label ?? placeholder}
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+          </Button>
+        )}
       </PopoverTrigger>
+
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
         <div className="flex items-center border-b px-3">
           <Search className="mr-2 size-4 shrink-0 text-muted-foreground" />

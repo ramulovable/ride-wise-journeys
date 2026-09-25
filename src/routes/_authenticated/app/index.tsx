@@ -123,6 +123,27 @@ function BookPage() {
 
   const [locating, setLocating] = useState(false);
   const autoTried = useRef(false);
+  const [myPosition, setMyPosition] = useState<{
+    lat: number;
+    lng: number;
+    heading?: number | null;
+  } | null>(null);
+
+  // Live blue arrow: follow the phone's own position while the page is open.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) =>
+        setMyPosition({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          heading: pos.coords.heading,
+        }),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
 
   function useMyLocation(silent: boolean) {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

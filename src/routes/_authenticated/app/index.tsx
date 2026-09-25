@@ -484,6 +484,8 @@ function BookPage() {
         )}
 
 
+        {routeReady ? (
+        <>
         <section>
           <h2 className="mb-2 text-sm font-semibold text-foreground">Choose Vehicle Type</h2>
           {categories.isSuccess && categories.data.length === 0 ? (

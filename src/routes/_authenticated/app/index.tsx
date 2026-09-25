@@ -85,7 +85,28 @@ function BookPage() {
   const allLocations = [...(locations.data ?? []), ...selectedLocations].filter(
     (location, index, values) => values.findIndex((item) => item.id === location.id) === index,
   );
-  const quickPicks = (locations.data ?? []).filter((l) => l.source === "preset").slice(0, 6);
+  // Popular Darbhanga places first, then the rest of the preset list.
+  const popularOrder = [
+    "tower",
+    "railway",
+    "station",
+    "bus stand",
+    "delhi more",
+    "donar",
+    "laheriasarai",
+    "airport",
+  ];
+  const quickPicks = (locations.data ?? [])
+    .filter((l) => l.source === "preset")
+    .map((l) => {
+      const name = l.name.toLocaleLowerCase("en-IN");
+      const rank = popularOrder.findIndex((key) => name.includes(key));
+      return { location: l, rank: rank === -1 ? 99 : rank };
+    })
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 6)
+    .map((item) => item.location);
+
 
   const routeReady = Boolean(fromId && toId && fromId !== toId);
   const quote = useQuery({

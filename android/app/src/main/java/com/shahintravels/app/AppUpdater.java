@@ -61,6 +61,7 @@ public class AppUpdater {
                     Uri.parse("package:" + activity.getPackageName()));
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 activity.startActivity(intent);
+                state = "permission";
                 return;
             }
 

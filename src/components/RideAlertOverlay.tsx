@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { stopNativeRideAlert } from "@/lib/native-permissions";
 import { Button } from "@/components/ui/button";
 import type { RideAlertSettings } from "@/lib/rideAlerts";
 
@@ -86,6 +87,14 @@ export function RideAlertOverlay({
 }) {
   const [secondsLeft, setSecondsLeft] = useState(settings.response_timeout_seconds);
   useAlertSound(!accepting && !rejecting, settings);
+
+  // When this offer screen closes (accepted, declined, expired or taken by
+  // another driver) silence the Android background voice alert too.
+  useEffect(() => () => stopNativeRideAlert(), [ride.rideId]);
+
+  useEffect(() => {
+    if (accepting || rejecting) stopNativeRideAlert();
+  }, [accepting, rejecting]);
 
   useEffect(() => {
     setSecondsLeft(settings.response_timeout_seconds);

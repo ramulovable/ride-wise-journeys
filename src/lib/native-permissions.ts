@@ -18,7 +18,18 @@ export type NativeBridge = {
   installUpdate?: (url: string) => void;
   updateState?: () => string;
   updateProgress?: () => number;
+  stopRideAlert?: () => void;
 };
+
+/** Stops the Android background voice alert once the offer is resolved. */
+export function stopNativeRideAlert() {
+  try {
+    nativeBridge()?.stopRideAlert?.();
+  } catch {
+    // Older app versions do not have the voice service.
+  }
+}
+
 
 /** True when the app can download and install the update by itself. */
 export function supportsInAppUpdate(): boolean {

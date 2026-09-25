@@ -31,6 +31,7 @@ export function AppUpdatePrompt() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [needsPermission, setNeedsPermission] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export function AppUpdatePrompt() {
 
   const startUpdate = () => {
     setFailed(false);
+    setNeedsPermission(false);
     startInAppUpdate(downloadUrl);
     if (!supportsInAppUpdate()) return;
     setBusy(true);
@@ -62,6 +64,11 @@ export function AppUpdatePrompt() {
       setProgress(pct);
       if (state === "error") {
         setFailed(true);
+        setBusy(false);
+        if (timer.current) clearInterval(timer.current);
+      }
+      if (state === "permission") {
+        setNeedsPermission(true);
         setBusy(false);
         if (timer.current) clearInterval(timer.current);
       }
@@ -98,6 +105,13 @@ export function AppUpdatePrompt() {
               {progress < 100 ? `${progress}% download hua` : "Install screen khul rahi hai…"}
             </p>
           </div>
+        ) : null}
+
+        {needsPermission && !busy ? (
+          <p className="text-sm text-muted-foreground">
+            Pehli baar: "Shahin Travels" ke liye "Allow from this source" ON karke wapas aaiye, phir
+            "Update now" dobara dabaiye.
+          </p>
         ) : null}
 
         {failed ? (

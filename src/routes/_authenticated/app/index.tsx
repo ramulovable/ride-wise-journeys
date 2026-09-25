@@ -283,11 +283,14 @@ function BookPage() {
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className="relative">
                 <NearbyDriversMap
-                  pickup={pickupPoint}
+                  pickup={tappedPickup ?? pickupPoint}
                   drop={dropPoint}
                   drivers={nearby.data?.drivers ?? []}
                   me={myPosition}
+                  onPick={pickPickupFromMap}
+                  className="h-[52vh] min-h-[320px] w-full"
                 />
+
                 <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
                   <span className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg">
                     Pickup Point

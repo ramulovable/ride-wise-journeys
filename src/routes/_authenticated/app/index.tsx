@@ -2,7 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed } from "lucide-react";
-import { nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
+import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
+import { NearbyDriversMap } from "@/components/NearbyDriversMap";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
@@ -97,6 +98,28 @@ function BookPage() {
     else setToId(location.id);
     setSelection(null);
   }
+
+  const pickupLoc = allLocations.find((l) => l.id === fromId) ?? null;
+  const dropLoc = allLocations.find((l) => l.id === toId) ?? null;
+  const pickupPoint =
+    pickupLoc?.latitude != null && pickupLoc?.longitude != null
+      ? { lat: Number(pickupLoc.latitude), lng: Number(pickupLoc.longitude) }
+      : null;
+  const dropPoint =
+    dropLoc?.latitude != null && dropLoc?.longitude != null
+      ? { lat: Number(dropLoc.latitude), lng: Number(dropLoc.longitude) }
+      : null;
+  const nearby = useQuery({
+    queryKey: ["nearby-drivers", pickupPoint?.lat, pickupPoint?.lng],
+    enabled: Boolean(pickupPoint),
+    queryFn: () =>
+      getNearbyDrivers({ data: { latitude: pickupPoint!.lat, longitude: pickupPoint!.lng } }),
+    refetchInterval: 30_000,
+  });
+  const etaByCategory = useMemo(
+    () => new Map((nearby.data?.etas ?? []).map((e) => [e.categoryId, e])),
+    [nearby.data],
+  );
 
   const [locating, setLocating] = useState(false);
   const autoTried = useRef(false);
@@ -267,6 +290,23 @@ function BookPage() {
                 </div>
               </div>
 
+              {pickupPoint ? (
+                <div className="space-y-1">
+                  <NearbyDriversMap
+                    pickup={pickupPoint}
+                    drop={dropPoint}
+                    drivers={nearby.data?.drivers ?? []}
+                  />
+                  {nearby.isSuccess ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      {nearby.data.drivers.length > 0
+                        ? `${nearby.data.drivers.length} driver aapke paas online hain`
+                        : "Abhi paas me koi driver online nahi dikh raha"}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               {routeReady ? (
                 <div className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm">
                   <RouteIcon className="size-4 shrink-0 text-primary" />
@@ -395,6 +435,11 @@ function BookPage() {
                           ? `Seats ${category.seat_capacity} only`
                           : ((option?.fares ?? [])[0]?.reason ??
                             "Fare currently unavailable for this vehicle")}
+                      </span>
+                    ) : null}
+                    {etaByCategory.get(category.id) ? (
+                      <span className="text-[11px] font-medium text-foreground">
+                        {etaByCategory.get(category.id)!.etaMinutes} min door
                       </span>
                     ) : null}
                     {selected && best?.nightPricingApplied ? (

@@ -1016,7 +1016,7 @@ async function deliverPush(args: {
     timeout: "60",
   };
   for (const [k, v] of Object.entries(payloadData)) pushData[k] = str(v);
-  if (isOffer) pushData.ride_id = rideId;
+  if (isOffer) pushData["ride_id"] = rideId;
 
   await Promise.all(
     devices.map(async (device) => {

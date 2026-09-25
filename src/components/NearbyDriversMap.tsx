@@ -39,8 +39,8 @@ export function NearbyDriversMap({
         if (cancelled || !ref.current || mapRef.current) return;
         apiRef.current = api;
         mapRef.current = new api.Map(ref.current, {
-          center: pickup ?? { lat: 26.1542, lng: 85.8918 },
-          zoom: 14,
+          center: pickup ?? (me ? { lat: me.lat, lng: me.lng } : { lat: 26.1542, lng: 85.8918 }),
+          zoom: 15,
           disableDefaultUI: true,
           gestureHandling: "cooperative",
         });

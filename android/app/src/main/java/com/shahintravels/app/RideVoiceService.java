@@ -52,7 +52,7 @@ public class RideVoiceService extends Service {
     private PowerManager.WakeLock wakeLock;
     private int savedAlarmVolume = -1;
     private boolean running = false;
-    private String spokenText = "Shahin Travels. Nayi ride request aayi hai.";
+    private String spokenText = "शाहीन ट्रैवल्स। नई राइड रिक्वेस्ट आई है।";
 
     public static void start(Context context, String text, int timeoutSec, Notification notification) {
         pendingNotification = notification;

@@ -2194,3 +2194,32 @@ export const getAdminRiderWallet = createServerFn({ method: "GET" })
       withdrawals,
     };
   });
+
+/** Finds the nearest named place to the customer's GPS position (auto pickup). */
+export const nearestPlaceForGps = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z
+      .object({ latitude: z.number().min(6).max(38), longitude: z.number().min(68).max(98) })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const response = await fetch(`${GOOGLE_MAPS_GATEWAY}/places/v1/places:searchNearby`, {
+      method: "POST",
+      headers: googleHeaders("places.id,places.displayName"),
+      body: JSON.stringify({
+        maxResultCount: 1,
+        rankPreference: "DISTANCE",
+        locationRestriction: {
+          circle: { center: { latitude: data.latitude, longitude: data.longitude }, radius: 300 },
+        },
+      }),
+    });
+    if (!response.ok) await throwGoogleError(response);
+    const payload = (await response.json()) as {
+      places?: Array<{ id?: string; displayName?: { text?: string } }>;
+    };
+    const place = payload.places?.[0];
+    if (!place?.id) return null;
+    return { placeId: place.id, label: place.displayName?.text ?? "Current location" };
+  });

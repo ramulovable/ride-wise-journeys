@@ -46,13 +46,14 @@ public class RideAlertActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.alert_title)).setText(title == null ? "New ride request" : title);
         ((TextView) findViewById(R.id.alert_body)).setText(body == null ? "" : body);
 
-        startRinging();
+        // v1.0.4: sound + voice are played by RideVoiceService (works when locked).
 
         Button accept = findViewById(R.id.alert_accept);
         Button decline = findViewById(R.id.alert_decline);
 
         accept.setOnClickListener(v -> {
             stopRinging();
+            RideVoiceService.stop(this);
             Intent open = new Intent(this, MainActivity.class);
             String suffix = (rideId == null || rideId.isEmpty())
                 ? ""
@@ -66,6 +67,7 @@ public class RideAlertActivity extends AppCompatActivity {
 
         decline.setOnClickListener(v -> {
             stopRinging();
+            RideVoiceService.stop(this);
             dismissNotification();
             finish();
         });

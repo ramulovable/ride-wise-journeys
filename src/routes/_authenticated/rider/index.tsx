@@ -21,6 +21,7 @@ import { ProfileAvatar, VerifiedByline, VerifiedTick } from "@/components/Profil
 import { EmptyState } from "@/components/EmptyState";
 import { DriverAlertSetup } from "@/components/DriverAlertSetup";
 import { IstClock } from "@/components/IstClock";
+import { AdBanner } from "@/components/AdBanner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -358,6 +359,11 @@ function RiderDashboard() {
       ) : null}
       <div className="space-y-4">
         <IstClock />
+
+        <AdBanner
+          fallbackTitle="Shahin Travels Driver"
+          fallbackSubtitle="Online rahein · har ride ka alert turant payein"
+        />
 
         <Link
           to="/profile"

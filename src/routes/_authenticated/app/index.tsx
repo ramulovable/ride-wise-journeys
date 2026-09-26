@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
-import { NearbyDriversMap } from "@/components/NearbyDriversMap";
+import { AdBanner } from "@/components/AdBanner";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -132,71 +132,6 @@ function BookPage() {
 
   const [locating, setLocating] = useState(false);
   const autoTried = useRef(false);
-  const [myPosition, setMyPosition] = useState<{
-    lat: number;
-    lng: number;
-    heading?: number | null;
-  } | null>(null);
-  // Tapping the map moves the green pickup dot instantly while the address loads.
-  const [tappedPickup, setTappedPickup] = useState<{ lat: number; lng: number } | null>(null);
-
-  async function pickPickupFromMap(point: { lat: number; lng: number }) {
-    setTappedPickup(point);
-    try {
-      const place = await nearestPlaceForGps({
-        data: { latitude: point.lat, longitude: point.lng },
-      });
-      if (!place) {
-        toast.error("इस जगह का पता नहीं मिला। थोड़ा पास की जगह चुनें।");
-        setTappedPickup(null);
-        return;
-      }
-      const loc = await selectIndiaPlace({
-        data: { placeId: place.placeId, sessionToken: crypto.randomUUID() },
-      });
-      selectLocation(
-        {
-          id: loc.id,
-          name: loc.name,
-          area: loc.area,
-          formattedAddress: loc.formatted_address,
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          source: "google",
-          pinCode: null,
-          isActive: loc.is_active,
-          label: loc.formatted_address || loc.area || loc.name,
-        } as Location,
-        "from",
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "इस जगह का पता नहीं मिला।");
-    } finally {
-      setTappedPickup(null);
-    }
-  }
-
-
-
-  // Live blue arrow: follow the phone's own position while the page is open.
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        // Ignore very inaccurate or stale readings so the blue arrow never jumps.
-        if (typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 150) return;
-        if (Date.now() - pos.timestamp > 60_000) return;
-        setMyPosition({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          heading: pos.coords.heading,
-        });
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
 
   function useMyLocation(silent: boolean) {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -314,24 +249,10 @@ function BookPage() {
           />
         ) : (
           <>
-            {/* Live map with the pickup point on top, exactly like a ride app home. */}
+            {/* Big landscape advertising banner, managed from Admin > Banners. */}
+            <AdBanner />
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="relative">
-                <NearbyDriversMap
-                  pickup={tappedPickup ?? pickupPoint}
-                  drop={dropPoint}
-                  drivers={nearby.data?.drivers ?? []}
-                  me={myPosition}
-                  onPick={pickPickupFromMap}
-                  className="h-[52vh] min-h-[320px] w-full"
-                />
 
-                <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-                  <span className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg">
-                    Pickup Point
-                  </span>
-                </div>
-              </div>
               <div className="flex items-center gap-1 border-t border-border px-3 py-1.5">
                 <div className="min-w-0 flex-1">
                   <LocationPicker

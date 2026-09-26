@@ -78,3 +78,8 @@
 - [x] Android v1.0.4: continuous loud voice alert until accept/decline (silent/vibrate bypass)
 - [x] Android v1.0.4: in-app direct APK updater (no browser download)
 - [x] Customer home extras inside existing UI: auto GPS pickup, mic voice search, live nearby drivers on map, per-vehicle ETA
+
+## Dispatch broadcast (Sep 26)
+- [ ] Remove radius/GPS filtering: every online, approved driver of the booked category gets the ride alert
+- [ ] Voice alert must reach all of them (data push to every active device)
+- [ ] Clear stuck active rides so drivers are not marked busy

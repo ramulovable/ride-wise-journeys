@@ -180,6 +180,11 @@ function DispatchSettingsPage() {
         <p className="text-sm text-muted-foreground">Loading rules…</p>
       ) : (
         <div className="max-w-md space-y-4">
+          <p className="rounded-2xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            Ride requests are broadcast to every online driver of the booked vehicle type. Distance
+            and GPS freshness no longer block alerts — the radius below only decides who is listed
+            first.
+          </p>
           <section className="space-y-3 rounded-2xl border border-border p-3">
             {SWITCHES.map((item) => (
               <label key={String(item.key)} className="flex items-start justify-between gap-3">

@@ -268,37 +268,43 @@ export type NearbyCandidate = {
 };
 
 /**
- * PATH A — free drivers physically near the pickup point, within the
- * admin-configured radius. Falls back to plain eligibility (no distance filter)
- * when a driver has no usable location and settings allow it.
+ * PATH A — BROADCAST. Every approved, unblocked, subscribed driver who is
+ * online with a matching active vehicle receives the ride alert, regardless of
+ * GPS availability or distance from the pickup point. Distance, when a fresh
+ * location happens to exist, is used only for ordering — never for filtering.
+ * Drivers already on an active ride are skipped, based on the rides table.
  */
 export async function nearbyCandidates(rideId: string): Promise<NearbyCandidate[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const settings = await loadDispatchSettings();
-  if (!settings.dispatch_enabled || !settings.nearby_dispatch_enabled) return [];
+  if (!settings.dispatch_enabled) return [];
   const ride = await loadRide(rideId);
   if (!ride?.requested_category_id) return [];
 
-  const [drivers, vehiclesResult, dismissalsResult, presenceResult, pickup] = await Promise.all([
-    activeDriverIds(),
-    supabaseAdmin
-      .from("rider_vehicles")
-      .select("id, rider_id, has_ac, seat_capacity")
-      .eq("is_active", true)
-      .eq("vehicle_category_id", ride.requested_category_id),
-    supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
-    supabaseAdmin.from("rider_presence").select("*"),
-    locationPoint(ride.from_location_id),
-  ]);
+  const [drivers, vehiclesResult, dismissalsResult, presenceResult, activeResult, pickup] =
+    await Promise.all([
+      activeDriverIds(),
+      supabaseAdmin
+        .from("rider_vehicles")
+        .select("id, rider_id, has_ac, seat_capacity")
+        .eq("is_active", true)
+        .eq("vehicle_category_id", ride.requested_category_id),
+      supabaseAdmin.from("ride_dismissals").select("rider_id").eq("ride_id", rideId),
+      supabaseAdmin.from("rider_presence").select("*"),
+      supabaseAdmin
+        .from("rides")
+        .select("rider_id")
+        .in("status", ["accepted", "on_the_way", "arrived", "started"])
+        .not("rider_id", "is", null),
+      locationPoint(ride.from_location_id),
+    ]);
 
   const declined = new Set((dismissalsResult.data ?? []).map((row) => row.rider_id));
   const presenceByRider = new Map(
     ((presenceResult.data ?? []) as PresenceRow[]).map((row) => [row.rider_id, row]),
   );
   const busyRiders = new Set(
-    ((presenceResult.data ?? []) as PresenceRow[])
-      .filter((row) => row.status === "online_on_ride")
-      .map((row) => row.rider_id),
+    (activeResult.data ?? []).map((row) => row.rider_id).filter(Boolean) as string[],
   );
 
   const seen = new Set<string>();
@@ -310,23 +316,19 @@ export async function nearbyCandidates(rideId: string): Promise<NearbyCandidate[
     if (ride.requested_ac != null && vehicle.has_ac !== ride.requested_ac) continue;
     if (ride.passengers > vehicle.seat_capacity) continue;
 
+    // Ordering hint only: a fresh location sorts nearer drivers first, a missing
+    // or stale location never removes a driver from the broadcast.
     const presence = presenceByRider.get(vehicle.rider_id);
-    const usable = locationIsUsable(presence, settings);
     let distanceKm: number | null = null;
-    if (usable && pickup && presence) {
+    if (pickup && presence?.current_latitude != null && presence.current_longitude != null) {
       distanceKm = haversineKm(presencePoint(presence), pickup);
-      if (distanceKm > Number(settings.pickup_radius_km)) continue;
-    } else if (settings.require_location_for_dispatch) {
-      continue;
     }
     seen.add(vehicle.rider_id);
     candidates.push({
       riderId: vehicle.rider_id,
       vehicleId: vehicle.id,
       pickupDistanceKm: distanceKm == null ? null : Math.round(distanceKm * 100) / 100,
-      score:
-        (distanceKm ?? Number(settings.pickup_radius_km)) *
-        Number(settings.weight_pickup_proximity),
+      score: distanceKm ?? 9999,
     });
   }
   return candidates.sort((a, b) => a.score - b.score);

@@ -85,6 +85,7 @@
 - [ ] Clear stuck active rides so drivers are not marked busy
 
 ## Razorpay live + E-Ticket payment security (Sep 27)
-- [ ] Server-side webhook for Razorpay e-ticket payments (payment.captured) with HMAC verification
-- [ ] Verify checkout signature server-side already exists; harden verify handler (idempotency, amount check)
+- [x] Server-side webhook for Razorpay e-ticket payments (payment.captured/payment.failed) with HMAC verification (/api/public/razorpay-webhook)
+- [x] Hardened verify handler: Razorpay payment API cross-check (order, status, amount), idempotent PENDING->PAID
 - [ ] Live credentials via secure secret form (user must get live access from Razorpay dashboard/invite)
+- [ ] RAZORPAY_WEBHOOK_SECRET via secure form + same value in Razorpay dashboard webhook settings

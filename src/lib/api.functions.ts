@@ -264,7 +264,7 @@ export const getDrivingDistance = createServerFn({ method: "GET" })
     return calculateDrivingDistance(data.fromLocationId, data.toLocationId);
   });
 
-async function calculateDrivingDistance(fromLocationId: string, toLocationId: string) {
+export async function calculateDrivingDistance(fromLocationId: string, toLocationId: string) {
   const cacheKey = `${fromLocationId}:${toLocationId}`;
   const cached = drivingDistanceCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.result;

@@ -167,14 +167,35 @@ export const verifyETicketPayment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const { data: t } = await db.from("etickets").select("id,customer_id,payment_order_id,payment_status").eq("id", data.ticketId).single();
+    const { data: t } = await db
+      .from("etickets")
+      .select("id,customer_id,payment_order_id,payment_status,total_amount")
+      .eq("id", data.ticketId)
+      .single();
     if (!t || t.customer_id !== context.userId || t.payment_order_id !== data.orderId) throw new Error("Ticket nahi mila.");
     if (t.payment_status === "PAID") return { ok: true };
+    // 1) Checkout signature must be valid.
     const expected = await hmacHex(rzpAuth().secret, `${data.orderId}|${data.paymentId}`);
     if (expected !== data.signature) {
       await db.from("etickets").update({ payment_status: "FAILED" }).eq("id", t.id);
       throw new Error("Payment verify nahi hua.");
     }
+    // 2) Double-check with Razorpay API: payment must exist, belong to this
+    //    order, be captured, and match the stored total.
+    const rzp = rzpAuth();
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(data.paymentId)}`, {
+      headers: { Authorization: rzp.header },
+    });
+    if (!res.ok) throw new Error("Payment status confirm nahi hua. Dobara koshish karein.");
+    const pay = (await res.json()) as { status: string; order_id: string; amount: number };
+    if (pay.order_id !== data.orderId) throw new Error("Payment is order se match nahi karta.");
+    if (pay.status !== "captured" && pay.status !== "authorized") {
+      throw new Error("Payment abhi successful nahi hua hai.");
+    }
+    if (pay.amount !== Math.round(Number(t.total_amount) * 100)) {
+      throw new Error("Payment amount ticket se match nahi karta.");
+    }
+    // Idempotent: only transitions PENDING -> PAID.
     await db
       .from("etickets")
       .update({ payment_status: "PAID", status: "ACTIVE", payment_id: data.paymentId, paid_at: new Date().toISOString() })

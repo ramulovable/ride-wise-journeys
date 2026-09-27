@@ -50,15 +50,14 @@ export const Route = createFileRoute("/api/public/razorpay-webhook")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const db = supabaseAdmin;
 
-        // Locate the ticket: prefer notes.ticket_id, fall back to order id.
-        const noteTicket = typeof pay.notes?.ticket_id === "string" ? pay.notes.ticket_id : null;
         const uuidLike = /^[0-9a-f-]{36}$/i;
         type Ticket = { id: string; payment_status: string; total_amount: number };
         const fetchTicket = async (col: string, val: string): Promise<Ticket | null> => {
           const { data } = await db.from("etickets").select("id,payment_status,total_amount").eq(col, val).maybeSingle();
           return (data ?? null) as unknown as Ticket | null;
         };
-        const noteTicket = typeof pay.notes?.ticket_id === "string" ? pay.notes.ticket_id : null;
+        const noteTicketId = typeof pay.notes?.["ticket_id"] === "string" ? pay.notes?.["ticket_id"] : null;
+        const ticket: Ticket | null = noteTicketId && uuidLike.test(noteTicketId)
         const uuidLike = /^[0-9a-f-]{36}$/i;
         const ticket: Ticket | null = noteTicket && uuidLike.test(noteTicket)
           ? await fetchTicket("id", noteTicket)

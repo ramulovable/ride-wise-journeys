@@ -90,8 +90,8 @@ function ETicketPage() {
   }
 
   async function pay() {
-    if (!selected) return toast.error("Vehicle chunein.");
-    if (name.trim().length < 2) return toast.error("Passenger ka naam likhein.");
+    if (!selected) { toast.error("Vehicle chunein."); return; }
+    if (name.trim().length < 2) { toast.error("Passenger ka naam likhein."); return; }
     setPaying(true);
     try {
       const ok = await loadRazorpay();

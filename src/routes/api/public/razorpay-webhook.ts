@@ -54,23 +54,17 @@ export const Route = createFileRoute("/api/public/razorpay-webhook")({
         const noteTicket = typeof pay.notes?.ticket_id === "string" ? pay.notes.ticket_id : null;
         const uuidLike = /^[0-9a-f-]{36}$/i;
         type Ticket = { id: string; payment_status: string; total_amount: number };
-        let ticket: Ticket | null = null;
-        if (noteTicket && uuidLike.test(noteTicket)) {
-          const { data } = await db
-            .from("etickets")
-            .select("id,payment_status,total_amount")
-            .eq("id", noteTicket)
-            .maybeSingle();
-          ticket = (data as typeof ticket) ?? null;
-        }
-        if (!ticket && pay.order_id) {
-          const { data } = await db
-            .from("etickets")
-            .select("id,payment_status,total_amount")
-            .eq("payment_order_id", pay.order_id)
-            .maybeSingle();
-          ticket = (data as typeof ticket) ?? null;
-        }
+        const fetchTicket = async (col: string, val: string): Promise<Ticket | null> => {
+          const { data } = await db.from("etickets").select("id,payment_status,total_amount").eq(col, val).maybeSingle();
+          return (data ?? null) as unknown as Ticket | null;
+        };
+        const noteTicket = typeof pay.notes?.ticket_id === "string" ? pay.notes.ticket_id : null;
+        const uuidLike = /^[0-9a-f-]{36}$/i;
+        const ticket: Ticket | null = noteTicket && uuidLike.test(noteTicket)
+          ? await fetchTicket("id", noteTicket)
+          : pay.order_id
+            ? await fetchTicket("payment_order_id", pay.order_id)
+            : null;
         if (!ticket) return Response.json({ ok: true, unknown_ticket: true });
 
         if (kind === "payment.captured") {

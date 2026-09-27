@@ -53,7 +53,8 @@ export const Route = createFileRoute("/api/public/razorpay-webhook")({
         // Locate the ticket: prefer notes.ticket_id, fall back to order id.
         const noteTicket = typeof pay.notes?.ticket_id === "string" ? pay.notes.ticket_id : null;
         const uuidLike = /^[0-9a-f-]{36}$/i;
-        let ticket: { id: string; payment_status: string; total_amount: number } | null = null;
+        type Ticket = { id: string; payment_status: string; total_amount: number };
+        let ticket: Ticket | null = null;
         if (noteTicket && uuidLike.test(noteTicket)) {
           const { data } = await db
             .from("etickets")

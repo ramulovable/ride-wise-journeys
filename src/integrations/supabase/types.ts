@@ -444,6 +444,223 @@ export type Database = {
           },
         ]
       }
+      eticket_fares: {
+        Row: {
+          base_fare: number
+          created_at: string
+          id: string
+          is_active: boolean
+          min_fare: number
+          per_km_rate: number
+          updated_at: string
+          vehicle_category_id: string
+        }
+        Insert: {
+          base_fare?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_fare?: number
+          per_km_rate?: number
+          updated_at?: string
+          vehicle_category_id: string
+        }
+        Update: {
+          base_fare?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_fare?: number
+          per_km_rate?: number
+          updated_at?: string
+          vehicle_category_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eticket_fares_vehicle_category_id_fkey"
+            columns: ["vehicle_category_id"]
+            isOneToOne: true
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eticket_settings: {
+        Row: {
+          commission_type: string
+          commission_value: number
+          created_at: string
+          id: string
+          insurance_charge: number
+          insurance_claim_rules: string | null
+          insurance_enabled: boolean
+          insurance_policy_number: string | null
+          insurance_provider: string | null
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          id?: string
+          insurance_charge?: number
+          insurance_claim_rules?: string | null
+          insurance_enabled?: boolean
+          insurance_policy_number?: string | null
+          insurance_provider?: string | null
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          id?: string
+          insurance_charge?: number
+          insurance_claim_rules?: string | null
+          insurance_enabled?: boolean
+          insurance_policy_number?: string | null
+          insurance_provider?: string | null
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      etickets: {
+        Row: {
+          cancelled_at: string | null
+          commission_amount: number | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          distance_km: number | null
+          driver_id: string | null
+          driver_net_amount: number | null
+          fare_amount: number
+          fare_snapshot: Json
+          from_location_id: string
+          id: string
+          insurance_charge: number
+          insurance_opted: boolean
+          paid_at: string | null
+          passenger_mobile: string
+          passenger_name: string
+          passengers: number
+          payment_gateway: string | null
+          payment_id: string | null
+          payment_order_id: string | null
+          payment_status: string
+          pickup_landmark: string | null
+          pnr: string
+          qr_token: string
+          scanned_at: string | null
+          status: string
+          to_location_id: string
+          total_amount: number
+          updated_at: string
+          vehicle_category_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          commission_amount?: number | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          distance_km?: number | null
+          driver_id?: string | null
+          driver_net_amount?: number | null
+          fare_amount: number
+          fare_snapshot?: Json
+          from_location_id: string
+          id?: string
+          insurance_charge?: number
+          insurance_opted?: boolean
+          paid_at?: string | null
+          passenger_mobile: string
+          passenger_name: string
+          passengers?: number
+          payment_gateway?: string | null
+          payment_id?: string | null
+          payment_order_id?: string | null
+          payment_status?: string
+          pickup_landmark?: string | null
+          pnr: string
+          qr_token?: string
+          scanned_at?: string | null
+          status?: string
+          to_location_id: string
+          total_amount: number
+          updated_at?: string
+          vehicle_category_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          commission_amount?: number | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          distance_km?: number | null
+          driver_id?: string | null
+          driver_net_amount?: number | null
+          fare_amount?: number
+          fare_snapshot?: Json
+          from_location_id?: string
+          id?: string
+          insurance_charge?: number
+          insurance_opted?: boolean
+          paid_at?: string | null
+          passenger_mobile?: string
+          passenger_name?: string
+          passengers?: number
+          payment_gateway?: string | null
+          payment_id?: string | null
+          payment_order_id?: string | null
+          payment_status?: string
+          pickup_landmark?: string | null
+          pnr?: string
+          qr_token?: string
+          scanned_at?: string | null
+          status?: string
+          to_location_id?: string
+          total_amount?: number
+          updated_at?: string
+          vehicle_category_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etickets_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etickets_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etickets_vehicle_category_id_fkey"
+            columns: ["vehicle_category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etickets_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "rider_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fare_rule_history: {
         Row: {
           action: string
@@ -2386,6 +2603,7 @@ export type Database = {
       award_referral: { Args: { _referral_id: string }; Returns: boolean }
       ensure_referral_code: { Args: { _user_id?: string }; Returns: string }
       ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
+      generate_eticket_pnr: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {

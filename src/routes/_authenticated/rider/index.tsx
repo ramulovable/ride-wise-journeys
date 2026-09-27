@@ -358,6 +358,12 @@ function RiderDashboard() {
         />
       ) : null}
       <div className="space-y-4">
+        <Link
+          to="/rider/eticket"
+          className="flex h-14 items-center justify-center rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
+        >
+          E-Ticket QR Scan karein
+        </Link>
         <IstClock />
 
         <AdBanner

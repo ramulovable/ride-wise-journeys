@@ -73,11 +73,11 @@ function ETicketAdmin() {
     setFares(map);
   }, [cats.data, faresQ.data]);
 
-  const setFare = (id: string, patch: Partial<Fare>) => setFares((m) => ({ ...m, [id]: { ...m[id], ...patch } }));
+  const setFare = (id: string, patch: Partial<Fare>) => setFares((m) => ({ ...m, [id]: { ...(m[id] as Fare), ...patch } }));
 
   async function save() {
     if (!s) return;
-    if (s.commission_type === "percent" && s.commission_value > 100) return toast.error("Commission cannot exceed 100%.");
+    if (s.commission_type === "percent" && s.commission_value > 100) { toast.error("Commission cannot exceed 100%."); return; }
     setBusy(true);
     const { id, ...rest } = s;
     const r1 = await supabase.from("eticket_settings" as never).update({
@@ -95,7 +95,7 @@ function ETicketAdmin() {
     const r2 = await supabase.from("eticket_fares" as never).upsert(rows as never, { onConflict: "vehicle_category_id" });
     setBusy(false);
     const err = r1.error ?? r2.error;
-    if (err) return toast.error(err.message);
+    if (err) { toast.error(err.message); return; }
     toast.success("E-Ticket settings saved.");
     void qc.invalidateQueries({ queryKey: ["eticket-settings"] });
     void qc.invalidateQueries({ queryKey: ["eticket-fares"] });

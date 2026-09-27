@@ -39,9 +39,11 @@ import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminVehicleImagesRouteImport } from './routes/_authenticated/admin/vehicle-images'
 import { Route as AuthenticatedAdminWithdrawalsRouteImport } from './routes/_authenticated/admin/withdrawals'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
+import { Route as AuthenticatedAppEticketRouteImport } from './routes/_authenticated/app/eticket'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
 import { Route as AuthenticatedRiderEarningsRouteImport } from './routes/_authenticated/rider/earnings'
+import { Route as AuthenticatedRiderEticketRouteImport } from './routes/_authenticated/rider/eticket'
 import { Route as AuthenticatedRiderQrRouteImport } from './routes/_authenticated/rider/qr'
 import { Route as AuthenticatedRiderRidesRouteImport } from './routes/_authenticated/rider/rides'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
@@ -212,6 +214,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/app/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAppEticketRoute = AuthenticatedAppEticketRouteImport.update({
+  id: '/app/eticket',
+  path: '/app/eticket',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAppRidesRoute = AuthenticatedAppRidesRouteImport.update({
   id: '/app/rides',
   path: '/app/rides',
@@ -226,6 +233,12 @@ const AuthenticatedRiderEarningsRoute =
   AuthenticatedRiderEarningsRouteImport.update({
     id: '/rider/earnings',
     path: '/rider/earnings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRiderEticketRoute =
+  AuthenticatedRiderEticketRouteImport.update({
+    id: '/rider/eticket',
+    path: '/rider/eticket',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedRiderQrRoute = AuthenticatedRiderQrRouteImport.update({
@@ -285,8 +298,10 @@ export interface FileRoutesByFullPath {
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/vehicle-images': typeof AuthenticatedAdminVehicleImagesRoute
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
+  '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
+  '/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/rider/qr': typeof AuthenticatedRiderQrRoute
   '/rider/rides': typeof AuthenticatedRiderRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
@@ -324,8 +339,10 @@ export interface FileRoutesByTo {
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/vehicle-images': typeof AuthenticatedAdminVehicleImagesRoute
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
+  '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
+  '/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/rider/qr': typeof AuthenticatedRiderQrRoute
   '/rider/rides': typeof AuthenticatedRiderRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
@@ -365,8 +382,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/admin/vehicle-images': typeof AuthenticatedAdminVehicleImagesRoute
   '/_authenticated/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
+  '/_authenticated/app/eticket': typeof AuthenticatedAppEticketRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
   '/_authenticated/rider/earnings': typeof AuthenticatedRiderEarningsRoute
+  '/_authenticated/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/_authenticated/rider/qr': typeof AuthenticatedRiderQrRoute
   '/_authenticated/rider/rides': typeof AuthenticatedRiderRidesRoute
   '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
@@ -406,8 +425,10 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/admin/vehicle-images'
     | '/admin/withdrawals'
+    | '/app/eticket'
     | '/app/rides'
     | '/rider/earnings'
+    | '/rider/eticket'
     | '/rider/qr'
     | '/rider/rides'
     | '/rider/vehicle'
@@ -445,8 +466,10 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/admin/vehicle-images'
     | '/admin/withdrawals'
+    | '/app/eticket'
     | '/app/rides'
     | '/rider/earnings'
+    | '/rider/eticket'
     | '/rider/qr'
     | '/rider/rides'
     | '/rider/vehicle'
@@ -485,8 +508,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/support'
     | '/_authenticated/admin/vehicle-images'
     | '/_authenticated/admin/withdrawals'
+    | '/_authenticated/app/eticket'
     | '/_authenticated/app/rides'
     | '/_authenticated/rider/earnings'
+    | '/_authenticated/rider/eticket'
     | '/_authenticated/rider/qr'
     | '/_authenticated/rider/rides'
     | '/_authenticated/rider/vehicle'
@@ -717,6 +742,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/eticket': {
+      id: '/_authenticated/app/eticket'
+      path: '/app/eticket'
+      fullPath: '/app/eticket'
+      preLoaderRoute: typeof AuthenticatedAppEticketRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/rides': {
       id: '/_authenticated/app/rides'
       path: '/app/rides'
@@ -736,6 +768,13 @@ declare module '@tanstack/react-router' {
       path: '/rider/earnings'
       fullPath: '/rider/earnings'
       preLoaderRoute: typeof AuthenticatedRiderEarningsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rider/eticket': {
+      id: '/_authenticated/rider/eticket'
+      path: '/rider/eticket'
+      fullPath: '/rider/eticket'
+      preLoaderRoute: typeof AuthenticatedRiderEticketRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/rider/qr': {
@@ -800,8 +839,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAdminVehicleImagesRoute: typeof AuthenticatedAdminVehicleImagesRoute
   AuthenticatedAdminWithdrawalsRoute: typeof AuthenticatedAdminWithdrawalsRoute
+  AuthenticatedAppEticketRoute: typeof AuthenticatedAppEticketRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
   AuthenticatedRiderEarningsRoute: typeof AuthenticatedRiderEarningsRoute
+  AuthenticatedRiderEticketRoute: typeof AuthenticatedRiderEticketRoute
   AuthenticatedRiderQrRoute: typeof AuthenticatedRiderQrRoute
   AuthenticatedRiderRidesRoute: typeof AuthenticatedRiderRidesRoute
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
@@ -836,8 +877,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAdminVehicleImagesRoute: AuthenticatedAdminVehicleImagesRoute,
   AuthenticatedAdminWithdrawalsRoute: AuthenticatedAdminWithdrawalsRoute,
+  AuthenticatedAppEticketRoute: AuthenticatedAppEticketRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
   AuthenticatedRiderEarningsRoute: AuthenticatedRiderEarningsRoute,
+  AuthenticatedRiderEticketRoute: AuthenticatedRiderEticketRoute,
   AuthenticatedRiderQrRoute: AuthenticatedRiderQrRoute,
   AuthenticatedRiderRidesRoute: AuthenticatedRiderRidesRoute,
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,

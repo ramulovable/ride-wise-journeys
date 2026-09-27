@@ -54,6 +54,7 @@ const adminNav: NavItem[] = [
     icon: icon(<ImageIcon className="h-4 w-4" />),
   },
   { to: "/admin/fares", label: "Fares", icon: icon(<BadgeIndianRupee className="h-4 w-4" />) },
+  { to: "/admin/etickets", label: "E-Ticket", icon: icon(<QrCode className="h-4 w-4" />) },
   { to: "/admin/rides", label: "Rides", icon: icon(<CalendarClock className="h-4 w-4" />) },
   { to: "/admin/dispatch", label: "Dispatch", icon: icon(<RouteIcon className="h-4 w-4" />) },
   { to: "/admin/live-drivers", label: "Live", icon: icon(<Navigation className="h-4 w-4" />) },

@@ -559,6 +559,17 @@ function BookPage() {
 
 
         <Link
+          to="/app/eticket"
+          className="flex items-center justify-between rounded-2xl border border-border bg-card p-4"
+        >
+          <span>
+            <span className="block text-sm font-semibold text-foreground">E-Ticket (Prepaid QR)</span>
+            <span className="block text-xs text-muted-foreground">Online pay karke ticket lein</span>
+          </span>
+          <ArrowRight className="h-5 w-5 text-primary" />
+        </Link>
+
+        <Link
           to="/"
           className="flex items-center justify-between rounded-2xl bg-primary p-4 text-primary-foreground"
         >

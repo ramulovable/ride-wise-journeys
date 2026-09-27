@@ -83,3 +83,9 @@
 - [ ] Remove radius/GPS filtering: every online, approved driver of the booked category gets the ride alert
 - [ ] Voice alert must reach all of them (data push to every active device)
 - [ ] Clear stuck active rides so drivers are not marked busy
+
+## Razorpay live + E-Ticket payment security (Sep 27)
+- [x] Server-side webhook for Razorpay e-ticket payments (payment.captured/payment.failed) with HMAC verification (/api/public/razorpay-webhook)
+- [x] Hardened verify handler: Razorpay payment API cross-check (order, status, amount), idempotent PENDING->PAID
+- [ ] Live credentials via secure secret form (user must get live access from Razorpay dashboard/invite)
+- [ ] RAZORPAY_WEBHOOK_SECRET via secure form + same value in Razorpay dashboard webhook settings

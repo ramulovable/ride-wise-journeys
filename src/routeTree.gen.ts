@@ -47,6 +47,7 @@ import { Route as AuthenticatedRiderEticketRouteImport } from './routes/_authent
 import { Route as AuthenticatedRiderQrRouteImport } from './routes/_authenticated/rider/qr'
 import { Route as AuthenticatedRiderRidesRouteImport } from './routes/_authenticated/rider/rides'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
+import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/public/razorpay-webhook'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
 import { Route as AuthenticatedRiderRideRideIdRouteImport } from './routes/_authenticated/rider/ride.$rideId'
 
@@ -257,6 +258,12 @@ const AuthenticatedRiderVehicleRoute =
     path: '/rider/vehicle',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicRazorpayWebhookRoute =
+  ApiPublicRazorpayWebhookRouteImport.update({
+    id: '/api/public/razorpay-webhook',
+    path: '/api/public/razorpay-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAppRideRideIdRoute =
   AuthenticatedAppRideRideIdRouteImport.update({
     id: '/app/ride/$rideId',
@@ -305,6 +312,7 @@ export interface FileRoutesByFullPath {
   '/rider/qr': typeof AuthenticatedRiderQrRoute
   '/rider/rides': typeof AuthenticatedRiderRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
+  '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/rider/': typeof AuthenticatedRiderIndexRoute
@@ -346,6 +354,7 @@ export interface FileRoutesByTo {
   '/rider/qr': typeof AuthenticatedRiderQrRoute
   '/rider/rides': typeof AuthenticatedRiderRidesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
+  '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/rider': typeof AuthenticatedRiderIndexRoute
@@ -389,6 +398,7 @@ export interface FileRoutesById {
   '/_authenticated/rider/qr': typeof AuthenticatedRiderQrRoute
   '/_authenticated/rider/rides': typeof AuthenticatedRiderRidesRoute
   '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
+  '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/rider/': typeof AuthenticatedRiderIndexRoute
@@ -432,6 +442,7 @@ export interface FileRouteTypes {
     | '/rider/qr'
     | '/rider/rides'
     | '/rider/vehicle'
+    | '/api/public/razorpay-webhook'
     | '/admin/'
     | '/app/'
     | '/rider/'
@@ -473,6 +484,7 @@ export interface FileRouteTypes {
     | '/rider/qr'
     | '/rider/rides'
     | '/rider/vehicle'
+    | '/api/public/razorpay-webhook'
     | '/admin'
     | '/app'
     | '/rider'
@@ -515,6 +527,7 @@ export interface FileRouteTypes {
     | '/_authenticated/rider/qr'
     | '/_authenticated/rider/rides'
     | '/_authenticated/rider/vehicle'
+    | '/api/public/razorpay-webhook'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
     | '/_authenticated/rider/'
@@ -528,6 +541,7 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   DownloadRoute: typeof DownloadRoute
   VehicleTokenRoute: typeof VehicleTokenRoute
+  ApiPublicRazorpayWebhookRoute: typeof ApiPublicRazorpayWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -798,6 +812,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRiderVehicleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/razorpay-webhook': {
+      id: '/api/public/razorpay-webhook'
+      path: '/api/public/razorpay-webhook'
+      fullPath: '/api/public/razorpay-webhook'
+      preLoaderRoute: typeof ApiPublicRazorpayWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app/ride/$rideId': {
       id: '/_authenticated/app/ride/$rideId'
       path: '/app/ride/$rideId'
@@ -900,6 +921,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   DownloadRoute: DownloadRoute,
   VehicleTokenRoute: VehicleTokenRoute,
+  ApiPublicRazorpayWebhookRoute: ApiPublicRazorpayWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

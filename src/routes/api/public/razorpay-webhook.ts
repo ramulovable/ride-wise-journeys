@@ -58,9 +58,7 @@ export const Route = createFileRoute("/api/public/razorpay-webhook")({
         };
         const noteTicketId = typeof pay.notes?.["ticket_id"] === "string" ? pay.notes?.["ticket_id"] : null;
         const ticket: Ticket | null = noteTicketId && uuidLike.test(noteTicketId)
-        const uuidLike = /^[0-9a-f-]{36}$/i;
-        const ticket: Ticket | null = noteTicket && uuidLike.test(noteTicket)
-          ? await fetchTicket("id", noteTicket)
+          ? await fetchTicket("id", noteTicketId)
           : pay.order_id
             ? await fetchTicket("payment_order_id", pay.order_id)
             : null;

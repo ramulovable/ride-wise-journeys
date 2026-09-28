@@ -33,6 +33,25 @@ const SERVICES = [
   },
 ] as const;
 
+function isNativeApp() {
+  if (typeof window === "undefined") return false;
+  const cap = (window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean; platform?: string };
+  }).Capacitor;
+  if (!cap) return false;
+  if (typeof cap.isNativePlatform === "function") return cap.isNativePlatform();
+  return cap.platform === "android" || cap.platform === "ios";
+}
+
+async function openInAppBrowser(url: string) {
+  const { Browser } = await import("@capacitor/browser");
+  await Browser.open({
+    url,
+    presentationStyle: "fullscreen",
+    toolbarColor: "#17804A",
+  });
+}
+
 export function TravelDesk() {
   const [active, setActive] = useState<{ title: string; url: string } | null>(null);
 
@@ -60,12 +79,20 @@ export function TravelDesk() {
                 toast.info("Train booking jald shuru hoga — Coming Soon!");
                 return;
               }
-              // Open synchronously inside the click so mobile browsers don't block it.
+              if (isNativeApp()) {
+                // Native app: open inside Shahin Travels (Chrome Custom Tab), no external browser.
+                void openInAppBrowser(url).catch(() => {
+                  window.open(url, "_blank", "noopener,noreferrer");
+                });
+                return;
+              }
+              // Web: open synchronously inside the click so mobile browsers don't block it.
               window.open(url, "_blank", "noopener,noreferrer");
               setActive({ title, url });
             }}
             className="relative flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 py-3 text-center transition active:scale-[0.98]"
           >
+
             <span className="flex size-10 items-center justify-center rounded-full bg-primary/10">
               <Icon className="size-5 text-primary" />
             </span>

@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
 import { AdBanner } from "@/components/AdBanner";
+import { TravelDesk } from "@/components/TravelDesk";
+
 import { toast } from "sonner";
 import {
   ArrowRight,

@@ -91,6 +91,6 @@
 - [ ] RAZORPAY_WEBHOOK_SECRET via secure form + same value in Razorpay dashboard webhook settings
 
 ## Travel Desk (Sep 28)
-- [ ] Customer home: Flights + Hotels (Trip.com affiliate, INR) opening inside the app
-- [ ] Trains card with bold "COMING SOON" sticker badge
+- [x] Customer home: Flights + Hotels (Trip.com affiliate, INR) opening inside the app
+- [x] Trains card with bold "COMING SOON" sticker badge
 

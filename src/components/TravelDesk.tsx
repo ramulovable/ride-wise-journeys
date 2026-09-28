@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Hotel, Plane, TrainFront, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BadgeCheck, Hotel, Loader2, Plane, ShieldCheck, TrainFront, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -34,8 +34,7 @@ const SERVICES = [
 ] as const;
 
 export function TravelDesk() {
-  const [openUrl, setOpenUrl] = useState<string | null>(null);
-  const [openTitle, setOpenTitle] = useState("");
+  const [active, setActive] = useState<{ title: string; url: string } | null>(null);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -61,8 +60,9 @@ export function TravelDesk() {
                 toast.info("Train booking jald shuru hoga — Coming Soon!");
                 return;
               }
-              setOpenTitle(title);
-              setOpenUrl(url);
+              // Open synchronously inside the click so mobile browsers don't block it.
+              window.open(url, "_blank", "noopener,noreferrer");
+              setActive({ title, url });
             }}
             className="relative flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 py-3 text-center transition active:scale-[0.98]"
           >
@@ -82,14 +82,18 @@ export function TravelDesk() {
         ))}
       </div>
 
-      {openUrl ? (
-        <TravelFrame title={openTitle} url={openUrl} onClose={() => setOpenUrl(null)} />
+      {active ? (
+        <RedirectCard
+          title={active.title}
+          url={active.url}
+          onClose={() => setActive(null)}
+        />
       ) : null}
     </section>
   );
 }
 
-function TravelFrame({
+function RedirectCard({
   title,
   url,
   onClose,
@@ -98,74 +102,63 @@ function TravelFrame({
   url: string;
   onClose: () => void;
 }) {
-  const [blocked, setBlocked] = useState(false);
-  const loaded = useRef(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const original = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const timer = window.setTimeout(() => {
-      if (!loaded.current) setBlocked(true);
-    }, 6000);
-    return () => {
-      document.body.style.overflow = original;
-      window.clearTimeout(timer);
-    };
+    const timer = window.setTimeout(() => setReady(true), 1600);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <header className="flex items-center gap-2 border-b border-border bg-card px-3 py-2.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="min-h-10 min-w-10 rounded-full"
-          onClick={onClose}
-          aria-label="Close"
-        >
-          <X className="size-5" />
-        </Button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{title}</p>
-          <p className="truncate text-[11px] text-muted-foreground">
-            Shahin Travels Travel Desk • Secure booking
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 p-4 sm:items-center">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-bold text-foreground">Shahin Travels Booking Partner</p>
+            <p className="text-[11px] text-muted-foreground">{title} • Live ₹ INR rates</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="-mr-2 -mt-2 min-h-9 min-w-9 rounded-full"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-primary/5 p-3">
+          {ready ? (
+            <BadgeCheck className="size-5 shrink-0 text-primary" />
+          ) : (
+            <Loader2 className="size-5 shrink-0 animate-spin text-primary" />
+          )}
+          <p className="text-xs leading-snug text-foreground">
+            {ready
+              ? "Booking page naye tab me khul gaya hai. Wahin se search aur payment poora kijiye."
+              : "Aapko Shahin Travels ke secure booking partner par le jaaya ja raha hai…"}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="min-h-10 min-w-10 rounded-full text-primary"
-          onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-          aria-label="Open in browser"
-        >
-          <ExternalLink className="size-5" />
-        </Button>
-      </header>
 
-      <div className="relative flex-1">
-        <iframe
-          src={url}
-          title={title}
-          onLoad={() => {
-            loaded.current = true;
-          }}
-          className="h-full w-full border-0"
-          allow="geolocation; payment"
-        />
-        {blocked ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
-            <p className="text-sm font-semibold text-foreground">
-              Booking page यहाँ नहीं खुल पा रहा
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Search aur payment ke liye page ko naye tab me kholiye. Booking Shahin Travels ke
-              partner ke through hi hogi.
-            </p>
-            <Button onClick={() => window.open(url, "_blank", "noopener,noreferrer")}>
-              {title} खोलें
-            </Button>
-          </div>
-        ) : null}
+        <ul className="mt-3 space-y-1.5">
+          <li className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <ShieldCheck className="size-3.5 text-primary" /> Secure payment aur instant confirmation
+          </li>
+          <li className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <BadgeCheck className="size-3.5 text-primary" /> Shahin Travels partner rates — ₹ INR me
+          </li>
+        </ul>
+
+        <Button
+          className="mt-4 w-full"
+          onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+        >
+          {title} खोलें
+        </Button>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          Tab apne aap na khule to upar wala button dabaiye
+        </p>
       </div>
     </div>
   );

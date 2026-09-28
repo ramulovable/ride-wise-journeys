@@ -251,6 +251,8 @@ function BookPage() {
           <>
             {/* Big landscape advertising banner, managed from Admin > Banners. */}
             <AdBanner />
+            <TravelDesk />
+
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
 
               <div className="flex items-center gap-1 border-t border-border px-3 py-1.5">

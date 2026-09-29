@@ -3,21 +3,25 @@ import { createServerFn } from "@tanstack/react-start";
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 type RailResult = { success: boolean; data: Json; error: string };
 
+function fail(error: string): RailResult {
+  return { success: false, data: null, error };
+}
+
 async function rail<T>(fn: (sdk: typeof import("railkit")) => Promise<T>): Promise<RailResult> {
   const key = process.env["RAILKIT_API_KEY"];
-  if (!key) return { success: false, error: "Train service abhi configure nahi hai." };
+  if (!key) return fail("Train service abhi configure nahi hai.");
   try {
     const sdk = await import("railkit");
     sdk.configure(key);
-    const res = (await fn(sdk)) as RailResult;
+    const res = (await fn(sdk)) as { success?: boolean; data?: Json; error?: string } | null;
     if (res && typeof res === "object" && "success" in res) {
       return res.success
-        ? { success: true, data: res.data }
-        : { success: false, error: String(res.error ?? "Jaankari nahi mili.") };
+        ? { success: true, data: (res.data ?? null) as Json, error: "" }
+        : fail(String(res.error ?? "Jaankari nahi mili."));
     }
-    return { success: true, data: res };
+    return { success: true, data: (res ?? null) as Json, error: "" };
   } catch {
-    return { success: false, error: "Train service abhi uplabdh nahi hai. Thodi der baad koshish kijiye." };
+    return fail("Train service abhi uplabdh nahi hai. Thodi der baad koshish kijiye.");
   }
 }
 

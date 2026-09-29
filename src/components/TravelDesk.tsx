@@ -3,6 +3,7 @@ import { BadgeCheck, Hotel, Loader2, Plane, ShieldCheck, TrainFront, X } from "l
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { TrainHub } from "@/components/TrainHub";
 
 const AFFILIATE = "Allianceid=10768164&SID=332381932&locale=en-IN&curr=INR";
 

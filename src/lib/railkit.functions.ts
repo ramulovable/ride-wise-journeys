@@ -107,3 +107,52 @@ export const railTrainSearch = createServerFn({ method: "POST" })
     if (data.name.length < 2) return fail("Kam se kam 2 akshar likhiye.");
     return rail((sdk) => sdk.trainsByName(data.name));
   });
+
+/** Suggest trains by partial name or exact 5-digit number. */
+export const railTrainSuggest = createServerFn({ method: "POST" })
+  .inputValidator((input: { q: string }) => ({ q: String(input.q ?? "").trim() }))
+  .handler(async ({ data }) => {
+    const q = data.q;
+    if (q.length < 2) return fail("Kam se kam 2 akshar likhiye.");
+    if (/^\d+$/.test(q)) {
+      if (q.length < 5) return { success: true, data: [], error: "" };
+      return rail((sdk) => sdk.trainByNumber(q.slice(0, 5)));
+    }
+    return rail((sdk) => sdk.trainsByName(q));
+  });
+
+/** Seat availability for every class of one train in a single call. */
+export const railSeatAvailabilityAll = createServerFn({ method: "POST" })
+  .inputValidator((input: {
+    trainNo: string;
+    from: string;
+    to: string;
+    date: string;
+    quota?: string;
+    classes?: string[];
+  }) => ({
+    trainNo: String(input.trainNo ?? "").replace(/\D/g, ""),
+    from: String(input.from ?? "").trim().toUpperCase(),
+    to: String(input.to ?? "").trim().toUpperCase(),
+    date: String(input.date ?? "").trim(),
+    quota: String(input.quota ?? "GN").trim().toUpperCase(),
+    classes: (Array.isArray(input.classes) ? input.classes : ["SL", "3A", "2A"])
+      .map((c) => String(c).trim().toUpperCase())
+      .filter((c) => ["1A", "2A", "3A", "3E", "SL", "2S", "CC", "EC"].includes(c))
+      .slice(0, 8),
+  }))
+  .handler(async ({ data }) => {
+    if (data.trainNo.length !== 5 || !data.from || !data.to || !data.date) {
+      return fail("Poori jaankari bhariye.");
+    }
+    const list = data.classes.length ? data.classes : ["SL", "3A", "2A"];
+    const results = await Promise.all(
+      list.map(async (coach) => {
+        const res = await rail((sdk) =>
+          sdk.getAvailability(data.trainNo, data.from, data.to, data.date, coach, data.quota),
+        );
+        return { coach, success: res.success, data: res.data, error: res.error };
+      }),
+    );
+    return { success: true, data: results as unknown as Json, error: "" };
+  });

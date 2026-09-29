@@ -55,6 +55,7 @@ async function openInAppBrowser(url: string) {
 
 export function TravelDesk() {
   const [active, setActive] = useState<{ title: string; url: string } | null>(null);
+  const [trainOpen, setTrainOpen] = useState(false);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card">

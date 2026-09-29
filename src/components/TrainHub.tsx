@@ -3,16 +3,21 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   CalendarDays,
+  Check,
   ChevronRight,
   Clock,
+  Copy,
   Gauge,
   Loader2,
   MapPin,
+  Navigation,
   Search,
+  Share2,
   Sofa,
   Ticket,
   TicketCheck,
   TrainFront,
+  Utensils,
   X,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -23,15 +28,20 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { POPULAR_STATIONS, POPULAR_TRAINS, type RailStation } from "@/lib/rail-stations";
 import {
-  railLiveAtStation,
-  railLiveStatus,
-  railPnrStatus,
-  railSeatAvailabilityAll,
-  railStationSearch,
-  railTrainInfo,
-  railTrainSuggest,
-  railTrainsBetween,
-} from "@/lib/railkit.functions";
+  railAvailability,
+  railBetween,
+  railLive,
+  railPnr,
+  railStationBoard,
+  railStations,
+  railTrainSearch,
+  type ClassAvailability,
+  type LiveStatus,
+  type PnrStatus,
+  type RouteTrain,
+  type StationBoardTrain,
+  type TrainRecord,
+} from "@/lib/indianrail.functions";
 
 import pnrArt from "@/assets/rail-pnr.jpg";
 import liveArt from "@/assets/rail-live.jpg";
@@ -113,8 +123,6 @@ const QUOTAS: { code: string; label: string }[] = [
   { code: "HP", label: "Divyang" },
   { code: "DF", label: "Defence" },
   { code: "YU", label: "Yuva" },
-  { code: "FT", label: "Foreign Tourist" },
-  { code: "HO", label: "HO Quota" },
 ];
 
 const CLASS_NAMES: Record<string, string> = {
@@ -125,7 +133,8 @@ const CLASS_NAMES: Record<string, string> = {
   SL: "Sleeper",
   "2S": "Second Sitting",
   CC: "AC Chair Car",
-  EC: "Executive Chair Car",
+  EC: "Executive Chair",
+  FC: "First Class",
 };
 
 const PRIMARY_CLASSES = ["SL", "3A", "2A", "1A"];
@@ -134,11 +143,19 @@ const EXTRA_CLASSES = ["3E", "2S", "CC", "EC"];
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
-function fmtDate(d: Date) {
-  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function compact(d: Date) {
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
 }
 function prettyDate(d: Date) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+function delayText(min: number) {
+  if (min <= 0) return "Right Time";
+  if (min < 60) return `${min} मिनट लेट`;
+  return `${Math.floor(min / 60)} घं ${min % 60} मि लेट`;
 }
 
 export function TrainHub({ onClose }: { onClose: () => void }) {
@@ -282,7 +299,7 @@ function StationField({
   value: RailStation | null;
   onChange: (s: RailStation | null) => void;
 }) {
-  const search = useServerFn(railStationSearch);
+  const search = useServerFn(railStations);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [remote, setRemote] = useState<RailStation[]>([]);
@@ -297,19 +314,9 @@ function StationField({
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const res = await search({ data: { name: q } });
-        if (cancelled || !res.success) return;
-        const rows = Array.isArray(res.data) ? res.data : [];
-        setRemote(
-          rows
-            .map((r) => {
-              const o = r as Record<string, unknown>;
-              const code = String(o["code"] ?? o["stnCode"] ?? o["station_code"] ?? "").toUpperCase();
-              const name = String(o["name"] ?? o["stnName"] ?? o["station_name"] ?? "");
-              return { code, name };
-            })
-            .filter((s) => s.code),
-        );
+        const res = await search({ data: { q } });
+        if (cancelled || !res.success || !res.data) return;
+        setRemote(res.data.map((s) => ({ code: s.code, name: s.name })));
       } catch {
         /* keep offline suggestions */
       }
@@ -329,7 +336,7 @@ function StationField({
       : POPULAR_STATIONS.slice(0, 8);
     const merged = [...local];
     for (const r of remote) if (!merged.some((m) => m.code === r.code)) merged.push(r);
-    return merged.slice(0, 10);
+    return merged.slice(0, 12);
   }, [query, remote]);
 
   useEffect(() => {
@@ -414,7 +421,7 @@ function TrainField({
   value: TrainOption | null;
   onChange: (t: TrainOption | null) => void;
 }) {
-  const suggest = useServerFn(railTrainSuggest);
+  const suggest = useServerFn(railTrainSearch);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [remote, setRemote] = useState<TrainOption[]>([]);
@@ -430,20 +437,8 @@ function TrainField({
     const t = setTimeout(async () => {
       try {
         const res = await suggest({ data: { q } });
-        if (cancelled || !res.success) return;
-        const raw = res.data;
-        const rows = Array.isArray(raw) ? raw : raw ? [raw] : [];
-        setRemote(
-          rows
-            .map((r) => {
-              const o = r as Record<string, unknown>;
-              return {
-                number: String(o["number"] ?? o["train_no"] ?? o["trainNo"] ?? "").trim(),
-                name: String(o["name"] ?? o["train_name"] ?? o["trainName"] ?? "").trim(),
-              };
-            })
-            .filter((t2) => t2.number),
-        );
+        if (cancelled || !res.success || !res.data) return;
+        setRemote(res.data.map((r) => ({ number: r.number, name: r.name })));
       } catch {
         /* keep offline suggestions */
       }
@@ -457,13 +452,11 @@ function TrainField({
   const options = useMemo(() => {
     const q = query.trim().toLowerCase();
     const local = q
-      ? POPULAR_TRAINS.filter(
-          (t) => t.number.startsWith(q) || t.name.toLowerCase().includes(q),
-        )
+      ? POPULAR_TRAINS.filter((t) => t.number.startsWith(q) || t.name.toLowerCase().includes(q))
       : POPULAR_TRAINS.slice(0, 8);
     const merged = [...local];
     for (const r of remote) if (!merged.some((m) => m.number === r.number)) merged.push(r);
-    return merged.slice(0, 10);
+    return merged.slice(0, 12);
   }, [query, remote]);
 
   useEffect(() => {
@@ -554,18 +547,32 @@ function DateField({ value, onChange }: { value: Date; onChange: (d: Date) => vo
   );
 }
 
-function QuickDates({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
-  const opts = [
-    { label: "आज", days: 0 },
-    { label: "कल", days: 1 },
-    { label: "परसों", days: 2 },
-  ];
+function QuickDates({
+  value,
+  onChange,
+  withYesterday,
+}: {
+  value: Date;
+  onChange: (d: Date) => void;
+  withYesterday?: boolean;
+}) {
+  const opts = withYesterday
+    ? [
+        { label: "कल (बीता)", days: -1 },
+        { label: "आज", days: 0 },
+        { label: "कल", days: 1 },
+      ]
+    : [
+        { label: "आज", days: 0 },
+        { label: "कल", days: 1 },
+        { label: "परसों", days: 2 },
+      ];
   return (
     <div className="flex gap-2">
       {opts.map((o) => {
         const d = new Date();
         d.setDate(d.getDate() + o.days);
-        const on = fmtDate(d) === fmtDate(value);
+        const on = ymd(d) === ymd(value);
         return (
           <button
             key={o.label}
@@ -586,7 +593,13 @@ function QuickDates({ value, onChange }: { value: Date; onChange: (d: Date) => v
 function SubmitButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
   return (
     <Button className="h-12 w-full rounded-xl text-[15px] font-extrabold" onClick={onClick} disabled={loading}>
-      {loading ? <Loader2 className="size-5 animate-spin" /> : <><Search className="mr-1.5 size-4" /> {label}</>}
+      {loading ? (
+        <Loader2 className="size-5 animate-spin" />
+      ) : (
+        <>
+          <Search className="mr-1.5 size-4" /> {label}
+        </>
+      )}
     </Button>
   );
 }
@@ -617,12 +630,14 @@ function ToolScreen({ tool }: { tool: Tool }) {
   );
 }
 
+/* ----------------------------- PNR -------------------------------- */
+
 function PnrScreen() {
-  const pnrFn = useServerFn(railPnrStatus);
+  const pnrFn = useServerFn(railPnr);
   const [pnr, setPnr] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [data, setData] = useState<PnrStatus | null>(null);
 
   async function run() {
     setLoading(true);
@@ -630,10 +645,10 @@ function PnrScreen() {
     setData(null);
     try {
       const res = await pnrFn({ data: { pnr } });
-      if (res.success) setData((res.data ?? null) as Record<string, unknown> | null);
+      if (res.success) setData(res.data);
       else setError(res.error);
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setLoading(false);
     }
@@ -657,18 +672,184 @@ function PnrScreen() {
         <SubmitButton loading={loading} onClick={run} label="Check PNR" />
       </div>
       {error ? <ErrorNote text={error} /> : null}
-      {data ? <ResultCard title="PNR Details" data={data} /> : null}
+      {data ? <PnrResult d={data} /> : null}
     </div>
   );
 }
 
+function PnrResult({ d }: { d: PnrStatus }) {
+  const [copied, setCopied] = useState(false);
+
+  const banner =
+    d.tone === "confirmed"
+      ? "from-emerald-600 to-green-500"
+      : d.tone === "rac"
+        ? "from-amber-500 to-orange-500"
+        : d.tone === "waiting"
+          ? "from-red-600 to-rose-500"
+          : "from-slate-600 to-slate-500";
+
+  async function copyPnr() {
+    try {
+      await navigator.clipboard.writeText(d.pnr);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function sharePnr() {
+    const text = `PNR ${d.pnr} • ${d.trainNo} ${d.trainName} • ${d.headline}`;
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else await navigator.clipboard.writeText(text);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* status banner */}
+      <div className={`overflow-hidden rounded-2xl bg-gradient-to-r ${banner} p-4 text-white shadow-lg`}>
+        <div className="flex items-center gap-3">
+          <span className="flex size-12 items-center justify-center rounded-full border-2 border-white/60 bg-white/20">
+            <Check className="size-6" />
+          </span>
+          <div className="flex-1">
+            <p className="text-[17px] font-extrabold leading-tight">{d.headline}</p>
+            <p className="text-[11px] opacity-90">
+              PNR {d.pnr}
+              {d.chartPrepared ? " • चार्ट तैयार" : " • चार्ट अभी नहीं बना"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* journey summary */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2">
+          <p className="text-[14px] font-extrabold text-foreground">{d.trainName}</p>
+          <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-extrabold text-primary-foreground">
+            {d.trainNo}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 p-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[18px] font-extrabold leading-tight text-foreground">{d.fromCode}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{d.fromName || "Boarding"}</p>
+          </div>
+          <div className="flex flex-col items-center px-1 text-muted-foreground">
+            <TrainFront className="size-4 text-primary" />
+            <div className="my-1 h-px w-12 bg-border" />
+            <span className="text-[10px] font-bold">{d.journeyDate}</span>
+          </div>
+          <div className="min-w-0 flex-1 text-right">
+            <p className="text-[18px] font-extrabold leading-tight text-foreground">{d.toCode}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{d.toName || "Destination"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-border border-t border-border text-center">
+          <Stat label="Class" value={CLASS_NAMES[d.travelClass] ?? d.travelClass ?? "-"} />
+          <Stat label="Quota" value={d.quota || "-"} />
+          <Stat label="Fare" value={d.fare ? `₹${d.fare}` : "-"} />
+        </div>
+      </div>
+
+      {/* passengers */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <p className="border-b border-border bg-muted/40 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+          Passenger Status
+        </p>
+        <div className="divide-y divide-border">
+          {d.passengers.map((p) => {
+            const cnf = /CNF|CONFIRM/i.test(p.current);
+            const rac = /RAC/i.test(p.current);
+            return (
+              <div key={p.serial} className="flex items-center gap-3 p-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[12px] font-extrabold text-primary">
+                  {p.serial}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-bold text-foreground">
+                    Passenger {p.serial}
+                    {p.berthType ? (
+                      <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+                        • {p.berthType}
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">बुकिंग: {p.booking || "-"}</p>
+                </div>
+                <div className="text-right">
+                  <span
+                    className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-extrabold ${
+                      cnf
+                        ? "bg-emerald-100 text-emerald-800"
+                        : rac
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {p.current || "-"}
+                  </span>
+                  {p.coach || p.berth ? (
+                    <p className="mt-0.5 text-[11px] font-bold text-foreground">
+                      {p.coach} {p.berth}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+          {d.passengers.length === 0 ? (
+            <p className="p-3 text-xs text-muted-foreground">यात्री जानकारी उपलब्ध नहीं।</p>
+          ) : null}
+        </div>
+      </div>
+
+      {/* coach / berth cards */}
+      {d.passengers.some((p) => p.coach) ? (
+        <div className="grid grid-cols-3 gap-2">
+          {d.passengers
+            .filter((p) => p.coach)
+            .slice(0, 6)
+            .map((p) => (
+              <div
+                key={`c${p.serial}`}
+                className="rounded-2xl border border-border bg-gradient-to-b from-card to-muted/40 p-3 text-center shadow-sm"
+              >
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Coach</p>
+                <p className="text-[18px] font-extrabold text-foreground">{p.coach}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase text-muted-foreground">Seat</p>
+                <p className="text-[15px] font-extrabold text-primary">{p.berth || "-"}</p>
+              </div>
+            ))}
+        </div>
+      ) : null}
+
+      <div className="flex gap-2">
+        <Button variant="outline" className="h-11 flex-1 rounded-xl font-bold" onClick={copyPnr}>
+          <Copy className="mr-1.5 size-4" /> {copied ? "कॉपी हो गया" : "PNR कॉपी"}
+        </Button>
+        <Button variant="outline" className="h-11 flex-1 rounded-xl font-bold" onClick={sharePnr}>
+          <Share2 className="mr-1.5 size-4" /> शेयर
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------- Live status -------------------------- */
+
 function LiveScreen() {
-  const liveFn = useServerFn(railLiveStatus);
+  const liveFn = useServerFn(railLive);
   const [train, setTrain] = useState<TrainOption | null>(null);
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [data, setData] = useState<LiveStatus | null>(null);
 
   async function run() {
     if (!train) {
@@ -679,95 +860,190 @@ function LiveScreen() {
     setError("");
     setData(null);
     try {
-      const res = await liveFn({ data: { trainNo: train.number, date: fmtDate(date) } });
-      if (res.success) setData((res.data ?? null) as Record<string, unknown> | null);
+      const res = await liveFn({ data: { trainNo: train.number, date: compact(date) } });
+      if (res.success) setData(res.data);
       else setError(res.error);
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setLoading(false);
     }
   }
-
-  const timeline = Array.isArray(data?.["timeline"]) ? (data["timeline"] as Record<string, unknown>[]) : [];
 
   return (
     <div className="space-y-3">
       <div className="space-y-2.5 rounded-2xl border border-border bg-card p-3">
         <TrainField label="Train" value={train} onChange={setTrain} />
         <DateField value={date} onChange={setDate} />
-        <QuickDates value={date} onChange={setDate} />
+        <QuickDates value={date} onChange={setDate} withYesterday />
         <SubmitButton loading={loading} onClick={run} label="Check Live Status" />
       </div>
       {error ? <ErrorNote text={error} /> : null}
+      {data ? <LiveResult d={data} name={train?.name ?? ""} /> : null}
+    </div>
+  );
+}
 
-      {data ? (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="bg-gradient-to-r from-teal-600 to-cyan-500 p-3 text-white">
-            <p className="text-[15px] font-extrabold">
-              {String(data["trainName"] ?? train?.name ?? "")}{" "}
-              <span className="rounded-md bg-white/20 px-1.5 py-0.5 text-[12px]">
-                {String(data["trainNo"] ?? train?.number ?? "")}
-              </span>
+function LiveResult({ d, name }: { d: LiveStatus; name: string }) {
+  return (
+    <div className="space-y-3">
+      {/* live train position card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-teal-900 to-cyan-800 p-4 text-white shadow-xl">
+        <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full bg-cyan-400/20 blur-2xl" />
+        <div className="relative flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-[16px] font-extrabold">{name || d.trainNo}</p>
+            <p className="text-[11px] opacity-80">
+              {d.trainNo} • {d.updatedAgo ? `अपडेट ${d.updatedAgo}` : "लाइव"}
             </p>
-            <p className="text-[11px] opacity-90">{String(data["statusNote"] ?? "")}</p>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-border border-b border-border text-center">
-            <Stat label="Last Update" value={String(data["lastUpdate"] ?? "-")} />
-            <Stat label="Avg Speed" value={`${String(data["averageSpeedKmph"] ?? "-")} km/h`} />
-            <Stat label="Distance" value={`${String(data["totalDistanceKm"] ?? "-")} km`} />
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold shadow ${
+              d.onTime ? "bg-emerald-500 text-white" : "bg-amber-400 text-amber-950"
+            }`}
+          >
+            {delayText(d.delayMin)}
+          </span>
+        </div>
+
+        {/* 3D style track */}
+        <div className="relative mt-5 h-16">
+          <div className="absolute inset-x-0 top-9 h-2 rounded-full bg-white/15 shadow-inner" />
+          <div
+            className="absolute top-9 h-2 rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300 shadow-[0_0_14px_rgba(103,232,249,0.8)]"
+            style={{ width: `${Math.max(3, Math.min(100, d.progressPct))}%` }}
+          />
+          <div
+            className="absolute top-0 -translate-x-1/2 transition-all duration-700"
+            style={{ left: `${Math.max(5, Math.min(95, d.progressPct))}%` }}
+          >
+            <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-200 text-slate-900 shadow-[0_8px_18px_rgba(0,0,0,0.45)] ring-2 ring-cyan-300/70">
+              <TrainFront className="size-6" />
+            </span>
+            <span className="mx-auto mt-1 block h-3 w-8 rounded-full bg-black/40 blur-[3px]" />
           </div>
-          {timeline.length ? (
-            <div className="max-h-[420px] overflow-y-auto p-3">
-              {timeline
-                .filter((s) => s["type"] === "stoppage")
-                .map((s, i) => {
-                  const arr = (s["arrival"] ?? {}) as Record<string, unknown>;
-                  const dep = (s["departure"] ?? {}) as Record<string, unknown>;
-                  const passed = s["status"] === "passed";
-                  return (
-                    <div key={i} className="flex gap-3 pb-3 last:pb-0">
-                      <div className="flex flex-col items-center">
-                        <span
-                          className={`mt-1 size-3 rounded-full ${passed ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
-                        />
-                        <span className="w-px flex-1 bg-border" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[13px] font-bold text-foreground">
-                          {String(s["stationName"] ?? "")}{" "}
-                          <span className="text-[11px] text-muted-foreground">
-                            ({String(s["stationCode"] ?? "")})
-                          </span>
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          आगमन {String(arr["actual"] ?? arr["scheduled"] ?? "-")} • प्रस्थान{" "}
-                          {String(dep["actual"] ?? dep["scheduled"] ?? "-")}
-                          {s["platform"] ? ` • PF ${String(s["platform"])}` : ""}
-                        </p>
-                        {arr["delay"] || dep["delay"] ? (
-                          <span
-                            className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              String(arr["delay"] ?? dep["delay"]).includes("min")
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-emerald-100 text-emerald-800"
-                            }`}
-                          >
-                            {String(arr["delay"] || dep["delay"])}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })}
+          <span className="absolute left-0 top-[52px] text-[10px] font-bold opacity-80">
+            {d.stops[0]?.code}
+          </span>
+          <span className="absolute right-0 top-[52px] text-[10px] font-bold opacity-80">
+            {d.stops[d.stops.length - 1]?.code}
+          </span>
+        </div>
+
+        <p className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-[12px] font-semibold">
+          {d.message || `ट्रेन अभी ${d.currentName} पर है`}
+        </p>
+      </div>
+
+      {/* live metrics */}
+      <div className="grid grid-cols-3 gap-2">
+        <Metric icon={<Gauge className="size-4" />} label="औसत रफ़्तार" value={`${d.avgSpeedKmph || "-"} km/h`} />
+        <Metric icon={<Navigation className="size-4" />} label="तय दूरी" value={`${d.coveredKm}/${d.totalKm} km`} />
+        <Metric icon={<Clock className="size-4" />} label="स्थिति" value={d.onTime ? "Right Time" : `${d.delayMin} मि लेट`} />
+      </div>
+
+      {/* next station */}
+      {d.nextCode ? (
+        <div className="rounded-2xl border border-border bg-card p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            अगला स्टेशन
+          </p>
+          <div className="mt-1 flex items-center gap-3">
+            <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-[12px] font-extrabold text-primary">
+              {d.nextCode}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-extrabold text-foreground">{d.nextName}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {d.distanceToNextKm} km बाकी
+                {d.nextPlatform ? ` • प्लेटफॉर्म ${d.nextPlatform}` : ""}
+              </p>
             </div>
-          ) : (
-            <div className="p-3">
-              <Node value={data} />
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">पहुँचेगी</p>
+              <p className="text-[16px] font-extrabold text-primary">{d.nextEta || "--"}</p>
+              {d.nextSched && d.nextSched !== d.nextEta ? (
+                <p className="text-[10px] text-muted-foreground line-through">{d.nextSched}</p>
+              ) : null}
             </div>
-          )}
+          </div>
         </div>
       ) : null}
+
+      {/* route timeline */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <p className="border-b border-border bg-muted/40 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+          पूरा रूट • {d.stops.length} स्टेशन
+        </p>
+        <div className="max-h-[460px] overflow-y-auto p-3">
+          {d.stops.map((s, i) => {
+            const isLast = i === d.stops.length - 1;
+            const dotClass =
+              s.state === "passed"
+                ? "bg-emerald-500"
+                : s.state === "current"
+                  ? "bg-cyan-500 ring-4 ring-cyan-500/30 animate-pulse"
+                  : "bg-muted-foreground/30";
+            const late = s.delayMin > 5;
+            return (
+              <div key={`${s.code}-${i}`} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <span className={`mt-1.5 size-3 shrink-0 rounded-full ${dotClass}`} />
+                  {!isLast ? (
+                    <span
+                      className={`w-0.5 flex-1 ${s.state === "passed" ? "bg-emerald-500/50" : "bg-border"}`}
+                    />
+                  ) : null}
+                </div>
+                <div className={`flex-1 ${isLast ? "pb-0" : "pb-4"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p
+                        className={`truncate text-[13px] font-bold ${
+                          s.state === "current" ? "text-cyan-600" : "text-foreground"
+                        }`}
+                      >
+                        {s.name}{" "}
+                        <span className="text-[11px] font-medium text-muted-foreground">({s.code})</span>
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {s.distanceKm} km • दिन {s.day}
+                        {s.haltMin ? ` • हाल्ट ${s.haltMin} मि` : ""}
+                        {s.platform ? ` • PF ${s.platform}` : ""}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className={`text-[13px] font-extrabold ${late ? "text-amber-600" : "text-emerald-600"}`}>
+                        {s.actualArr || s.actualDep || "--"}
+                      </p>
+                      {(s.schedArr || s.schedDep) &&
+                      (s.actualArr || s.actualDep) !== (s.schedArr || s.schedDep) ? (
+                        <p className="text-[10px] text-muted-foreground line-through">
+                          {s.schedArr || s.schedDep}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">समय पर</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-2.5 text-center">
+      <span className="mx-auto mb-1 flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+        {icon}
+      </span>
+      <p className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="text-[13px] font-extrabold text-foreground">{value}</p>
     </div>
   );
 }
@@ -781,60 +1057,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-type TrainRow = Record<string, unknown>;
-
-function TrainResultCard({ t, onPick }: { t: TrainRow; onPick?: () => void }) {
-  const days = String(t["running_days"] ?? "");
-  const daily = days === "1111111";
-  return (
-    <button
-      type="button"
-      onClick={onPick}
-      className="w-full rounded-2xl border border-border bg-card p-3 text-left shadow-sm transition active:scale-[0.99]"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[14px] font-extrabold text-foreground">
-          {String(t["train_name"] ?? t["trainName"] ?? "")}
-        </p>
-        <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-extrabold text-primary-foreground">
-          {String(t["train_no"] ?? t["trainNo"] ?? "")}
-        </span>
-      </div>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">
-        {String(t["from_stn_name"] ?? "")} ({String(t["from_stn_code"] ?? "")}) →{" "}
-        {String(t["to_stn_name"] ?? "")} ({String(t["to_stn_code"] ?? "")})
-      </p>
-      <div className="mt-2 flex items-center gap-3">
-        <div>
-          <p className="text-[15px] font-extrabold text-foreground">{String(t["from_time"] ?? "")}</p>
-        </div>
-        <div className="flex-1 text-center">
-          <p className="text-[10px] text-muted-foreground">{String(t["travel_time"] ?? "")}</p>
-          <div className="h-px bg-border" />
-          <p className="text-[10px] text-muted-foreground">
-            {t["distance"] ? `${String(t["distance"])} km` : ""}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-[15px] font-extrabold text-foreground">{String(t["to_time"] ?? "")}</p>
-        </div>
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-          {String(t["type"] ?? "EXPRESS")}
-        </span>
-        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-          {daily ? "Runs Daily" : days}
-        </span>
-        {onPick ? (
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-primary">
-            सीट देखें <ChevronRight className="size-3" />
-          </span>
-        ) : null}
-      </div>
-    </button>
-  );
-}
+/* --------------------------- Find trains -------------------------- */
 
 function useStationPair() {
   const [from, setFrom] = useState<RailStation | null>(POPULAR_STATIONS[0] ?? null);
@@ -846,13 +1069,7 @@ function useStationPair() {
   return { from, setFrom, to, setTo, swap };
 }
 
-function StationPairFields({
-  from,
-  to,
-  setFrom,
-  setTo,
-  swap,
-}: ReturnType<typeof useStationPair>) {
+function StationPairFields({ from, to, setFrom, setTo, swap }: ReturnType<typeof useStationPair>) {
   return (
     <>
       <StationField label="From" value={from} onChange={setFrom} />
@@ -871,13 +1088,63 @@ function StationPairFields({
   );
 }
 
+function RouteTrainCard({ t, onPick }: { t: RouteTrain; onPick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="w-full rounded-2xl border border-border bg-card p-3 text-left shadow-sm transition active:scale-[0.99]"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 flex-1 truncate text-[14px] font-extrabold text-foreground">{t.name}</p>
+        <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-extrabold text-primary-foreground">
+          {t.number}
+        </span>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <div>
+          <p className="text-[16px] font-extrabold text-foreground">{t.departure}</p>
+          <p className="text-[10px] text-muted-foreground">{t.fromCode}</p>
+        </div>
+        <div className="flex-1 text-center">
+          <p className="text-[10px] font-bold text-muted-foreground">{t.duration}</p>
+          <div className="my-0.5 h-px bg-border" />
+          <p className="text-[10px] text-muted-foreground">{t.distanceKm} km</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[16px] font-extrabold text-foreground">{t.arrival}</p>
+          <p className="text-[10px] text-muted-foreground">{t.toCode}</p>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+          {t.type || "EXPRESS"}
+        </span>
+        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+          {t.runDays.length === 7 ? "रोज़" : t.runDays.join(", ")}
+        </span>
+        {t.pantry ? (
+          <span className="flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+            <Utensils className="size-3" /> Pantry
+          </span>
+        ) : null}
+        {onPick ? (
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-primary">
+            सीट देखें <ChevronRight className="size-3" />
+          </span>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
 function FindTrainsScreen() {
-  const betweenFn = useServerFn(railTrainsBetween);
+  const betweenFn = useServerFn(railBetween);
   const pair = useStationPair();
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [rows, setRows] = useState<TrainRow[] | null>(null);
+  const [rows, setRows] = useState<RouteTrain[] | null>(null);
 
   async function run() {
     if (!pair.from || !pair.to) {
@@ -889,12 +1156,12 @@ function FindTrainsScreen() {
     setRows(null);
     try {
       const res = await betweenFn({
-        data: { from: pair.from.code, to: pair.to.code, date: fmtDate(date) },
+        data: { from: pair.from.code, to: pair.to.code, date: ymd(date) },
       });
-      if (res.success) setRows(Array.isArray(res.data) ? (res.data as TrainRow[]) : []);
+      if (res.success) setRows(res.data ?? []);
       else setError(res.error);
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setLoading(false);
     }
@@ -914,11 +1181,9 @@ function FindTrainsScreen() {
           <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">कोई सीधी ट्रेन नहीं मिली।</p>
         ) : (
           <div className="space-y-2.5">
-            <p className="px-1 text-[12px] font-bold text-muted-foreground">
-              {rows.length} ट्रेनें मिलीं
-            </p>
-            {rows.map((t, i) => (
-              <TrainResultCard key={i} t={t} />
+            <p className="px-1 text-[12px] font-bold text-muted-foreground">{rows.length} ट्रेनें मिलीं</p>
+            {rows.map((t) => (
+              <RouteTrainCard key={t.number} t={t} />
             ))}
           </div>
         )
@@ -927,10 +1192,12 @@ function FindTrainsScreen() {
   );
 }
 
+/* ------------------------- Seat availability ---------------------- */
+
 function SeatsScreen() {
-  const betweenFn = useServerFn(railTrainsBetween);
-  const infoFn = useServerFn(railTrainInfo);
-  const availFn = useServerFn(railSeatAvailabilityAll);
+  const betweenFn = useServerFn(railBetween);
+  const searchFn = useServerFn(railTrainSearch);
+  const availFn = useServerFn(railAvailability);
 
   const [mode, setMode] = useState<"stations" | "train">("stations");
   const pair = useStationPair();
@@ -939,9 +1206,9 @@ function SeatsScreen() {
   const [quota, setQuota] = useState("GN");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [rows, setRows] = useState<TrainRow[] | null>(null);
-  const [picked, setPicked] = useState<{ no: string; name: string; from: string; to: string } | null>(null);
-  const [avail, setAvail] = useState<Record<string, unknown>[] | null>(null);
+  const [rows, setRows] = useState<RouteTrain[] | null>(null);
+  const [picked, setPicked] = useState<RouteTrain | null>(null);
+  const [avail, setAvail] = useState<ClassAvailability[] | null>(null);
   const [availLoading, setAvailLoading] = useState(false);
   const [showExtra, setShowExtra] = useState(false);
 
@@ -958,54 +1225,65 @@ function SeatsScreen() {
           return;
         }
         const res = await betweenFn({
-          data: { from: pair.from.code, to: pair.to.code, date: fmtDate(date) },
+          data: { from: pair.from.code, to: pair.to.code, date: ymd(date) },
         });
-        if (res.success) setRows(Array.isArray(res.data) ? (res.data as TrainRow[]) : []);
+        if (res.success) setRows(res.data ?? []);
         else setError(res.error);
       } else {
         if (!train) {
           setError("पहले ट्रेन चुनिए।");
           return;
         }
-        const res = await infoFn({ data: { trainNo: train.number } });
-        if (!res.success) {
-          setError(res.error);
+        const res = await searchFn({ data: { q: train.number } });
+        if (!res.success || !res.data?.length) {
+          setError(res.error || "ट्रेन नहीं मिली।");
           return;
         }
-        const info = ((res.data as Record<string, unknown>)?.["trainInfo"] ?? {}) as Record<string, unknown>;
-        setRows([info as TrainRow]);
+        const t: TrainRecord = res.data[0]!;
+        setRows([
+          {
+            number: t.number,
+            name: t.name,
+            fromCode: t.fromCode,
+            fromName: t.fromName,
+            toCode: t.toCode,
+            toName: t.toName,
+            departure: t.schedule[0]?.departure ?? "",
+            arrival: t.schedule[t.schedule.length - 1]?.arrival ?? "",
+            duration: "",
+            distanceKm: t.schedule[t.schedule.length - 1]?.distanceKm ?? 0,
+            runDays: [],
+            type: t.type,
+            pantry: false,
+          },
+        ]);
       }
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadAvailability(t: TrainRow, extra: boolean) {
-    const no = String(t["train_no"] ?? t["trainNo"] ?? "");
-    const name = String(t["train_name"] ?? t["trainName"] ?? "");
-    const fromCode =
-      mode === "stations" && pair.from ? pair.from.code : String(t["from_stn_code"] ?? "");
-    const toCode = mode === "stations" && pair.to ? pair.to.code : String(t["to_stn_code"] ?? "");
-    setPicked({ no, name, from: fromCode, to: toCode });
+  async function loadAvailability(t: RouteTrain, extra: boolean, q: string) {
+    setPicked(t);
     setAvail(null);
     setAvailLoading(true);
     try {
       const res = await availFn({
         data: {
-          trainNo: no,
-          from: fromCode,
-          to: toCode,
-          date: fmtDate(date),
-          quota,
+          trainNo: t.number,
+          from: t.fromCode,
+          to: t.toCode,
+          date: ymd(date),
+          quota: q,
           classes: extra ? [...PRIMARY_CLASSES, ...EXTRA_CLASSES] : PRIMARY_CLASSES,
         },
       });
-      if (res.success) setAvail((res.data as Record<string, unknown>[]) ?? []);
+      if (res.success) setAvail(res.data ?? []);
       else setError(res.error);
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setAvailLoading(false);
     }
@@ -1014,10 +1292,12 @@ function SeatsScreen() {
   return (
     <div className="space-y-3">
       <div className="flex gap-2 rounded-xl bg-muted p-1">
-        {([
-          ["stations", "स्टेशन से स्टेशन"],
-          ["train", "ट्रेन नंबर से"],
-        ] as const).map(([id, label]) => (
+        {(
+          [
+            ["stations", "स्टेशन से स्टेशन"],
+            ["train", "ट्रेन नंबर से"],
+          ] as const
+        ).map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -1052,10 +1332,10 @@ function SeatsScreen() {
       {rows && rows.length > 0 ? (
         <div className="space-y-2.5">
           <p className="px-1 text-[12px] font-bold text-muted-foreground">
-            ट्रेन चुनिए — सिर्फ उसी ट्रेन की सीटें दिखेंगी
+            ट्रेन चुनिए — सिर्फ़ उसी ट्रेन की सीटें दिखेंगी
           </p>
-          {rows.map((t, i) => (
-            <TrainResultCard key={i} t={t} onPick={() => loadAvailability(t, showExtra)} />
+          {rows.map((t) => (
+            <RouteTrainCard key={t.number} t={t} onPick={() => loadAvailability(t, showExtra, quota)} />
           ))}
         </div>
       ) : null}
@@ -1064,10 +1344,10 @@ function SeatsScreen() {
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-3 text-white">
             <p className="text-[15px] font-extrabold">
-              {picked.name} <span className="rounded bg-white/20 px-1.5 text-[12px]">{picked.no}</span>
+              {picked.name} <span className="rounded bg-white/20 px-1.5 text-[12px]">{picked.number}</span>
             </p>
             <p className="text-[11px] opacity-90">
-              {picked.from} → {picked.to} • {prettyDate(date)}
+              {picked.fromCode} → {picked.toCode} • {prettyDate(date)}
             </p>
           </div>
 
@@ -1080,10 +1360,7 @@ function SeatsScreen() {
                   type="button"
                   onClick={() => {
                     setQuota(q.code);
-                    const row = rows?.find(
-                      (r) => String(r["train_no"] ?? r["trainNo"] ?? "") === picked.no,
-                    );
-                    if (row) void loadAvailability(row, showExtra);
+                    void loadAvailability(picked, showExtra, q.code);
                   }}
                   className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
                     quota === q.code
@@ -1105,8 +1382,8 @@ function SeatsScreen() {
             ) : avail && avail.length ? (
               <>
                 <div className="grid grid-cols-2 gap-2">
-                  {avail.map((row, i) => (
-                    <ClassAvailabilityCard key={i} row={row} />
+                  {avail.map((row) => (
+                    <ClassCard key={row.cls} row={row} />
                   ))}
                 </div>
                 {!showExtra ? (
@@ -1115,13 +1392,10 @@ function SeatsScreen() {
                     className="mt-3 h-10 w-full rounded-xl text-[12px] font-bold"
                     onClick={() => {
                       setShowExtra(true);
-                      const row = rows?.find(
-                        (r) => String(r["train_no"] ?? r["trainNo"] ?? "") === picked.no,
-                      );
-                      if (row) void loadAvailability(row, true);
+                      void loadAvailability(picked, true, quota);
                     }}
                   >
-                    और क्लास देखें (2S, CC, EC, 3E)
+                    और क्लास देखें (3E, 2S, CC, EC)
                   </Button>
                 ) : null}
               </>
@@ -1135,60 +1409,53 @@ function SeatsScreen() {
   );
 }
 
-function ClassAvailabilityCard({ row }: { row: Record<string, unknown> }) {
-  const coach = String(row["coach"] ?? "");
-  const ok = row["success"] === true;
-  const data = (row["data"] ?? {}) as Record<string, unknown>;
-  const fare = (data["fare"] ?? {}) as Record<string, unknown>;
-  const list = Array.isArray(data["availability"])
-    ? (data["availability"] as Record<string, unknown>[])
-    : [];
-  const first = list[0];
-  const status = first ? String(first["availabilityText"] ?? first["status"] ?? "") : "";
-  const state = first ? String(first["status"] ?? "") : "";
-  const tone =
-    state === "AVAILABLE"
-      ? "bg-emerald-100 text-emerald-800"
-      : state === "RAC"
-        ? "bg-amber-100 text-amber-800"
-        : state === "WAITLIST"
-          ? "bg-red-100 text-red-700"
-          : "bg-muted text-muted-foreground";
+function ClassCard({ row }: { row: ClassAvailability }) {
+  const first = row.days[0];
+  const label = first?.label ?? "";
+  const tone = /AVAILABLE/i.test(label)
+    ? "bg-emerald-100 text-emerald-800"
+    : /RAC/i.test(label)
+      ? "bg-amber-100 text-amber-800"
+      : /WAIT/i.test(label)
+        ? "bg-red-100 text-red-700"
+        : "bg-muted text-muted-foreground";
 
   return (
     <div className="rounded-xl border border-border bg-background p-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-extrabold text-foreground">{coach}</p>
-        {fare["totalFare"] ? (
-          <p className="text-[12px] font-bold text-primary">₹{String(fare["totalFare"])}</p>
-        ) : null}
+        <p className="text-[13px] font-extrabold text-foreground">{row.cls}</p>
+        {first?.fare ? <p className="text-[12px] font-bold text-primary">₹{first.fare}</p> : null}
       </div>
-      <p className="text-[10px] text-muted-foreground">{CLASS_NAMES[coach] ?? coach}</p>
-      {ok && first ? (
+      <p className="text-[10px] text-muted-foreground">{CLASS_NAMES[row.cls] ?? row.cls}</p>
+      {row.ok && first ? (
         <>
           <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${tone}`}>
-            {status}
+            {first.status}
           </span>
-          {first["prediction"] ? (
-            <p className="mt-1 text-[10px] text-muted-foreground">{String(first["prediction"])}</p>
+          {first.probability ? (
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              कन्फर्म होने की संभावना {first.probability}%
+            </p>
           ) : null}
         </>
       ) : (
         <span className="mt-1.5 inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-          Not Available
+          उपलब्ध नहीं
         </span>
       )}
     </div>
   );
 }
 
+/* -------------------------- Live at station ----------------------- */
+
 function StationScreen() {
-  const stationFn = useServerFn(railLiveAtStation);
+  const boardFn = useServerFn(railStationBoard);
   const [station, setStation] = useState<RailStation | null>(POPULAR_STATIONS[0] ?? null);
-  const [tab, setTab] = useState<"all" | "arr" | "dep">("all");
+  const [hours, setHours] = useState(4);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [rows, setRows] = useState<StationBoardTrain[] | null>(null);
 
   async function run() {
     if (!station) {
@@ -1197,100 +1464,68 @@ function StationScreen() {
     }
     setLoading(true);
     setError("");
-    setData(null);
+    setRows(null);
     try {
-      const res = await stationFn({ data: { station: station.code } });
-      if (res.success) setData((res.data ?? null) as Record<string, unknown> | null);
+      const res = await boardFn({ data: { code: station.code, hours } });
+      if (res.success) setRows(res.data ?? []);
       else setError(res.error);
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setLoading(false);
     }
   }
 
-  const trains = Array.isArray(data?.["trains"]) ? (data["trains"] as Record<string, unknown>[]) : [];
-  const filtered = trains.filter((t) => {
-    const dep = (t["departure"] ?? {}) as Record<string, unknown>;
-    const arr = (t["arrival"] ?? {}) as Record<string, unknown>;
-    if (tab === "arr") return String(arr["actual"] ?? "") !== "SRC";
-    if (tab === "dep") return String(dep["actual"] ?? "") !== "DSTN";
-    return true;
-  });
-
   return (
     <div className="space-y-3">
       <div className="space-y-2.5 rounded-2xl border border-border bg-card p-3">
         <StationField label="Select Station" value={station} onChange={setStation} />
+        <div className="flex gap-2">
+          {[2, 4, 8].map((h) => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => setHours(h)}
+              className={`rounded-full px-3 py-1 text-[12px] font-bold transition ${
+                hours === h ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              अगले {h} घंटे
+            </button>
+          ))}
+        </div>
         <SubmitButton loading={loading} onClick={run} label="Get Live Status" />
       </div>
       {error ? <ErrorNote text={error} /> : null}
 
-      {data ? (
+      {rows ? (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="bg-gradient-to-r from-rose-600 to-pink-500 p-3 text-white">
             <p className="text-[15px] font-extrabold">
               {station?.name} ({station?.code})
             </p>
-            <p className="text-[11px] opacity-90">{String(data["summary"] ?? "")}</p>
-          </div>
-          <div className="flex gap-2 border-b border-border p-2">
-            {([
-              ["all", "सभी"],
-              ["arr", "Arrivals"],
-              ["dep", "Departures"],
-            ] as const).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`flex-1 rounded-lg py-1.5 text-[12px] font-bold transition ${
-                  tab === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            <p className="text-[11px] opacity-90">अगले {hours} घंटे में {rows.length} ट्रेनें</p>
           </div>
           <div className="divide-y divide-border">
-            {filtered.map((t, i) => {
-              const dep = (t["departure"] ?? {}) as Record<string, unknown>;
-              const arr = (t["arrival"] ?? {}) as Record<string, unknown>;
-              const delayed = Boolean(arr["delayed"] || dep["delayed"]);
-              const time = String(dep["actual"] ?? "") !== "DSTN" ? dep["actual"] : arr["actual"];
-              return (
-                <div key={i} className="flex items-center gap-3 p-3">
-                  <div className="flex-1">
-                    <p className="text-[13px] font-extrabold text-foreground">
-                      <span className="mr-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] text-primary">
-                        {String(t["trainNo"] ?? "")}
-                      </span>
-                      {String(t["trainName"] ?? "")}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {String(t["sourceName"] ?? "")} → {String(t["destName"] ?? "")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[13px] font-extrabold text-foreground">{String(time ?? "-")}</p>
-                    {t["platform"] ? (
-                      <p className="text-[10px] font-bold text-muted-foreground">
-                        PF {String(t["platform"])}
-                      </p>
-                    ) : null}
-                    <span
-                      className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        delayed ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
-                      }`}
-                    >
-                      {String(arr["delay"] || dep["delay"] || "On Time")}
+            {rows.map((t, i) => (
+              <div key={`${t.number}-${i}`} className="flex items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-extrabold text-foreground">
+                    <span className="mr-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] text-primary">
+                      {t.number}
                     </span>
-                  </div>
+                    {t.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">{t.type}</p>
                 </div>
-              );
-            })}
-            {filtered.length === 0 ? (
-              <p className="p-3 text-xs text-muted-foreground">अभी कोई ट्रेन नहीं है।</p>
+                <div className="shrink-0 text-right">
+                  <p className="text-[13px] font-extrabold text-foreground">{t.arrival || "--"}</p>
+                  <p className="text-[10px] text-muted-foreground">प्रस्थान {t.departure || "--"}</p>
+                </div>
+              </div>
+            ))}
+            {rows.length === 0 ? (
+              <p className="p-3 text-xs text-muted-foreground">इस समय कोई ट्रेन नहीं है।</p>
             ) : null}
           </div>
         </div>
@@ -1299,12 +1534,14 @@ function StationScreen() {
   );
 }
 
+/* ----------------------------- Time table ------------------------- */
+
 function ScheduleScreen() {
-  const infoFn = useServerFn(railTrainInfo);
+  const searchFn = useServerFn(railTrainSearch);
   const [train, setTrain] = useState<TrainOption | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [data, setData] = useState<TrainRecord | null>(null);
 
   async function run() {
     if (!train) {
@@ -1315,18 +1552,15 @@ function ScheduleScreen() {
     setError("");
     setData(null);
     try {
-      const res = await infoFn({ data: { trainNo: train.number } });
-      if (res.success) setData((res.data ?? null) as Record<string, unknown> | null);
-      else setError(res.error);
+      const res = await searchFn({ data: { q: train.number } });
+      if (res.success && res.data?.length) setData(res.data[0]!);
+      else setError(res.error || "ट्रेन नहीं मिली।");
     } catch {
-      setError("Network problem. Dobara koshish kijiye.");
+      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
     } finally {
       setLoading(false);
     }
   }
-
-  const info = (data?.["trainInfo"] ?? {}) as Record<string, unknown>;
-  const route = Array.isArray(data?.["route"]) ? (data["route"] as Record<string, unknown>[]) : [];
 
   return (
     <div className="space-y-3">
@@ -1340,34 +1574,29 @@ function ScheduleScreen() {
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="bg-gradient-to-r from-sky-700 to-blue-600 p-3 text-white">
             <p className="text-[15px] font-extrabold">
-              {String(info["train_name"] ?? train?.name ?? "")}{" "}
-              <span className="rounded bg-white/20 px-1.5 text-[12px]">
-                {String(info["train_no"] ?? train?.number ?? "")}
-              </span>
+              {data.name} <span className="rounded bg-white/20 px-1.5 text-[12px]">{data.number}</span>
             </p>
             <p className="text-[11px] opacity-90">
-              {String(info["from_stn_name"] ?? "")} → {String(info["to_stn_name"] ?? "")} •{" "}
-              {String(info["travel_time"] ?? "")}
+              {data.fromName} → {data.toName}
+              {data.classes.length ? ` • ${data.classes.join(", ")}` : ""}
             </p>
           </div>
           <div className="divide-y divide-border">
-            {route.map((s, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5">
-                <span className="w-9 rounded-md bg-primary/10 py-1 text-center text-[10px] font-extrabold text-primary">
-                  {String(s["stnCode"] ?? "")}
+            {data.schedule.map((s, i) => (
+              <div key={`${s.code}-${i}`} className="flex items-center gap-3 p-2.5">
+                <span className="w-11 shrink-0 rounded-md bg-primary/10 py-1 text-center text-[10px] font-extrabold text-primary">
+                  {s.code}
                 </span>
-                <div className="flex-1">
-                  <p className="text-[13px] font-bold text-foreground">{String(s["stnName"] ?? "")}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold text-foreground">{s.name}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    {String(s["distance"] ?? "0")} km • हाल्ट {String(s["halt"] ?? "-")}
-                    {s["platform"] ? ` • PF ${String(s["platform"])}` : ""}
+                    {s.distanceKm} km • दिन {s.day}
+                    {s.halt && s.halt !== "--" ? ` • हाल्ट ${s.halt}` : ""}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[12px] font-extrabold text-foreground">
-                    {String(s["arrival"] ?? "--")}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">{String(s["departure"] ?? "--")}</p>
+                <div className="shrink-0 text-right">
+                  <p className="text-[12px] font-extrabold text-foreground">{s.arrival || "--"}</p>
+                  <p className="text-[11px] text-muted-foreground">{s.departure || "--"}</p>
                 </div>
               </div>
             ))}
@@ -1376,72 +1605,4 @@ function ScheduleScreen() {
       ) : null}
     </div>
   );
-}
-
-/* ------------------------------------------------------------------ */
-/* Generic fallback rendering                                          */
-/* ------------------------------------------------------------------ */
-
-function ResultCard({ title, data }: { title: string; data: unknown }) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="border-b border-border bg-muted/50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </div>
-      <div className="p-3">
-        <Node value={data} />
-      </div>
-    </div>
-  );
-}
-
-function prettyKey(key: string) {
-  return key
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .replace(/^./, (c) => c.toUpperCase());
-}
-
-function Node({ value, depth = 0 }: { value: unknown; depth?: number }) {
-  if (value === null || value === undefined || value === "") return null;
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) return <p className="text-xs text-muted-foreground">कोई रिकॉर्ड नहीं मिला।</p>;
-    return (
-      <div className="space-y-2">
-        {value.slice(0, 40).map((item, i) => (
-          <div key={i} className="rounded-xl border border-border bg-background p-2.5">
-            <Node value={item} depth={depth + 1} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).filter(
-      ([, v]) => v !== null && v !== undefined && v !== "",
-    );
-    return (
-      <div className={depth === 0 ? "space-y-2" : "space-y-1"}>
-        {entries.map(([k, v]) => {
-          const nested = typeof v === "object";
-          return (
-            <div key={k} className={nested ? "" : "flex items-start justify-between gap-3"}>
-              <span className="text-[11px] font-semibold text-muted-foreground">{prettyKey(k)}</span>
-              {nested ? (
-                <div className="mt-1">
-                  <Node value={v} depth={depth + 1} />
-                </div>
-              ) : (
-                <span className="text-right text-[12px] font-medium text-foreground">{String(v)}</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  return <span className="text-[12px] font-medium text-foreground">{String(value)}</span>;
 }

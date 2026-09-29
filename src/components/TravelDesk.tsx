@@ -115,6 +115,8 @@ export function TravelDesk() {
         ))}
       </div>
 
+      {trainOpen ? <TrainHub onClose={() => setTrainOpen(false)} /> : null}
+
       {active ? (
         <RedirectCard
           title={active.title}

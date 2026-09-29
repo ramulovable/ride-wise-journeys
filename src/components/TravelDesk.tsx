@@ -3,6 +3,7 @@ import { BadgeCheck, Hotel, Loader2, Plane, ShieldCheck, TrainFront, X } from "l
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { TrainHub } from "@/components/TrainHub";
 
 const AFFILIATE = "Allianceid=10768164&SID=332381932&locale=en-IN&curr=INR";
 
@@ -25,11 +26,11 @@ const SERVICES = [
   },
   {
     id: "trains",
-    title: "Train Tickets",
-    subtitle: "ट्रेन टिकट • Indian Railways",
+    title: "Train Info",
+    subtitle: "PNR • Live Status • Seat",
     url: "",
     Icon: TrainFront,
-    soon: true,
+    soon: false,
   },
 ] as const;
 
@@ -54,6 +55,7 @@ async function openInAppBrowser(url: string) {
 
 export function TravelDesk() {
   const [active, setActive] = useState<{ title: string; url: string } | null>(null);
+  const [trainOpen, setTrainOpen] = useState(false);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -75,8 +77,12 @@ export function TravelDesk() {
             key={id}
             type="button"
             onClick={() => {
+              if (id === "trains") {
+                setTrainOpen(true);
+                return;
+              }
               if (soon) {
-                toast.info("Train booking jald shuru hoga — Coming Soon!");
+                toast.info("Jald shuru hoga — Coming Soon!");
                 return;
               }
               if (isNativeApp()) {
@@ -108,6 +114,8 @@ export function TravelDesk() {
           </button>
         ))}
       </div>
+
+      {trainOpen ? <TrainHub onClose={() => setTrainOpen(false)} /> : null}
 
       {active ? (
         <RedirectCard

@@ -145,10 +145,10 @@ function ToolPanel({ tool }: { tool: ToolId }) {
       let res: { success: boolean; data?: unknown; error?: string };
       if (tool === "pnr") res = await pnrFn({ data: { pnr: fields["pnr"] ?? "" } });
       else if (tool === "live")
-        res = await liveFn({ data: { trainNo: fields["trainNo"] ?? "", date: fields["date"] } });
+        res = await liveFn({ data: { trainNo: fields["trainNo"] ?? "", date: fields["date"] ?? "" } });
       else if (tool === "between")
         res = await betweenFn({
-          data: { from: fields["from"] ?? "", to: fields["to"] ?? "", date: fields["date"] },
+          data: { from: fields["from"] ?? "", to: fields["to"] ?? "", date: fields["date"] ?? "" },
         });
       else if (tool === "seats")
         res = await seatsFn({

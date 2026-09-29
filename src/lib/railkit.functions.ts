@@ -33,13 +33,13 @@ export const railPnrStatus = createServerFn({ method: "POST" })
   });
 
 export const railLiveStatus = createServerFn({ method: "POST" })
-  .inputValidator((input: { trainNo: string; date?: string }) => ({
+  .inputValidator((input: { trainNo: string; date: string }) => ({
     trainNo: String(input.trainNo ?? "").replace(/\D/g, ""),
-    date: input.date ? String(input.date) : undefined,
+    date: input.date ? String(input.date) : "",
   }))
   .handler(async ({ data }) => {
     if (data.trainNo.length !== 5) return fail("Train number 5 ank ka hona chahiye.");
-    return rail((sdk) => sdk.trackTrain(data.trainNo, data.date));
+    return rail((sdk) => sdk.trackTrain(data.trainNo, data.date || undefined));
   });
 
 export const railTrainInfo = createServerFn({ method: "POST" })
@@ -50,14 +50,14 @@ export const railTrainInfo = createServerFn({ method: "POST" })
   });
 
 export const railTrainsBetween = createServerFn({ method: "POST" })
-  .inputValidator((input: { from: string; to: string; date?: string }) => ({
+  .inputValidator((input: { from: string; to: string; date: string }) => ({
     from: String(input.from ?? "").trim().toUpperCase(),
     to: String(input.to ?? "").trim().toUpperCase(),
-    date: input.date ? String(input.date) : undefined,
+    date: input.date ? String(input.date) : "",
   }))
   .handler(async ({ data }) => {
     if (!data.from || !data.to) return fail("Dono station chuniye.");
-    return rail((sdk) => sdk.searchTrainBetweenStations(data.from, data.to, data.date));
+    return rail((sdk) => sdk.searchTrainBetweenStations(data.from, data.to, data.date || undefined));
   });
 
 export const railSeatAvailability = createServerFn({ method: "POST" })

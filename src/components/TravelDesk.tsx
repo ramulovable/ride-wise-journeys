@@ -77,8 +77,12 @@ export function TravelDesk() {
             key={id}
             type="button"
             onClick={() => {
+              if (id === "trains") {
+                setTrainOpen(true);
+                return;
+              }
               if (soon) {
-                toast.info("Train booking jald shuru hoga — Coming Soon!");
+                toast.info("Jald shuru hoga — Coming Soon!");
                 return;
               }
               if (isNativeApp()) {

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
-type RailResult = { success: boolean; data?: unknown; error?: string };
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+type RailResult = { success: boolean; data: Json; error: string };
 
 async function rail<T>(fn: (sdk: typeof import("railkit")) => Promise<T>): Promise<RailResult> {
   const key = process.env["RAILKIT_API_KEY"];

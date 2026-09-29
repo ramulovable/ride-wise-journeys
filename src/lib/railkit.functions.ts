@@ -28,7 +28,7 @@ async function rail<T>(fn: (sdk: typeof import("railkit")) => Promise<T>): Promi
 export const railPnrStatus = createServerFn({ method: "POST" })
   .inputValidator((input: { pnr: string }) => ({ pnr: String(input.pnr ?? "").replace(/\D/g, "") }))
   .handler(async ({ data }) => {
-    if (data.pnr.length !== 10) return { success: false, error: "PNR 10 ank ka hona chahiye." };
+    if (data.pnr.length !== 10) return fail("PNR 10 ank ka hona chahiye.");
     return rail((sdk) => sdk.checkPNRStatus(data.pnr));
   });
 
@@ -38,14 +38,14 @@ export const railLiveStatus = createServerFn({ method: "POST" })
     date: input.date ? String(input.date) : undefined,
   }))
   .handler(async ({ data }) => {
-    if (data.trainNo.length !== 5) return { success: false, error: "Train number 5 ank ka hona chahiye." };
+    if (data.trainNo.length !== 5) return fail("Train number 5 ank ka hona chahiye.");
     return rail((sdk) => sdk.trackTrain(data.trainNo, data.date));
   });
 
 export const railTrainInfo = createServerFn({ method: "POST" })
   .inputValidator((input: { trainNo: string }) => ({ trainNo: String(input.trainNo ?? "").replace(/\D/g, "") }))
   .handler(async ({ data }) => {
-    if (data.trainNo.length !== 5) return { success: false, error: "Train number 5 ank ka hona chahiye." };
+    if (data.trainNo.length !== 5) return fail("Train number 5 ank ka hona chahiye.");
     return rail((sdk) => sdk.getTrainInfo(data.trainNo));
   });
 
@@ -56,7 +56,7 @@ export const railTrainsBetween = createServerFn({ method: "POST" })
     date: input.date ? String(input.date) : undefined,
   }))
   .handler(async ({ data }) => {
-    if (!data.from || !data.to) return { success: false, error: "Dono station chuniye." };
+    if (!data.from || !data.to) return fail("Dono station chuniye.");
     return rail((sdk) => sdk.searchTrainBetweenStations(data.from, data.to, data.date));
   });
 
@@ -78,7 +78,7 @@ export const railSeatAvailability = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }) => {
     if (data.trainNo.length !== 5 || !data.from || !data.to || !data.date) {
-      return { success: false, error: "Poori jaankari bhariye." };
+      return fail("Poori jaankari bhariye.");
     }
     return rail((sdk) =>
       sdk.getAvailability(data.trainNo, data.from, data.to, data.date, data.coach, data.quota),
@@ -90,20 +90,20 @@ export const railLiveAtStation = createServerFn({ method: "POST" })
     station: String(input.station ?? "").trim().toUpperCase(),
   }))
   .handler(async ({ data }) => {
-    if (!data.station) return { success: false, error: "Station code daaliye." };
+    if (!data.station) return fail("Station code daaliye.");
     return rail((sdk) => sdk.liveAtStation(data.station, 4));
   });
 
 export const railStationSearch = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => ({ name: String(input.name ?? "").trim() }))
   .handler(async ({ data }) => {
-    if (data.name.length < 2) return { success: false, error: "Kam se kam 2 akshar likhiye." };
+    if (data.name.length < 2) return fail("Kam se kam 2 akshar likhiye.");
     return rail((sdk) => sdk.stationsByName(data.name));
   });
 
 export const railTrainSearch = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => ({ name: String(input.name ?? "").trim() }))
   .handler(async ({ data }) => {
-    if (data.name.length < 2) return { success: false, error: "Kam se kam 2 akshar likhiye." };
+    if (data.name.length < 2) return fail("Kam se kam 2 akshar likhiye.");
     return rail((sdk) => sdk.trainsByName(data.name));
   });

@@ -26,11 +26,11 @@ const SERVICES = [
   },
   {
     id: "trains",
-    title: "Train Tickets",
-    subtitle: "ट्रेन टिकट • Indian Railways",
+    title: "Train Info",
+    subtitle: "PNR • Live Status • Seat",
     url: "",
     Icon: TrainFront,
-    soon: true,
+    soon: false,
   },
 ] as const;
 

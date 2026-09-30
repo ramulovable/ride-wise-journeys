@@ -387,13 +387,26 @@ export const railPnr = createServerFn({ method: "POST" })
   .inputValidator((input: { pnr: string }) => ({ pnr: String(input.pnr ?? "").replace(/\D/g, "").slice(0, 10) }))
   .handler(async ({ data }): Promise<Res<PnrStatus>> => {
     if (data.pnr.length !== 10) return fail("PNR 10 अंक का होना चाहिए।");
-    const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
-    if (json["status"] !== true || !json["data"]) {
-      return fail(String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।"));
+
+    let d: Record<string, unknown> | undefined;
+    let list: Record<string, unknown>[] = [];
+
+    const rk = await railkit((sdk) => sdk.checkPNRStatus(data.pnr));
+    if (rk.obj) {
+      d = rk.obj;
+      list = pickRows(rk.obj, "passengerList", "passengers", "passenger");
     }
-    const d = json["data"] as Record<string, unknown>;
-    const list = Array.isArray(d["passengerList"]) ? (d["passengerList"] as Record<string, unknown>[]) : [];
+
+    if (!d) {
+      const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
+      if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+      if (json["status"] !== true || !json["data"]) {
+        return fail(rk.error || String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।"));
+      }
+      d = json["data"] as Record<string, unknown>;
+      list = pickRows(d, "passengerList", "passengers");
+    }
+
 
     const passengers: PnrPassenger[] = list.map((p, i) => {
       const current = str(p, "currentStatus", "currentStatusNew", "bookingStatus");

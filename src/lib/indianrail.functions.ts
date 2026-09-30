@@ -77,6 +77,58 @@ function str(o: Record<string, unknown>, ...keys: string[]): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* RailKit — primary provider (RapidAPI stays as automatic backup)     */
+/* ------------------------------------------------------------------ */
+
+const RK_QUOTA_MSG =
+  "RailKit की इस महीने की लिमिट पूरी हो गई है। प्लान बढ़ाने के बाद यह फिर चलने लगेगा।";
+
+type RkOut = { rows?: Record<string, unknown>[]; obj?: Record<string, unknown>; error?: string };
+
+async function railkit(fn: (sdk: typeof import("railkit")) => Promise<unknown>): Promise<RkOut> {
+  const key = process.env["RAILKIT_API_KEY"];
+  if (!key) return { error: "" };
+  try {
+    const sdk = await import("railkit");
+    sdk.configure(key);
+    const res = (await fn(sdk)) as Record<string, unknown> | null;
+    if (!res || typeof res !== "object") return { error: "" };
+    if ("success" in res && res["success"] !== true) {
+      const e = String(res["error"] ?? "");
+      return { error: /limit exceeded|quota/i.test(e) ? RK_QUOTA_MSG : "" };
+    }
+    const payload = ("data" in res ? res["data"] : res) as unknown;
+    if (Array.isArray(payload)) return { rows: payload as Record<string, unknown>[] };
+    if (payload && typeof payload === "object") return { obj: payload as Record<string, unknown> };
+    return { error: "" };
+  } catch {
+    return { error: "" };
+  }
+}
+
+/** YYYY-MM-DD → DD-MM-YYYY (RailKit date format). */
+function dmy(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ""));
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(iso ?? "");
+}
+
+/** YYYYMMDD → DD-MM-YYYY */
+function dmyCompact(c: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(String(c ?? ""));
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+
+function pickRows(o: Record<string, unknown> | undefined, ...keys: string[]): Record<string, unknown>[] {
+  if (!o) return [];
+  for (const k of keys) {
+    const v = o[k];
+    if (Array.isArray(v)) return v as Record<string, unknown>[];
+  }
+  return [];
+}
+
+
+/* ------------------------------------------------------------------ */
 /* 1. Live running status                                              */
 /* ------------------------------------------------------------------ */
 

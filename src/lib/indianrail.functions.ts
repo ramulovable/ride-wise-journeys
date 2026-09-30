@@ -77,6 +77,58 @@ function str(o: Record<string, unknown>, ...keys: string[]): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* RailKit — primary provider (RapidAPI stays as automatic backup)     */
+/* ------------------------------------------------------------------ */
+
+const RK_QUOTA_MSG =
+  "RailKit की इस महीने की लिमिट पूरी हो गई है। प्लान बढ़ाने के बाद यह फिर चलने लगेगा।";
+
+type RkOut = { rows?: Record<string, unknown>[]; obj?: Record<string, unknown>; error?: string };
+
+async function railkit(fn: (sdk: typeof import("railkit")) => Promise<unknown>): Promise<RkOut> {
+  const key = process.env["RAILKIT_API_KEY"];
+  if (!key) return { error: "" };
+  try {
+    const sdk = await import("railkit");
+    sdk.configure(key);
+    const res = (await fn(sdk)) as Record<string, unknown> | null;
+    if (!res || typeof res !== "object") return { error: "" };
+    if ("success" in res && res["success"] !== true) {
+      const e = String(res["error"] ?? "");
+      return { error: /limit exceeded|quota/i.test(e) ? RK_QUOTA_MSG : "" };
+    }
+    const payload = ("data" in res ? res["data"] : res) as unknown;
+    if (Array.isArray(payload)) return { rows: payload as Record<string, unknown>[] };
+    if (payload && typeof payload === "object") return { obj: payload as Record<string, unknown> };
+    return { error: "" };
+  } catch {
+    return { error: "" };
+  }
+}
+
+/** YYYY-MM-DD → DD-MM-YYYY (RailKit date format). */
+function dmy(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ""));
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(iso ?? "");
+}
+
+/** YYYYMMDD → DD-MM-YYYY */
+function dmyCompact(c: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(String(c ?? ""));
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+
+function pickRows(o: Record<string, unknown> | undefined, ...keys: string[]): Record<string, unknown>[] {
+  if (!o) return [];
+  for (const k of keys) {
+    const v = o[k];
+    if (Array.isArray(v)) return v as Record<string, unknown>[];
+  }
+  return [];
+}
+
+
+/* ------------------------------------------------------------------ */
 /* 1. Live running status                                              */
 /* ------------------------------------------------------------------ */
 
@@ -335,13 +387,26 @@ export const railPnr = createServerFn({ method: "POST" })
   .inputValidator((input: { pnr: string }) => ({ pnr: String(input.pnr ?? "").replace(/\D/g, "").slice(0, 10) }))
   .handler(async ({ data }): Promise<Res<PnrStatus>> => {
     if (data.pnr.length !== 10) return fail("PNR 10 अंक का होना चाहिए।");
-    const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
-    if (json["status"] !== true || !json["data"]) {
-      return fail(String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।"));
+
+    let d: Record<string, unknown> | undefined;
+    let list: Record<string, unknown>[] = [];
+
+    const rk = await railkit((sdk) => sdk.checkPNRStatus(data.pnr));
+    if (rk.obj) {
+      d = rk.obj;
+      list = pickRows(rk.obj, "passengerList", "passengers", "passenger");
     }
-    const d = json["data"] as Record<string, unknown>;
-    const list = Array.isArray(d["passengerList"]) ? (d["passengerList"] as Record<string, unknown>[]) : [];
+
+    if (!d) {
+      const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
+      if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+      if (json["status"] !== true || !json["data"]) {
+        return fail(rk.error || String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।"));
+      }
+      d = json["data"] as Record<string, unknown>;
+      list = pickRows(d, "passengerList", "passengers");
+    }
+
 
     const passengers: PnrPassenger[] = list.map((p, i) => {
       const current = str(p, "currentStatus", "currentStatusNew", "bookingStatus");
@@ -409,11 +474,26 @@ export const railStations = createServerFn({ method: "POST" })
   .inputValidator((input: { q: string }) => ({ q: String(input.q ?? "").trim().slice(0, 40) }))
   .handler(async ({ data }): Promise<Res<StationRecord[]>> => {
     if (data.q.length < 2) return fail("कम से कम 2 अक्षर लिखिए।");
+
+    const rk = await railkit((sdk) => sdk.stationsByName(data.q));
+    const rkRows = rk.rows ?? pickRows(rk.obj, "stations", "data");
+    if (rkRows.length) {
+      return ok(
+        rkRows
+          .map((r) => ({
+            code: str(r, "code", "stationCode", "station_code").toUpperCase(),
+            name: str(r, "name", "eng_name", "stationName", "station_name"),
+            state: str(r, "state", "state_name"),
+          }))
+          .filter((s) => s.code),
+      );
+    }
+
     const { json, error } = await getJson(
       irctcHost(),
       `/api/v1/searchStation?query=${encodeURIComponent(data.q)}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
+    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
     return ok(
       rows
@@ -424,6 +504,7 @@ export const railStations = createServerFn({ method: "POST" })
         }))
         .filter((s) => s.code),
     );
+
   });
 
 /* ------------------------------------------------------------------ */
@@ -446,6 +527,29 @@ export type RouteTrain = {
   pantry: boolean;
 };
 
+function mapRouteRow(t: Record<string, unknown>): RouteTrain {
+  const days = t["run_days"] ?? t["runDays"] ?? t["running_days"];
+  return {
+    number: str(t, "train_number", "trainNumber", "number", "train_no", "trainNo"),
+    name: str(t, "train_name", "trainName", "name"),
+    fromCode: str(t, "from", "from_station_code", "fromStnCode", "source", "src_stn_code").toUpperCase(),
+    fromName: str(t, "from_station_name", "fromStationName", "src_stn_name", "source_name"),
+    toCode: str(t, "to", "to_station_code", "toStnCode", "destination", "dstn_stn_code").toUpperCase(),
+    toName: str(t, "to_station_name", "toStationName", "dstn_stn_name", "destination_name"),
+    departure: str(t, "from_std", "departureTime", "departure_time", "dep_time", "departure"),
+    arrival: str(t, "to_sta", "arrivalTime", "arrival_time", "arr_time", "arrival"),
+    duration: str(t, "duration", "travel_time", "travelTime"),
+    distanceKm: Math.round(Number(t["distance"] ?? t["distanceKm"] ?? 0)),
+    runDays: Array.isArray(days)
+      ? (days as unknown[]).map(String)
+      : typeof days === "string" && days
+        ? days.split(/[,\s]+/).filter(Boolean)
+        : [],
+    type: str(t, "train_type", "trainType", "type"),
+    pantry: t["has_pantry"] === true || t["pantry"] === true,
+  };
+}
+
 export const railBetween = createServerFn({ method: "POST" })
   .inputValidator((input: { from: string; to: string; date: string }) => ({
     from: String(input.from ?? "").trim().toUpperCase().slice(0, 8),
@@ -454,30 +558,24 @@ export const railBetween = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }): Promise<Res<RouteTrain[]>> => {
     if (!data.from || !data.to) return fail("दोनों स्टेशन चुनिए।");
+
+    const rk = await railkit((sdk) =>
+      sdk.searchTrainBetweenStations(data.from, data.to, dmy(data.date) || undefined),
+    );
+    const rkRows = rk.rows ?? pickRows(rk.obj, "trains", "data");
+    if (rkRows.length) return ok(rkRows.map(mapRouteRow));
+
     const { json, error } = await getJson(
       irctcHost(),
       `/api/v3/trainBetweenStations?fromStationCode=${data.from}&toStationCode=${data.to}&dateOfJourney=${data.date}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
-    if (json["status"] !== true) return fail(String(json["message"] ?? "कोई सीधी ट्रेन नहीं मिली।"));
+    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+    if (json["status"] !== true) {
+      return fail(rk.error || String(json["message"] ?? "कोई सीधी ट्रेन नहीं मिली।"));
+    }
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
-    return ok(
-      rows.map((t) => ({
-        number: str(t, "train_number"),
-        name: str(t, "train_name"),
-        fromCode: str(t, "from"),
-        fromName: str(t, "from_station_name"),
-        toCode: str(t, "to"),
-        toName: str(t, "to_station_name"),
-        departure: str(t, "from_std"),
-        arrival: str(t, "to_sta"),
-        duration: str(t, "duration"),
-        distanceKm: Math.round(Number(t["distance"] ?? 0)),
-        runDays: Array.isArray(t["run_days"]) ? (t["run_days"] as string[]).map(String) : [],
-        type: str(t, "train_type"),
-        pantry: t["has_pantry"] === true,
-      })),
-    );
+    return ok(rows.map(mapRouteRow));
+
   });
 
 /* ------------------------------------------------------------------ */
@@ -524,9 +622,30 @@ export const railAvailability = createServerFn({ method: "POST" })
     if (data.trainNo.length !== 5 || !data.from || !data.to || !data.date) {
       return fail("पूरी जानकारी भरिए।");
     }
+    const tatkal = tatkalWindowError(data.quota, data.date);
+    if (tatkal) return fail(tatkal);
+
     const list = data.classes.length ? data.classes : ["SL", "3A", "2A"];
+    const rkQuota = ["GN", "LD", "SS", "TQ"].includes(data.quota);
     const out: ClassAvailability[] = [];
+
     for (const cls of list) {
+      if (rkQuota) {
+        const rk = await railkit((sdk) =>
+          sdk.getAvailability(data.trainNo, data.from, data.to, dmy(data.date), cls, data.quota),
+        );
+        const rkRows = rk.rows ?? pickRows(rk.obj, "availability", "avlDayList", "data");
+        if (rkRows.length) {
+          out.push({
+            cls,
+            ok: true,
+            error: "",
+            days: rkRows.slice(0, 6).map(mapAvailabilityDay),
+          });
+          continue;
+        }
+      }
+
       const { json, error } = await getJson(
         irctcHost(),
         `/api/v1/checkSeatAvailability?classType=${cls}&fromStationCode=${data.from}` +
@@ -541,17 +660,42 @@ export const railAvailability = createServerFn({ method: "POST" })
         cls,
         ok: rows.length > 0,
         error: rows.length ? "" : "इस क्लास/कोटा में जानकारी नहीं मिली।",
-        days: rows.slice(0, 6).map((r) => ({
-          date: str(r, "availablity_date", "date"),
-          status: str(r, "availablity_status", "current_status"),
-          label: str(r, "seat_avl_text"),
-          fare: Number(r["total_fare"] ?? r["ticket_fare"] ?? 0),
-          probability: str(r, "confirm_probability_percent"),
-        })),
+        days: rows.slice(0, 6).map(mapAvailabilityDay),
       });
     }
     return ok(out);
   });
+
+function mapAvailabilityDay(r: Record<string, unknown>): AvailabilityDay {
+  return {
+    date: str(r, "availablity_date", "availabilityDate", "date", "avlDayList"),
+    status: str(r, "availablity_status", "availabilityStatus", "current_status", "status", "avlDayStatus"),
+    label: str(r, "seat_avl_text", "availablity_status", "status", "text"),
+    fare: Number(r["total_fare"] ?? r["ticket_fare"] ?? r["totalFare"] ?? r["fare"] ?? 0),
+    probability: str(r, "confirm_probability_percent", "confirmProbability", "prediction"),
+  };
+}
+
+/**
+ * Tatkal opens only one day before the journey (AC 10:00, Non-AC 11:00 IST).
+ * Anything further out is outside the Tatkal window.
+ */
+export function tatkalWindowError(quota: string, isoDate: string): string {
+  const q = String(quota ?? "").toUpperCase();
+  if (q !== "TQ" && q !== "PT") return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate ?? ""));
+  if (!m) return "";
+  const journey = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
+  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  const days = Math.round((journey - today) / 86400000);
+  if (days > 1) {
+    return `तत्काल (${q === "PT" ? "Premium Tatkal" : "Tatkal"}) बुकिंग यात्रा से सिर्फ़ 1 दिन पहले खुलती है — AC सुबह 10:00 बजे, Non-AC सुबह 11:00 बजे। आपकी चुनी तारीख ${days} दिन आगे है, इसलिए अभी तत्काल सीट नहीं दिखाई जा सकती।`;
+  }
+  if (days < 0) return "बीती हुई तारीख के लिए तत्काल सीट नहीं देखी जा सकती।";
+  return "";
+}
+
 
 /* ------------------------------------------------------------------ */
 /* 7. Live at station                                                  */

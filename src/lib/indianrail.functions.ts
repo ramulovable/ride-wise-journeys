@@ -474,11 +474,26 @@ export const railStations = createServerFn({ method: "POST" })
   .inputValidator((input: { q: string }) => ({ q: String(input.q ?? "").trim().slice(0, 40) }))
   .handler(async ({ data }): Promise<Res<StationRecord[]>> => {
     if (data.q.length < 2) return fail("कम से कम 2 अक्षर लिखिए।");
+
+    const rk = await railkit((sdk) => sdk.stationsByName(data.q));
+    const rkRows = rk.rows ?? pickRows(rk.obj, "stations", "data");
+    if (rkRows.length) {
+      return ok(
+        rkRows
+          .map((r) => ({
+            code: str(r, "code", "stationCode", "station_code").toUpperCase(),
+            name: str(r, "name", "eng_name", "stationName", "station_name"),
+            state: str(r, "state", "state_name"),
+          }))
+          .filter((s) => s.code),
+      );
+    }
+
     const { json, error } = await getJson(
       irctcHost(),
       `/api/v1/searchStation?query=${encodeURIComponent(data.q)}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
+    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
     return ok(
       rows
@@ -489,6 +504,7 @@ export const railStations = createServerFn({ method: "POST" })
         }))
         .filter((s) => s.code),
     );
+
   });
 
 /* ------------------------------------------------------------------ */

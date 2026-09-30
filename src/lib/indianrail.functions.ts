@@ -527,6 +527,29 @@ export type RouteTrain = {
   pantry: boolean;
 };
 
+function mapRouteRow(t: Record<string, unknown>): RouteTrain {
+  const days = t["run_days"] ?? t["runDays"] ?? t["running_days"];
+  return {
+    number: str(t, "train_number", "trainNumber", "number", "train_no", "trainNo"),
+    name: str(t, "train_name", "trainName", "name"),
+    fromCode: str(t, "from", "from_station_code", "fromStnCode", "source", "src_stn_code").toUpperCase(),
+    fromName: str(t, "from_station_name", "fromStationName", "src_stn_name", "source_name"),
+    toCode: str(t, "to", "to_station_code", "toStnCode", "destination", "dstn_stn_code").toUpperCase(),
+    toName: str(t, "to_station_name", "toStationName", "dstn_stn_name", "destination_name"),
+    departure: str(t, "from_std", "departureTime", "departure_time", "dep_time", "departure"),
+    arrival: str(t, "to_sta", "arrivalTime", "arrival_time", "arr_time", "arrival"),
+    duration: str(t, "duration", "travel_time", "travelTime"),
+    distanceKm: Math.round(Number(t["distance"] ?? t["distanceKm"] ?? 0)),
+    runDays: Array.isArray(days)
+      ? (days as unknown[]).map(String)
+      : typeof days === "string" && days
+        ? days.split(/[,\s]+/).filter(Boolean)
+        : [],
+    type: str(t, "train_type", "trainType", "type"),
+    pantry: t["has_pantry"] === true || t["pantry"] === true,
+  };
+}
+
 export const railBetween = createServerFn({ method: "POST" })
   .inputValidator((input: { from: string; to: string; date: string }) => ({
     from: String(input.from ?? "").trim().toUpperCase().slice(0, 8),

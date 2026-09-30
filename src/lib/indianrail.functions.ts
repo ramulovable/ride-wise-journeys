@@ -622,9 +622,30 @@ export const railAvailability = createServerFn({ method: "POST" })
     if (data.trainNo.length !== 5 || !data.from || !data.to || !data.date) {
       return fail("पूरी जानकारी भरिए।");
     }
+    const tatkal = tatkalWindowError(data.quota, data.date);
+    if (tatkal) return fail(tatkal);
+
     const list = data.classes.length ? data.classes : ["SL", "3A", "2A"];
+    const rkQuota = ["GN", "LD", "SS", "TQ"].includes(data.quota);
     const out: ClassAvailability[] = [];
+
     for (const cls of list) {
+      if (rkQuota) {
+        const rk = await railkit((sdk) =>
+          sdk.getAvailability(data.trainNo, data.from, data.to, dmy(data.date), cls, data.quota),
+        );
+        const rkRows = rk.rows ?? pickRows(rk.obj, "availability", "avlDayList", "data");
+        if (rkRows.length) {
+          out.push({
+            cls,
+            ok: true,
+            error: "",
+            days: rkRows.slice(0, 6).map(mapAvailabilityDay),
+          });
+          continue;
+        }
+      }
+
       const { json, error } = await getJson(
         irctcHost(),
         `/api/v1/checkSeatAvailability?classType=${cls}&fromStationCode=${data.from}` +
@@ -639,17 +660,42 @@ export const railAvailability = createServerFn({ method: "POST" })
         cls,
         ok: rows.length > 0,
         error: rows.length ? "" : "इस क्लास/कोटा में जानकारी नहीं मिली।",
-        days: rows.slice(0, 6).map((r) => ({
-          date: str(r, "availablity_date", "date"),
-          status: str(r, "availablity_status", "current_status"),
-          label: str(r, "seat_avl_text"),
-          fare: Number(r["total_fare"] ?? r["ticket_fare"] ?? 0),
-          probability: str(r, "confirm_probability_percent"),
-        })),
+        days: rows.slice(0, 6).map(mapAvailabilityDay),
       });
     }
     return ok(out);
   });
+
+function mapAvailabilityDay(r: Record<string, unknown>): AvailabilityDay {
+  return {
+    date: str(r, "availablity_date", "availabilityDate", "date", "avlDayList"),
+    status: str(r, "availablity_status", "availabilityStatus", "current_status", "status", "avlDayStatus"),
+    label: str(r, "seat_avl_text", "availablity_status", "status", "text"),
+    fare: Number(r["total_fare"] ?? r["ticket_fare"] ?? r["totalFare"] ?? r["fare"] ?? 0),
+    probability: str(r, "confirm_probability_percent", "confirmProbability", "prediction"),
+  };
+}
+
+/**
+ * Tatkal opens only one day before the journey (AC 10:00, Non-AC 11:00 IST).
+ * Anything further out is outside the Tatkal window.
+ */
+export function tatkalWindowError(quota: string, isoDate: string): string {
+  const q = String(quota ?? "").toUpperCase();
+  if (q !== "TQ" && q !== "PT") return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate ?? ""));
+  if (!m) return "";
+  const journey = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
+  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  const days = Math.round((journey - today) / 86400000);
+  if (days > 1) {
+    return `तत्काल (${q === "PT" ? "Premium Tatkal" : "Tatkal"}) बुकिंग यात्रा से सिर्फ़ 1 दिन पहले खुलती है — AC सुबह 10:00 बजे, Non-AC सुबह 11:00 बजे। आपकी चुनी तारीख ${days} दिन आगे है, इसलिए अभी तत्काल सीट नहीं दिखाई जा सकती।`;
+  }
+  if (days < 0) return "बीती हुई तारीख के लिए तत्काल सीट नहीं देखी जा सकती।";
+  return "";
+}
+
 
 /* ------------------------------------------------------------------ */
 /* 7. Live at station                                                  */

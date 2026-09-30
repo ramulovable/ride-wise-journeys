@@ -535,30 +535,24 @@ export const railBetween = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }): Promise<Res<RouteTrain[]>> => {
     if (!data.from || !data.to) return fail("दोनों स्टेशन चुनिए।");
+
+    const rk = await railkit((sdk) =>
+      sdk.searchTrainBetweenStations(data.from, data.to, dmy(data.date) || undefined),
+    );
+    const rkRows = rk.rows ?? pickRows(rk.obj, "trains", "data");
+    if (rkRows.length) return ok(rkRows.map(mapRouteRow));
+
     const { json, error } = await getJson(
       irctcHost(),
       `/api/v3/trainBetweenStations?fromStationCode=${data.from}&toStationCode=${data.to}&dateOfJourney=${data.date}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
-    if (json["status"] !== true) return fail(String(json["message"] ?? "कोई सीधी ट्रेन नहीं मिली।"));
+    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+    if (json["status"] !== true) {
+      return fail(rk.error || String(json["message"] ?? "कोई सीधी ट्रेन नहीं मिली।"));
+    }
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
-    return ok(
-      rows.map((t) => ({
-        number: str(t, "train_number"),
-        name: str(t, "train_name"),
-        fromCode: str(t, "from"),
-        fromName: str(t, "from_station_name"),
-        toCode: str(t, "to"),
-        toName: str(t, "to_station_name"),
-        departure: str(t, "from_std"),
-        arrival: str(t, "to_sta"),
-        duration: str(t, "duration"),
-        distanceKm: Math.round(Number(t["distance"] ?? 0)),
-        runDays: Array.isArray(t["run_days"]) ? (t["run_days"] as string[]).map(String) : [],
-        type: str(t, "train_type"),
-        pantry: t["has_pantry"] === true,
-      })),
-    );
+    return ok(rows.map(mapRouteRow));
+
   });
 
 /* ------------------------------------------------------------------ */

@@ -121,10 +121,14 @@ const QUOTAS: { code: string; label: string }[] = [
   { code: "TQ", label: "Tatkal" },
   { code: "PT", label: "Premium Tatkal" },
   { code: "LD", label: "Ladies" },
-  { code: "SS", label: "Senior Citizen" },
-  { code: "HP", label: "Divyang" },
+  { code: "SS", label: "Senior Citizen / Lower Berth" },
+  { code: "HP", label: "Divyang (Handicapped)" },
   { code: "DF", label: "Defence" },
   { code: "YU", label: "Yuva" },
+  { code: "HO", label: "Head Quarter / VIP" },
+  { code: "DP", label: "Duty Pass" },
+  { code: "FT", label: "Foreign Tourist" },
+  { code: "PH", label: "Parliament House" },
 ];
 
 const CLASS_NAMES: Record<string, string> = {
@@ -1221,22 +1225,71 @@ function FindTrainsScreen() {
 
 /* ------------------------- Seat availability ---------------------- */
 
-function QuotaPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function QuotaSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className="rounded-xl border border-border bg-background p-2.5">
-      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Quota चुनें</p>
-      <div className="flex flex-wrap gap-1.5">
+    <label className="flex flex-1 items-center gap-1.5">
+      <span className="text-[12px] font-bold text-muted-foreground">Quota:</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-[13px] font-bold text-foreground"
+      >
         {QUOTAS.map((q) => (
+          <option key={q.code} value={q.code}>
+            {q.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SevenDayTable({ rows, cls, onCls }: { rows: ClassAvailability[]; cls: string; onCls: (c: string) => void }) {
+  const usable = rows.filter((r) => r.ok && r.days.length);
+  const current = usable.find((r) => r.cls === cls) ?? usable[0];
+  if (!current) return <p className="text-xs text-muted-foreground">इस कोटा में कोई क्लास उपलब्ध नहीं है।</p>;
+  const tone = (s: string) =>
+    /^AVAILABLE|AVL/i.test(s)
+      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+      : /RAC/i.test(s)
+        ? "border-amber-400 bg-amber-50 text-amber-800"
+        : /WL/i.test(s)
+          ? "border-red-300 bg-red-50 text-red-700"
+          : "border-border bg-muted text-muted-foreground";
+  const fmt = (d: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+    if (!m) return d;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      weekday: "short",
+    });
+  };
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap justify-center gap-1.5">
+        {usable.map((r) => (
           <button
-            key={q.code}
+            key={r.cls}
             type="button"
-            onClick={() => onChange(q.code)}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
-              value === q.code ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground"
+            onClick={() => onCls(r.cls)}
+            className={`min-w-11 rounded-lg border px-3 py-1.5 text-[13px] font-bold transition ${
+              r.cls === current.cls ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"
             }`}
           >
-            {q.label}
+            {r.cls}
           </button>
+        ))}
+      </div>
+      <div className="overflow-hidden rounded-xl border border-border bg-background">
+        <p className="bg-muted py-1.5 text-center text-[12px] font-extrabold text-foreground">
+          {CLASS_NAMES[current.cls] ?? current.cls} ({current.cls})
+        </p>
+        {current.days.map((d) => (
+          <div key={d.date} className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
+            <span className="text-[12px] font-semibold text-foreground">{fmt(d.date)}</span>
+            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${tone(d.status)}`}>{d.status || "-"}</span>
+          </div>
         ))}
       </div>
     </div>
@@ -1260,7 +1313,8 @@ function SeatsScreen() {
   const [availMap, setAvailMap] = useState<Record<string, ClassAvailability[]>>({});
   const [availError, setAvailError] = useState<Record<string, string>>({});
   const [busyNo, setBusyNo] = useState<string | null>(null);
-  const [extraFor, setExtraFor] = useState<Record<string, boolean>>({});
+  const [extraFor] = useState<Record<string, boolean>>({});
+  const [clsFor, setClsFor] = useState<Record<string, string>>({});
 
   const tatkalNote = tatkalWindowError(quota, ymd(date));
 
@@ -1339,7 +1393,7 @@ function SeatsScreen() {
           to: t.toCode,
           date: ymd(date),
           quota: q,
-          classes: extra ? [...PRIMARY_CLASSES, ...EXTRA_CLASSES] : PRIMARY_CLASSES,
+          classes: [...PRIMARY_CLASSES, ...EXTRA_CLASSES].slice(0, 8),
         },
       });
       if (res.success) setAvailMap((m) => ({ ...m, [t.number]: res.data ?? [] }));
@@ -1401,12 +1455,6 @@ function SeatsScreen() {
         )}
         <DateField value={date} onChange={setDate} />
         <QuickDates value={date} onChange={setDate} />
-        <QuotaPicker value={quota} onChange={changeQuota} />
-        {tatkalNote ? (
-          <p className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
-            {tatkalNote}
-          </p>
-        ) : null}
         <SubmitButton loading={loading} onClick={searchTrains} label="ट्रेन खोजें" />
       </div>
 
@@ -1428,12 +1476,16 @@ function SeatsScreen() {
             const extra = extraFor[t.number] ?? false;
             return (
               <RouteTrainCard key={t.number} t={t} expanded={open} onPick={() => togglePick(t)}>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-[11px] font-bold text-muted-foreground">
-                    {prettyDate(date)} • {QUOTAS.find((q) => q.code === quota)?.label}
-                  </p>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="rounded-lg border border-border bg-background px-2 py-1.5 text-[12px] font-bold text-foreground">
+                    {prettyDate(date)}
+                  </span>
+                  <QuotaSelect value={quota} onChange={changeQuota} />
                   {busyNo === t.number ? <Loader2 className="size-4 animate-spin text-primary" /> : null}
                 </div>
+                {tatkalNote ? null : (
+                  <p className="mb-2 text-center text-[10px] text-muted-foreground">चुनी तारीख से अगले 7 दिन</p>
+                )}
 
                 {aErr ? (
                   <p className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
@@ -1442,25 +1494,11 @@ function SeatsScreen() {
                 ) : busyNo === t.number && !avail ? (
                   <p className="py-3 text-center text-[12px] text-muted-foreground">सीटें देखी जा रही हैं…</p>
                 ) : avail && avail.length ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      {avail.map((row) => (
-                        <ClassCard key={row.cls} row={row} />
-                      ))}
-                    </div>
-                    {!extra ? (
-                      <Button
-                        variant="outline"
-                        className="mt-3 h-10 w-full rounded-xl text-[12px] font-bold"
-                        onClick={() => {
-                          setExtraFor((m) => ({ ...m, [t.number]: true }));
-                          void loadAvailability(t, true, quota);
-                        }}
-                      >
-                        और क्लास देखें (3E, 2S, CC, EC)
-                      </Button>
-                    ) : null}
-                  </>
+                  <SevenDayTable
+                    rows={avail}
+                    cls={clsFor[t.number] ?? ""}
+                    onCls={(c) => setClsFor((m) => ({ ...m, [t.number]: c }))}
+                  />
                 ) : avail ? (
                   <p className="text-xs text-muted-foreground">इस ट्रेन के लिए जानकारी नहीं मिली।</p>
                 ) : null}

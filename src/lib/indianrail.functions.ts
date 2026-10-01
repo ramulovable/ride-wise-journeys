@@ -906,9 +906,9 @@ export const railBetween = createServerFn({ method: "POST" })
       irctcHost(),
       `/api/v3/trainBetweenStations?fromStationCode=${data.from}&toStationCode=${data.to}&dateOfJourney=${data.date}`,
     );
-    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+    if (error || !json) return fail(INTERNAL_MSG);
     if (json["status"] !== true) {
-      return fail(rk.error || String(json["message"] ?? "कोई सीधी ट्रेन नहीं मिली।"));
+      return fail(clean(String(json["message"] ?? "कोई सीधी ट्रेन नहीं मिली।")));
     }
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
     return ok(rows.map(mapRouteRow));

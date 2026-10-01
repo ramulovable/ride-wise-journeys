@@ -964,7 +964,34 @@ export const railAvailability = createServerFn({ method: "POST" })
 
     const list = data.classes.length ? data.classes : ["SL", "3A", "2A"];
     const rkQuota = ["GN", "LD", "SS", "TQ"].includes(data.quota);
-    const out: ClassAvailability[] = [];
+
+    // Primary: RailRadar (all quotas, rolling multi-day calendar).
+    const rrKey = process.env["RAILRADAR_API_KEY"];
+    if (rrKey) {
+      const rr = await Promise.all(
+        list.map(async (cls): Promise<ClassAvailability | null> => {
+          try {
+            const r = await fetch(
+              `https://api.railradar.in/v1/trains/${data.trainNo}/seats?from=${data.from}&to=${data.to}` +
+                `&date=${data.date}&class=${cls}&quota=${data.quota}`,
+              { headers: { Authorization: `Bearer ${rrKey}` } },
+            );
+            if (r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500) return null;
+            const j = (await r.json()) as { success?: boolean; data?: { calendar?: Record<string, unknown>[] } };
+            if (!j.success) return { cls, ok: false, error: "यह क्लास इस ट्रेन में उपलब्ध नहीं है।", days: [] };
+            const cal = Array.isArray(j.data?.calendar) ? j.data!.calendar! : [];
+            const days = cal.slice(0, 7).map((d) => {
+              const s = str(d, "status");
+              return { date: str(d, "date"), status: s, label: s, fare: 0, probability: "" };
+            });
+            return { cls, ok: days.length > 0, error: days.length ? "" : "जानकारी नहीं मिली।", days };
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (rr.every((x) => x)) return ok(rr as ClassAvailability[]);
+    }
 
     const results = await Promise.all(
       list.map(async (cls): Promise<ClassAvailability> => {

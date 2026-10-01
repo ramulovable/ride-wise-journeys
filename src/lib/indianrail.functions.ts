@@ -127,6 +127,27 @@ function pickRows(o: Record<string, unknown> | undefined, ...keys: string[]): Re
   return [];
 }
 
+function num(o: Record<string, unknown>, ...keys: string[]): number {
+  for (const k of keys) {
+    const v = o[k];
+    if (v !== undefined && v !== null && v !== "") {
+      const n = Number(v);
+      if (!Number.isNaN(n)) return n;
+    }
+  }
+  return 0;
+}
+
+/** Normalise "14:25:00", "1425" or "14:25" to "14:25". */
+function hhmm(v: string): string {
+  const s = String(v ?? "").trim();
+  const m = /^(\d{1,2}):?(\d{2})/.exec(s);
+  if (!m) return "";
+  return `${String(m[1]).padStart(2, "0")}:${m[2]}`;
+}
+
+
+
 
 /* ------------------------------------------------------------------ */
 /* 1. Live running status                                              */

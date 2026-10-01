@@ -641,6 +641,91 @@ function berthType(s: string): string {
   return map[v] ?? s;
 }
 
+function pnrTone(primary: string): { tone: PnrStatus["tone"]; headline: string } {
+  const tone: PnrStatus["tone"] = /CNF|CONFIRM/i.test(primary)
+    ? "confirmed"
+    : /RAC/i.test(primary)
+      ? "rac"
+      : /WL/i.test(primary)
+        ? "waiting"
+        : "other";
+  const headline =
+    tone === "confirmed"
+      ? "Confirmed — आपकी सीट पक्की है"
+      : tone === "rac"
+        ? "RAC — यात्रा कर सकते हैं, सीट साझा"
+        : tone === "waiting"
+          ? "Waiting List — सीट अभी पक्की नहीं"
+          : primary || "स्थिति उपलब्ध";
+  return { tone, headline };
+}
+
+/** "22 Aug 2026, 04:35:00 pm" → { date: "22 Aug 2026", time: "16:35" } */
+function splitStamp(v: string): { date: string; time: string } {
+  const s = String(v ?? "").trim();
+  if (!s) return { date: "", time: "" };
+  const [datePart, timePart = ""] = s.split(",").map((x) => x.trim());
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?$/i.exec(timePart);
+  if (!m) return { date: datePart ?? s, time: timePart };
+  let h = Number(m[1]);
+  const ap = (m[3] ?? "").toLowerCase();
+  if (ap === "pm" && h < 12) h += 12;
+  if (ap === "am" && h === 12) h = 0;
+  return { date: datePart ?? "", time: `${String(h).padStart(2, "0")}:${m[2]}` };
+}
+
+function mapRkPnr(o: Record<string, unknown>, pnr: string): PnrStatus {
+  const train = sub(o, "train");
+  const j = sub(o, "journey");
+  const src = sub(j, "source");
+  const dst = sub(j, "destination");
+  const brd = sub(j, "boardingPoint");
+  const booking = sub(o, "booking");
+  const dep = splitStamp(str(j, "dateOfJourney"));
+  const arr = splitStamp(str(j, "arrivalDate"));
+  const passengers: PnrPassenger[] = pickRows(o, "passengers").map((p, i) => {
+    const b = sub(p, "booking");
+    const c = sub(p, "current");
+    const curStatus = str(c, "status") || str(b, "status");
+    const coach = str(c, "coach") || str(b, "coach");
+    const berthNo = str(c, "berthNo") || str(b, "berthNo");
+    const serialRaw = str(p, "serialNumber").replace(/\D/g, "");
+    return {
+      serial: Number(serialRaw) || i + 1,
+      booking: str(b, "details") || [str(b, "status"), str(b, "coach"), str(b, "berthNo")].filter(Boolean).join(" "),
+      current: str(c, "details") || curStatus,
+      coach: coach && coach !== "null" ? coach : "",
+      berth: berthNo && berthNo !== "0" ? berthNo : "",
+      berthType: berthType(str(c, "berthCode") || str(b, "berthCode")),
+    };
+  });
+  const { tone, headline } = pnrTone(passengers[0]?.current ?? "");
+  const chart = sub(o, "chart");
+  const fare = num(booking, "fare", "ticketFare");
+  return {
+    pnr: str(o, "pnr") || pnr,
+    trainNo: str(train, "number"),
+    trainName: str(train, "name"),
+    journeyDate: dep.date,
+    fromCode: str(src, "code"),
+    fromName: str(src, "name"),
+    toCode: str(dst, "code"),
+    toName: str(dst, "name"),
+    boardingCode: str(brd, "code") || str(src, "code"),
+    boardingName: str(brd, "name") || str(src, "name"),
+    departure: dep.time,
+    arrival: arr.time,
+    travelClass: str(j, "class"),
+    quota: str(j, "quota"),
+    chartPrepared: /prepared/i.test(str(chart, "status")) && !/not/i.test(str(chart, "status")),
+    fare: fare ? String(fare) : "",
+    headline,
+    tone,
+    passengers,
+  };
+}
+
+
 export const railPnr = createServerFn({ method: "POST" })
   .inputValidator((input: { pnr: string }) => ({ pnr: String(input.pnr ?? "").replace(/\D/g, "").slice(0, 10) }))
   .handler(async ({ data }): Promise<Res<PnrStatus>> => {
@@ -727,7 +812,7 @@ export const railStations = createServerFn({ method: "POST" })
       irctcHost(),
       `/api/v1/searchStation?query=${encodeURIComponent(data.q)}`,
     );
-    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+    if (error || !json) return fail(INTERNAL_MSG);
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
     return ok(
       rows
@@ -797,7 +882,25 @@ export const railBetween = createServerFn({ method: "POST" })
       sdk.searchTrainBetweenStations(data.from, data.to, dmy(data.date) || undefined),
     );
     const rkRows = rk.rows ?? pickRows(rk.obj, "trains", "data");
-    if (rkRows.length) return ok(rkRows.map(mapRouteRow));
+    if (rkRows.length) {
+      return ok(
+        rkRows.map((t) => {
+          const r = mapRouteRow(t);
+          const rd = str(t, "running_days");
+          return {
+            ...r,
+            fromCode: r.fromCode || str(t, "from_stn_code", "source_stn_code").toUpperCase() || data.from,
+            fromName: r.fromName || str(t, "from_stn_name", "source_stn_name"),
+            toCode: r.toCode || str(t, "to_stn_code", "dstn_stn_code").toUpperCase() || data.to,
+            toName: r.toName || str(t, "to_stn_name", "dstn_stn_name"),
+            departure: r.departure || str(t, "from_time"),
+            arrival: r.arrival || str(t, "to_time"),
+            runDays: /^[01]{7}$/.test(rd) ? DAY_NAMES.filter((_, i) => rd[i] === "1") : r.runDays,
+          };
+        }),
+      );
+    }
+    if (rk.notFound) return fail("इन स्टेशनों के बीच कोई सीधी ट्रेन नहीं मिली।");
 
     const { json, error } = await getJson(
       irctcHost(),
@@ -863,50 +966,64 @@ export const railAvailability = createServerFn({ method: "POST" })
     const rkQuota = ["GN", "LD", "SS", "TQ"].includes(data.quota);
     const out: ClassAvailability[] = [];
 
-    for (const cls of list) {
-      if (rkQuota) {
-        const rk = await railkit((sdk) =>
-          sdk.getAvailability(data.trainNo, data.from, data.to, dmy(data.date), cls, data.quota),
-        );
-        const rkRows = rk.rows ?? pickRows(rk.obj, "availability", "avlDayList", "data");
-        if (rkRows.length) {
-          out.push({
-            cls,
-            ok: true,
-            error: "",
-            days: rkRows.slice(0, 6).map(mapAvailabilityDay),
-          });
-          continue;
+    const results = await Promise.all(
+      list.map(async (cls): Promise<ClassAvailability> => {
+        if (rkQuota) {
+          const rk = await railkit((sdk) =>
+            sdk.getAvailability(data.trainNo, data.from, data.to, dmy(data.date), cls, data.quota),
+          );
+          const rkRows = rk.rows ?? pickRows(rk.obj, "availability", "avlDayList", "data");
+          if (rkRows.length) {
+            const fare = num(sub(rk.obj, "fare"), "totalFare");
+            return {
+              cls,
+              ok: true,
+              error: "",
+              days: rkRows.slice(0, 6).map((r) => {
+                const d = mapAvailabilityDay(r);
+                return { ...d, fare: d.fare || fare };
+              }),
+            };
+          }
+          if (rk.notFound) return { cls, ok: false, error: "यह क्लास इस ट्रेन में उपलब्ध नहीं है।", days: [] };
         }
-      }
 
-      const { json, error } = await getJson(
-        irctcHost(),
-        `/api/v1/checkSeatAvailability?classType=${cls}&fromStationCode=${data.from}` +
-          `&quota=${data.quota}&toStationCode=${data.to}&trainNo=${data.trainNo}&date=${data.date}`,
-      );
-      if (error || !json || json["status"] !== true) {
-        out.push({ cls, ok: false, error: error ?? String(json?.["message"] ?? "उपलब्ध नहीं"), days: [] });
-        continue;
-      }
-      const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
-      out.push({
-        cls,
-        ok: rows.length > 0,
-        error: rows.length ? "" : "इस क्लास/कोटा में जानकारी नहीं मिली।",
-        days: rows.slice(0, 6).map(mapAvailabilityDay),
-      });
-    }
-    return ok(out);
+        const { json, error } = await getJson(
+          irctcHost(),
+          `/api/v1/checkSeatAvailability?classType=${cls}&fromStationCode=${data.from}` +
+            `&quota=${data.quota}&toStationCode=${data.to}&trainNo=${data.trainNo}&date=${data.date}`,
+        );
+        if (error || !json || json["status"] !== true) {
+          return {
+            cls,
+            ok: false,
+            error: error ? INTERNAL_MSG : clean(String(json?.["message"] ?? "यह क्लास इस ट्रेन में उपलब्ध नहीं है।")),
+            days: [],
+          };
+        }
+        const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
+        return {
+          cls,
+          ok: rows.length > 0,
+          error: rows.length ? "" : "इस क्लास/कोटा में जानकारी नहीं मिली।",
+          days: rows.slice(0, 6).map(mapAvailabilityDay),
+        };
+      }),
+    );
+    return ok(results);
   });
 
 function mapAvailabilityDay(r: Record<string, unknown>): AvailabilityDay {
+  const pct = r["predictionPercentage"];
   return {
-    date: str(r, "availablity_date", "availabilityDate", "date", "avlDayList"),
-    status: str(r, "availablity_status", "availabilityStatus", "current_status", "status", "avlDayStatus"),
-    label: str(r, "seat_avl_text", "availablity_status", "status", "text"),
-    fare: Number(r["total_fare"] ?? r["ticket_fare"] ?? r["totalFare"] ?? r["fare"] ?? 0),
-    probability: str(r, "confirm_probability_percent", "confirmProbability", "prediction"),
+    date: str(r, "availablity_date", "availabilityDate", "date"),
+    status: str(r, "availabilityText", "availablity_status", "availabilityStatus", "current_status", "status"),
+    label: str(r, "availabilityText", "seat_avl_text", "availablity_status", "status", "text"),
+    fare: Number(r["total_fare"] ?? r["ticket_fare"] ?? r["totalFare"] ?? r["fare"] ?? 0) || 0,
+    probability:
+      pct !== undefined && pct !== null && pct !== ""
+        ? `${str(r, "prediction")} (${pct}%)`.trim()
+        : str(r, "confirm_probability_percent", "confirmProbability", "prediction"),
   };
 }
 
@@ -961,24 +1078,38 @@ export const railStationBoard = createServerFn({ method: "POST" })
       irctcHost(),
       `/api/v3/getLiveStation?fromStationCode=${data.code}&toStationCode=${data.code}&hours=${data.hours}`,
     );
-    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
+    if (error || !json) return fail(INTERNAL_MSG);
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
     return ok(rows.map(mapBoardRow));
   });
 
+function timeOf(t: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = t[k];
+    if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      const s = str(o, "actual", "scheduled");
+      if (s) return s;
+    } else if (v !== undefined && v !== null && v !== "") return String(v);
+  }
+  return "";
+}
+
 function mapBoardRow(t: Record<string, unknown>): StationBoardTrain {
   const cls = t["classes"];
   return {
-    number: str(t, "trainNumber", "train_number", "number"),
+    number: str(t, "trainNo", "trainNumber", "train_number", "number"),
     name: str(t, "trainName", "train_name", "name"),
-    arrival: str(t, "arrivalTime", "arrival_time", "sta", "arrival"),
-    departure: str(t, "departureTime", "departure_time", "std", "departure"),
+    arrival: timeOf(t, "arrival", "arrivalTime", "arrival_time", "sta"),
+    departure: timeOf(t, "departure", "departureTime", "departure_time", "std"),
     type: str(t, "trainType", "train_type", "type"),
     classes: Array.isArray(cls)
       ? (cls as unknown[])
           .map((c) => (typeof c === "string" ? c : str(c as Record<string, unknown>, "value", "code", "class")))
           .filter(Boolean)
-      : [],
+      : typeof cls === "string"
+        ? cls.split(",").map((c) => c.trim()).filter(Boolean)
+        : [],
   };
 }
 

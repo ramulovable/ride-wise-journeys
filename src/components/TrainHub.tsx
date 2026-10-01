@@ -1088,13 +1088,19 @@ function StationPairFields({ from, to, setFrom, setTo, swap }: ReturnType<typeof
   );
 }
 
-function RouteTrainCard({ t, onPick }: { t: RouteTrain; onPick?: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onPick}
-      className="w-full rounded-2xl border border-border bg-card p-3 text-left shadow-sm transition active:scale-[0.99]"
-    >
+function RouteTrainCard({
+  t,
+  onPick,
+  expanded,
+  children,
+}: {
+  t: RouteTrain;
+  onPick?: () => void;
+  expanded?: boolean;
+  children?: React.ReactNode;
+}) {
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 flex-1 truncate text-[14px] font-extrabold text-foreground">{t.name}</p>
         <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-extrabold text-primary-foreground">
@@ -1130,13 +1136,32 @@ function RouteTrainCard({ t, onPick }: { t: RouteTrain; onPick?: () => void }) {
         ) : null}
         {onPick ? (
           <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-primary">
-            सीट देखें <ChevronRight className="size-3" />
+            {expanded ? "सीट छिपाएँ" : "सीट देखें"}
+            <ChevronRight className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`} />
           </span>
         ) : null}
       </div>
-    </button>
+    </>
+  );
+
+  if (!onPick) {
+    return <div className="w-full rounded-2xl border border-border bg-card p-3 text-left shadow-sm">{body}</div>;
+  }
+
+  return (
+    <div
+      className={`overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition ${
+        expanded ? "border-primary/60 ring-1 ring-primary/30" : "border-border"
+      }`}
+    >
+      <button type="button" onClick={onPick} className="w-full p-3 text-left active:scale-[0.99]">
+        {body}
+      </button>
+      {expanded ? <div className="border-t border-border bg-muted/30 p-3">{children}</div> : null}
+    </div>
   );
 }
+
 
 function FindTrainsScreen() {
   const betweenFn = useServerFn(railBetween);

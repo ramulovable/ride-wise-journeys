@@ -1219,6 +1219,28 @@ function FindTrainsScreen() {
 
 /* ------------------------- Seat availability ---------------------- */
 
+function QuotaPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-2.5">
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Quota चुनें</p>
+      <div className="flex flex-wrap gap-1.5">
+        {QUOTAS.map((q) => (
+          <button
+            key={q.code}
+            type="button"
+            onClick={() => onChange(q.code)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+              value === q.code ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {q.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SeatsScreen() {
   const betweenFn = useServerFn(railBetween);
   const searchFn = useServerFn(railTrainSearch);
@@ -1232,16 +1254,24 @@ function SeatsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rows, setRows] = useState<RouteTrain[] | null>(null);
-  const [picked, setPicked] = useState<RouteTrain | null>(null);
-  const [avail, setAvail] = useState<ClassAvailability[] | null>(null);
-  const [availLoading, setAvailLoading] = useState(false);
-  const [showExtra, setShowExtra] = useState(false);
+  const [openNo, setOpenNo] = useState<string | null>(null);
+  const [availMap, setAvailMap] = useState<Record<string, ClassAvailability[]>>({});
+  const [availError, setAvailError] = useState<Record<string, string>>({});
+  const [busyNo, setBusyNo] = useState<string | null>(null);
+  const [extraFor, setExtraFor] = useState<Record<string, boolean>>({});
+
+  const tatkalNote = tatkalWindowError(quota, ymd(date));
+
+  function resetResults() {
+    setRows(null);
+    setOpenNo(null);
+    setAvailMap({});
+    setAvailError({});
+  }
 
   async function searchTrains() {
     setError("");
-    setRows(null);
-    setPicked(null);
-    setAvail(null);
+    resetResults();
     setLoading(true);
     try {
       if (mode === "stations") {
@@ -1291,9 +1321,14 @@ function SeatsScreen() {
   }
 
   async function loadAvailability(t: RouteTrain, extra: boolean, q: string) {
-    setPicked(t);
-    setAvail(null);
-    setAvailLoading(true);
+    const windowErr = tatkalWindowError(q, ymd(date));
+    if (windowErr) {
+      setAvailError((m) => ({ ...m, [t.number]: windowErr }));
+      setAvailMap((m) => ({ ...m, [t.number]: [] }));
+      return;
+    }
+    setBusyNo(t.number);
+    setAvailError((m) => ({ ...m, [t.number]: "" }));
     try {
       const res = await availFn({
         data: {
@@ -1305,13 +1340,30 @@ function SeatsScreen() {
           classes: extra ? [...PRIMARY_CLASSES, ...EXTRA_CLASSES] : PRIMARY_CLASSES,
         },
       });
-      if (res.success) setAvail(res.data ?? []);
-      else setError(res.error);
+      if (res.success) setAvailMap((m) => ({ ...m, [t.number]: res.data ?? [] }));
+      else setAvailError((m) => ({ ...m, [t.number]: res.error }));
     } catch {
-      setError("नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।");
+      setAvailError((m) => ({ ...m, [t.number]: "नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।" }));
     } finally {
-      setAvailLoading(false);
+      setBusyNo(null);
     }
+  }
+
+  function togglePick(t: RouteTrain) {
+    if (openNo === t.number) {
+      setOpenNo(null);
+      return;
+    }
+    setOpenNo(t.number);
+    if (!availMap[t.number]) void loadAvailability(t, extraFor[t.number] ?? false, quota);
+  }
+
+  function changeQuota(q: string) {
+    setQuota(q);
+    setAvailMap({});
+    setAvailError({});
+    const open = rows?.find((r) => r.number === openNo);
+    if (open) void loadAvailability(open, extraFor[open.number] ?? false, q);
   }
 
   return (
@@ -1328,9 +1380,7 @@ function SeatsScreen() {
             type="button"
             onClick={() => {
               setMode(id);
-              setRows(null);
-              setPicked(null);
-              setAvail(null);
+              resetResults();
             }}
             className={`flex-1 rounded-lg py-2 text-[12px] font-bold transition ${
               mode === id ? "bg-card text-foreground shadow" : "text-muted-foreground"
@@ -1349,90 +1399,78 @@ function SeatsScreen() {
         )}
         <DateField value={date} onChange={setDate} />
         <QuickDates value={date} onChange={setDate} />
+        <QuotaPicker value={quota} onChange={changeQuota} />
+        {tatkalNote ? (
+          <p className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
+            {tatkalNote}
+          </p>
+        ) : null}
         <SubmitButton loading={loading} onClick={searchTrains} label="ट्रेन खोजें" />
       </div>
 
       {error ? <ErrorNote text={error} /> : null}
 
+      {rows && rows.length === 0 ? (
+        <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">कोई सीधी ट्रेन नहीं मिली।</p>
+      ) : null}
+
       {rows && rows.length > 0 ? (
         <div className="space-y-2.5">
           <p className="px-1 text-[12px] font-bold text-muted-foreground">
-            ट्रेन चुनिए — सिर्फ़ उसी ट्रेन की सीटें दिखेंगी
+            ट्रेन चुनिए — सीटें उसी कार्ड में खुलेंगी
           </p>
-          {rows.map((t) => (
-            <RouteTrainCard key={t.number} t={t} onPick={() => loadAvailability(t, showExtra, quota)} />
-          ))}
-        </div>
-      ) : null}
-
-      {picked ? (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-3 text-white">
-            <p className="text-[15px] font-extrabold">
-              {picked.name} <span className="rounded bg-white/20 px-1.5 text-[12px]">{picked.number}</span>
-            </p>
-            <p className="text-[11px] opacity-90">
-              {picked.fromCode} → {picked.toCode} • {prettyDate(date)}
-            </p>
-          </div>
-
-          <div className="border-b border-border p-3">
-            <p className="mb-2 text-[11px] font-bold uppercase text-muted-foreground">Quota चुनें</p>
-            <div className="flex flex-wrap gap-1.5">
-              {QUOTAS.map((q) => (
-                <button
-                  key={q.code}
-                  type="button"
-                  onClick={() => {
-                    setQuota(q.code);
-                    void loadAvailability(picked, showExtra, q.code);
-                  }}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
-                    quota === q.code
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {q.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-3">
-            {availLoading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="size-5 animate-spin text-primary" />
-              </div>
-            ) : avail && avail.length ? (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  {avail.map((row) => (
-                    <ClassCard key={row.cls} row={row} />
-                  ))}
+          {rows.map((t) => {
+            const open = openNo === t.number;
+            const avail = availMap[t.number];
+            const aErr = availError[t.number];
+            const extra = extraFor[t.number] ?? false;
+            return (
+              <RouteTrainCard key={t.number} t={t} expanded={open} onPick={() => togglePick(t)}>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-muted-foreground">
+                    {prettyDate(date)} • {QUOTAS.find((q) => q.code === quota)?.label}
+                  </p>
+                  {busyNo === t.number ? <Loader2 className="size-4 animate-spin text-primary" /> : null}
                 </div>
-                {!showExtra ? (
-                  <Button
-                    variant="outline"
-                    className="mt-3 h-10 w-full rounded-xl text-[12px] font-bold"
-                    onClick={() => {
-                      setShowExtra(true);
-                      void loadAvailability(picked, true, quota);
-                    }}
-                  >
-                    और क्लास देखें (3E, 2S, CC, EC)
-                  </Button>
+
+                {aErr ? (
+                  <p className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
+                    {aErr}
+                  </p>
+                ) : busyNo === t.number && !avail ? (
+                  <p className="py-3 text-center text-[12px] text-muted-foreground">सीटें देखी जा रही हैं…</p>
+                ) : avail && avail.length ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      {avail.map((row) => (
+                        <ClassCard key={row.cls} row={row} />
+                      ))}
+                    </div>
+                    {!extra ? (
+                      <Button
+                        variant="outline"
+                        className="mt-3 h-10 w-full rounded-xl text-[12px] font-bold"
+                        onClick={() => {
+                          setExtraFor((m) => ({ ...m, [t.number]: true }));
+                          void loadAvailability(t, true, quota);
+                        }}
+                      >
+                        और क्लास देखें (3E, 2S, CC, EC)
+                      </Button>
+                    ) : null}
+                  </>
+                ) : avail ? (
+                  <p className="text-xs text-muted-foreground">इस ट्रेन के लिए जानकारी नहीं मिली।</p>
                 ) : null}
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground">इस ट्रेन के लिए जानकारी नहीं मिली।</p>
-            )}
-          </div>
+              </RouteTrainCard>
+            );
+          })}
         </div>
       ) : null}
     </div>
   );
 }
+
 
 function ClassCard({ row }: { row: ClassAvailability }) {
   const first = row.days[0];

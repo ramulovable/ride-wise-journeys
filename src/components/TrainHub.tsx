@@ -121,10 +121,14 @@ const QUOTAS: { code: string; label: string }[] = [
   { code: "TQ", label: "Tatkal" },
   { code: "PT", label: "Premium Tatkal" },
   { code: "LD", label: "Ladies" },
-  { code: "SS", label: "Senior Citizen" },
-  { code: "HP", label: "Divyang" },
+  { code: "SS", label: "Senior Citizen / Lower Berth" },
+  { code: "HP", label: "Divyang (Handicapped)" },
   { code: "DF", label: "Defence" },
   { code: "YU", label: "Yuva" },
+  { code: "HO", label: "Head Quarter / VIP" },
+  { code: "DP", label: "Duty Pass" },
+  { code: "FT", label: "Foreign Tourist" },
+  { code: "PH", label: "Parliament House" },
 ];
 
 const CLASS_NAMES: Record<string, string> = {
@@ -1309,7 +1313,8 @@ function SeatsScreen() {
   const [availMap, setAvailMap] = useState<Record<string, ClassAvailability[]>>({});
   const [availError, setAvailError] = useState<Record<string, string>>({});
   const [busyNo, setBusyNo] = useState<string | null>(null);
-  const [extraFor, setExtraFor] = useState<Record<string, boolean>>({});
+  const [extraFor] = useState<Record<string, boolean>>({});
+  const [clsFor, setClsFor] = useState<Record<string, string>>({});
 
   const tatkalNote = tatkalWindowError(quota, ymd(date));
 
@@ -1388,7 +1393,7 @@ function SeatsScreen() {
           to: t.toCode,
           date: ymd(date),
           quota: q,
-          classes: extra ? [...PRIMARY_CLASSES, ...EXTRA_CLASSES] : PRIMARY_CLASSES,
+          classes: [...PRIMARY_CLASSES, ...EXTRA_CLASSES].slice(0, 8),
         },
       });
       if (res.success) setAvailMap((m) => ({ ...m, [t.number]: res.data ?? [] }));

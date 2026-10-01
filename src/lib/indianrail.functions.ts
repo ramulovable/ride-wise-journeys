@@ -127,6 +127,27 @@ function pickRows(o: Record<string, unknown> | undefined, ...keys: string[]): Re
   return [];
 }
 
+function num(o: Record<string, unknown>, ...keys: string[]): number {
+  for (const k of keys) {
+    const v = o[k];
+    if (v !== undefined && v !== null && v !== "") {
+      const n = Number(v);
+      if (!Number.isNaN(n)) return n;
+    }
+  }
+  return 0;
+}
+
+/** Normalise "14:25:00", "1425" or "14:25" to "14:25". */
+function hhmm(v: string): string {
+  const s = String(v ?? "").trim();
+  const m = /^(\d{1,2}):?(\d{2})/.exec(s);
+  if (!m) return "";
+  return `${String(m[1]).padStart(2, "0")}:${m[2]}`;
+}
+
+
+
 
 /* ------------------------------------------------------------------ */
 /* 1. Live running status                                              */
@@ -170,6 +191,77 @@ export type LiveStatus = {
   stops: LiveStop[];
 };
 
+/** Build a LiveStatus from a RailKit tracking payload (field names vary, so alias widely). */
+function mapRkLive(o: Record<string, unknown>, trainNo: string): LiveStatus | null {
+  const raw = pickRows(o, "stations", "route", "stationList", "stoppingStations", "schedule", "data");
+  if (raw.length === 0) return null;
+
+  const currentCode = str(o, "current_station", "currentStation", "currentStationCode", "last_station_code").toUpperCase();
+  const terminated = o["terminated"] === true || /terminat|destination reached|journey completed/i.test(str(o, "status", "statusMessage", "train_status_message"));
+
+  let currentIdx = raw.findIndex(
+    (s) => str(s, "stationCode", "station_code", "code").toUpperCase() === currentCode,
+  );
+  if (currentIdx < 0) {
+    const crossed = raw.map((s) => s["crossed"] === true || s["hasArrived"] === true || s["departed"] === true);
+    const lastCrossed = crossed.lastIndexOf(true);
+    currentIdx = lastCrossed >= 0 ? lastCrossed : terminated ? raw.length - 1 : 0;
+  }
+
+  const stops: LiveStop[] = raw.map((s, i) => {
+    const schedArr = hhmm(str(s, "arrivalTime", "scheduled_arrival", "schArrivalTime", "sta", "arrival"));
+    const schedDep = hhmm(str(s, "departureTime", "scheduled_departure", "schDepartureTime", "std", "departure"));
+    const actualArr = hhmm(str(s, "actual_arrival_time", "actualArrival", "actArr", "eta"));
+    const actualDep = hhmm(str(s, "actual_departure_time", "actualDeparture", "actDep", "etd"));
+    const delayRaw = num(s, "delay", "delayArrival", "arrivalDelay", "delayInArrival");
+    return {
+      code: str(s, "stationCode", "station_code", "code").toUpperCase(),
+      name: str(s, "stationName", "station_name", "name"),
+      serial: num(s, "stnSerialNumber", "serial", "sno") || i + 1,
+      day: num(s, "dayCount", "day") || 1,
+      distanceKm: num(s, "distance", "distanceFromSource", "distance_from_source"),
+      haltMin: num(s, "haltTime", "halt", "stopTime"),
+      platform: str(s, "expected_platform", "platform", "platformNumber"),
+      schedArr,
+      schedDep,
+      actualArr,
+      actualDep,
+      delayMin: delayRaw || diffMin(schedArr || schedDep, actualArr || actualDep),
+      state: terminated || i < currentIdx ? "passed" : i === currentIdx ? "current" : "upcoming",
+    };
+  });
+
+  const first = stops[0]!;
+  const last = stops[stops.length - 1]!;
+  const cur = stops[currentIdx] ?? first;
+  const nxt = !terminated && currentIdx + 1 < stops.length ? stops[currentIdx + 1] : undefined;
+  const totalKm = last.distanceKm || 0;
+  const coveredKm = cur.distanceKm || 0;
+  const speed = num(o, "speed", "averageSpeed", "avgSpeed");
+
+  return {
+    trainNo,
+    message: stripTags(str(o, "status", "statusMessage", "train_status_message", "message")),
+    updatedAgo: str(o, "updated_at", "lastUpdated", "time_of_availability", "updatedAt"),
+    terminated,
+    currentCode: cur.code,
+    currentName: cur.name,
+    nextCode: nxt?.code ?? "",
+    nextName: nxt?.name ?? "",
+    nextEta: nxt ? nxt.actualArr || nxt.schedArr : "",
+    nextSched: nxt?.schedArr ?? "",
+    nextPlatform: nxt?.platform ?? "",
+    distanceToNextKm: nxt ? Math.max(0, nxt.distanceKm - coveredKm) : 0,
+    coveredKm,
+    totalKm,
+    progressPct: totalKm > 0 ? Math.round((coveredKm / totalKm) * 100) : 0,
+    avgSpeedKmph: speed > 0 && speed < 180 ? Math.round(speed) : 0,
+    delayMin: cur.delayMin,
+    onTime: cur.delayMin <= 5,
+    stops,
+  };
+}
+
 export const railLive = createServerFn({ method: "POST" })
   .inputValidator((input: { trainNo: string; date: string }) => ({
     trainNo: String(input.trainNo ?? "").replace(/\D/g, "").slice(0, 5),
@@ -178,6 +270,17 @@ export const railLive = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Res<LiveStatus>> => {
     if (data.trainNo.length !== 5) return fail("ट्रेन नंबर 5 अंक का होना चाहिए।");
     if (data.date.length !== 8) return fail("यात्रा की तारीख चुनिए।");
+
+    // RailKit first, RapidAPI as automatic backup.
+    const rkDate = dmyCompact(data.date);
+    const rk = await railkit((sdk) => sdk.trackTrain(data.trainNo, rkDate));
+    if (rk.obj) {
+      const mapped = mapRkLive(rk.obj, data.trainNo);
+      if (mapped) return ok(mapped);
+    }
+    const rkQuota = rk.error;
+
+
 
     const { json, error } = await getJson(
       ntesHost(),

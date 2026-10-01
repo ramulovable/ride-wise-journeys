@@ -35,6 +35,8 @@ import {
   railStationBoard,
   railStations,
   railTrainSearch,
+  tatkalWindowError,
+
   type ClassAvailability,
   type LiveStatus,
   type PnrStatus,

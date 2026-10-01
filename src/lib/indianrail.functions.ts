@@ -717,22 +717,34 @@ export const railStationBoard = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }): Promise<Res<StationBoardTrain[]>> => {
     if (!data.code) return fail("स्टेशन चुनिए।");
+
+    const hrs = (data.hours <= 2 ? 2 : data.hours <= 4 ? 4 : 8) as 2 | 4 | 8;
+    const rk = await railkit((sdk) => sdk.liveAtStation(data.code, hrs));
+    const rkRows = rk.rows ?? pickRows(rk.obj, "trains", "data");
+    if (rkRows.length) return ok(rkRows.map(mapBoardRow));
+
     const { json, error } = await getJson(
       irctcHost(),
       `/api/v3/getLiveStation?fromStationCode=${data.code}&toStationCode=${data.code}&hours=${data.hours}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
+    if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
     const rows = Array.isArray(json["data"]) ? (json["data"] as Record<string, unknown>[]) : [];
-    return ok(
-      rows.map((t) => ({
-        number: str(t, "trainNumber"),
-        name: str(t, "trainName"),
-        arrival: str(t, "arrivalTime"),
-        departure: str(t, "departureTime"),
-        type: str(t, "trainType"),
-        classes: Array.isArray(t["classes"])
-          ? (t["classes"] as Record<string, unknown>[]).map((c) => str(c, "value")).filter(Boolean)
-          : [],
-      })),
-    );
+    return ok(rows.map(mapBoardRow));
   });
+
+function mapBoardRow(t: Record<string, unknown>): StationBoardTrain {
+  const cls = t["classes"];
+  return {
+    number: str(t, "trainNumber", "train_number", "number"),
+    name: str(t, "trainName", "train_name", "name"),
+    arrival: str(t, "arrivalTime", "arrival_time", "sta", "arrival"),
+    departure: str(t, "departureTime", "departure_time", "std", "departure"),
+    type: str(t, "trainType", "train_type", "type"),
+    classes: Array.isArray(cls)
+      ? (cls as unknown[])
+          .map((c) => (typeof c === "string" ? c : str(c as Record<string, unknown>, "value", "code", "class")))
+          .filter(Boolean)
+      : [],
+  };
+}
+

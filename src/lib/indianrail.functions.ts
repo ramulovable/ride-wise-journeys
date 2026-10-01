@@ -20,8 +20,19 @@ function ok<T>(data: T): Res<T> {
   return { success: true, data, error: "" };
 }
 
-const QUOTA_MSG =
-  "इस महीने की ट्रेन डेटा लिमिट पूरी हो गई है। RapidAPI पर प्लान अपग्रेड करने के बाद यह फिर चलने लगेगा।";
+/** Shown whenever the data provider is out of quota / misconfigured / down. Never names a provider. */
+const INTERNAL_MSG = "आंतरिक त्रुटि — ट्रेन सेवा अभी उपलब्ध नहीं है। कृपया थोड़ी देर बाद दोबारा कोशिश करें।";
+const QUOTA_MSG = INTERNAL_MSG;
+
+/** Hide any provider / plan / quota wording from users. */
+function clean(msg: string): string {
+  const m = String(msg ?? "").trim();
+  if (!m) return INTERNAL_MSG;
+  if (/rapid|railkit|quota|limit|plan|subscri|exceed|api|key|unauthori|forbidden|timed? ?out|configur|upgrade/i.test(m)) {
+    return INTERNAL_MSG;
+  }
+  return m;
+}
 
 function headers(host: string, key: string) {
   return { "x-rapidapi-key": key, "x-rapidapi-host": host };
@@ -29,16 +40,16 @@ function headers(host: string, key: string) {
 
 async function getJson(host: string, path: string): Promise<{ json?: Record<string, unknown>; error?: string }> {
   const key = process.env["RAPIDAPI_KEY"];
-  if (!key) return { error: "ट्रेन सेवा अभी सेट नहीं है।" };
+  if (!key) return { error: INTERNAL_MSG };
   try {
     const r = await fetch(`https://${host}${path}`, { headers: headers(host, key) });
     const json = (await r.json()) as Record<string, unknown>;
     const msg = String(json["message"] ?? "");
-    if (/exceeded/i.test(msg)) return { error: QUOTA_MSG };
-    if (r.status === 403 || r.status === 429) return { error: QUOTA_MSG };
+    if (/exceeded|subscribe/i.test(msg)) return { error: QUOTA_MSG };
+    if (r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500) return { error: QUOTA_MSG };
     return { json };
   } catch {
-    return { error: "ट्रेन सेवा अभी उपलब्ध नहीं है। थोड़ी देर बाद कोशिश कीजिए।" };
+    return { error: INTERNAL_MSG };
   }
 }
 
@@ -80,10 +91,10 @@ function str(o: Record<string, unknown>, ...keys: string[]): string {
 /* RailKit — primary provider (RapidAPI stays as automatic backup)     */
 /* ------------------------------------------------------------------ */
 
-const RK_QUOTA_MSG =
-  "RailKit की इस महीने की लिमिट पूरी हो गई है। प्लान बढ़ाने के बाद यह फिर चलने लगेगा।";
+const RK_QUOTA_MSG = INTERNAL_MSG;
 
-type RkOut = { rows?: Record<string, unknown>[]; obj?: Record<string, unknown>; error?: string };
+/** error = user-safe message; notFound = provider answered but had no record (do not fall back). */
+type RkOut = { rows?: Record<string, unknown>[]; obj?: Record<string, unknown>; error?: string; notFound?: boolean };
 
 async function railkit(fn: (sdk: typeof import("railkit")) => Promise<unknown>): Promise<RkOut> {
   const key = process.env["RAILKIT_API_KEY"];
@@ -95,7 +106,8 @@ async function railkit(fn: (sdk: typeof import("railkit")) => Promise<unknown>):
     if (!res || typeof res !== "object") return { error: "" };
     if ("success" in res && res["success"] !== true) {
       const e = String(res["error"] ?? "");
-      return { error: /limit exceeded|quota/i.test(e) ? RK_QUOTA_MSG : "" };
+      if (/no .*found|not found|invalid pnr|flushed/i.test(e)) return { error: "", notFound: true };
+      return { error: /limit|quota|exceed|key|inactive|timed out/i.test(e) ? RK_QUOTA_MSG : "" };
     }
     const payload = ("data" in res ? res["data"] : res) as unknown;
     if (Array.isArray(payload)) return { rows: payload as Record<string, unknown>[] };
@@ -105,6 +117,26 @@ async function railkit(fn: (sdk: typeof import("railkit")) => Promise<unknown>):
     return { error: "" };
   }
 }
+
+function sub(o: Record<string, unknown> | undefined, k: string): Record<string, unknown> {
+  const v = o?.[k];
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+
+/** "30 min" | "00:26" | "1 hr 5 min" | "On Time" → minutes */
+function parseDelay(v: string): number {
+  const s = String(v ?? "").trim();
+  if (!s || /on ?time|right time/i.test(s)) return 0;
+  const hm = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (hm) return Number(hm[1]) * 60 + Number(hm[2]);
+  const h = /(\d+)\s*h/i.exec(s);
+  const m = /(\d+)\s*m/i.exec(s);
+  if (h || m) return (h ? Number(h[1]) * 60 : 0) + (m ? Number(m[1]) : 0);
+  const n = Number(s.replace(/\D/g, ""));
+  return Number.isNaN(n) ? 0 : n;
+}
+
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** YYYY-MM-DD → DD-MM-YYYY (RailKit date format). */
 function dmy(iso: string): string {
@@ -191,8 +223,85 @@ export type LiveStatus = {
   stops: LiveStop[];
 };
 
+/** RailKit trackTrain → LiveStatus (uses `timeline` stoppages). */
+function mapRkTimeline(o: Record<string, unknown>, trainNo: string): LiveStatus | null {
+  const tl = pickRows(o, "timeline");
+  const raw = tl.filter((t) => t["type"] === "stoppage");
+  if (raw.length === 0) return null;
+  const prog = sub(o, "progress");
+  const completed = /complet/i.test(str(prog, "journeyStatus"));
+  let currentIdx = raw.findIndex((s) => s["status"] === "current");
+  if (currentIdx < 0) {
+    const lastPassed = raw.map((s) => s["status"] === "passed").lastIndexOf(true);
+    currentIdx = lastPassed >= 0 ? lastPassed : 0;
+  }
+  const terminated = completed || (currentIdx === raw.length - 1 && raw[currentIdx]?.["status"] === "passed");
+  let day = 1;
+  let prevDate = "";
+  const stops: LiveStop[] = raw.map((s, i) => {
+    const a = sub(s, "arrival");
+    const d = sub(s, "departure");
+    const sa = str(a, "scheduled");
+    const sd = str(d, "scheduled");
+    const dt = /\d{2}-[A-Za-z]{3}/.exec(sa + " " + sd)?.[0] ?? "";
+    if (dt && prevDate && dt !== prevDate) day += 1;
+    if (dt) prevDate = dt;
+    const schedArr = hhmm(sa);
+    const schedDep = hhmm(sd);
+    const actualArr = hhmm(str(a, "actual"));
+    const actualDep = hhmm(str(d, "actual"));
+    const delayMin = parseDelay(str(a, "delay")) || parseDelay(str(d, "delay")) ||
+      Math.max(0, diffMin(schedArr || schedDep, actualArr || actualDep));
+    const haltMin = schedArr && schedDep ? Math.max(0, diffMin(schedArr, schedDep)) : 0;
+    const st = String(s["status"] ?? "");
+    return {
+      code: str(s, "stationCode").toUpperCase(),
+      name: str(s, "stationName"),
+      serial: i + 1,
+      day,
+      distanceKm: num(s, "distanceKm"),
+      haltMin,
+      platform: str(s, "platform"),
+      schedArr,
+      schedDep,
+      actualArr,
+      actualDep,
+      delayMin,
+      state: terminated || st === "passed" || i < currentIdx ? "passed" : i === currentIdx ? "current" : "upcoming",
+    };
+  });
+  const cur = stops[currentIdx] ?? stops[0]!;
+  const nxt = !terminated && currentIdx + 1 < stops.length ? stops[currentIdx + 1] : undefined;
+  const totalKm = num(o, "totalDistanceKm") || stops[stops.length - 1]!.distanceKm;
+  const coveredKm = num(prog, "currentDistanceKm") || cur.distanceKm;
+  const speed = num(o, "averageSpeedKmph");
+  return {
+    trainNo,
+    message: stripTags(str(o, "statusNote")),
+    updatedAgo: str(o, "lastUpdate"),
+    terminated,
+    currentCode: str(o, "currentStationCode").toUpperCase() || cur.code,
+    currentName: cur.name,
+    nextCode: nxt?.code ?? "",
+    nextName: nxt?.name ?? "",
+    nextEta: nxt ? nxt.actualArr || nxt.schedArr : "",
+    nextSched: nxt?.schedArr ?? "",
+    nextPlatform: nxt?.platform ?? "",
+    distanceToNextKm: nxt ? Math.max(0, nxt.distanceKm - coveredKm) : 0,
+    coveredKm,
+    totalKm,
+    progressPct: num(prog, "percent") || (totalKm > 0 ? Math.round((coveredKm / totalKm) * 100) : 0),
+    avgSpeedKmph: speed > 0 && speed < 180 ? Math.round(speed) : 0,
+    delayMin: cur.delayMin,
+    onTime: cur.delayMin <= 5,
+    stops,
+  };
+}
+
 /** Build a LiveStatus from a RailKit tracking payload (field names vary, so alias widely). */
 function mapRkLive(o: Record<string, unknown>, trainNo: string): LiveStatus | null {
+  const viaTimeline = mapRkTimeline(o, trainNo);
+  if (viaTimeline) return viaTimeline;
   const raw = pickRows(o, "stations", "route", "stationList", "stoppingStations", "schedule", "data");
   if (raw.length === 0) return null;
 
@@ -278,20 +387,18 @@ export const railLive = createServerFn({ method: "POST" })
       const mapped = mapRkLive(rk.obj, data.trainNo);
       if (mapped) return ok(mapped);
     }
-    const rkQuota = rk.error;
-
-
+    if (rk.notFound) return fail("इस तारीख के लिए लाइव जानकारी नहीं मिली।");
 
     const { json, error } = await getJson(
       ntesHost(),
       `/api/trains/v1/train/status?departure_date=${data.date}&isH5=true&client=web&train_number=${data.trainNo}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
+    if (error || !json) return fail(INTERNAL_MSG);
 
     const status = (json["status"] ?? {}) as Record<string, unknown>;
     if (status["result"] !== "success" || !json["body"]) {
       const msg = (status["message"] ?? {}) as Record<string, unknown>;
-      return fail(String(msg["message"] ?? "इस तारीख के लिए लाइव जानकारी नहीं मिली।"));
+      return fail(clean(String(msg["message"] ?? "इस तारीख के लिए लाइव जानकारी नहीं मिली।")));
     }
     const body = json["body"] as Record<string, unknown>;
     const raw = Array.isArray(body["stations"]) ? (body["stations"] as Record<string, unknown>[]) : [];
@@ -420,15 +527,63 @@ function mapTrain(t: Record<string, unknown>): TrainRecord {
   };
 }
 
+/** RailKit getTrainInfo → TrainRecord with full schedule. */
+function mapRkTrainInfo(o: Record<string, unknown>): TrainRecord | null {
+  const ti = sub(o, "trainInfo");
+  const number = str(ti, "train_no");
+  if (!number) return null;
+  const rd = str(ti, "running_days");
+  return {
+    number,
+    name: str(ti, "train_name"),
+    fromCode: str(ti, "from_stn_code"),
+    fromName: str(ti, "from_stn_name"),
+    toCode: str(ti, "to_stn_code"),
+    toName: str(ti, "to_stn_name"),
+    runningOn: /^[01]{7}$/.test(rd) ? DAY_NAMES.filter((_, i) => rd[i] === "1").join(", ") : rd,
+    classes: [],
+    type: str(ti, "type"),
+    schedule: pickRows(o, "route").map((s) => ({
+      code: str(s, "stnCode"),
+      name: str(s, "stnName"),
+      arrival: str(s, "arrival"),
+      departure: str(s, "departure"),
+      halt: str(s, "halt"),
+      distanceKm: num(s, "distance"),
+      day: num(s, "day") || 1,
+    })),
+  };
+}
+
 export const railTrainSearch = createServerFn({ method: "POST" })
   .inputValidator((input: { q: string }) => ({ q: String(input.q ?? "").trim().slice(0, 40) }))
   .handler(async ({ data }): Promise<Res<TrainRecord[]>> => {
     if (data.q.length < 2) return fail("कम से कम 2 अक्षर लिखिए।");
+
+    // RailKit first: exact number → full info; name → matches.
+    if (/^\d{5}$/.test(data.q)) {
+      const rk = await railkit((sdk) => sdk.getTrainInfo(data.q));
+      const t = rk.obj ? mapRkTrainInfo(rk.obj) : null;
+      if (t) return ok([t]);
+    } else if (!/^\d+$/.test(data.q)) {
+      const rk = await railkit((sdk) => sdk.trainsByName(data.q));
+      const rows = rk.rows ?? pickRows(rk.obj, "trains");
+      const list = rows
+        .map((r) => ({
+          number: str(r, "trainNo", "train_no"),
+          name: str(r, "trainName", "train_name"),
+          fromCode: "", fromName: "", toCode: "", toName: "",
+          runningOn: "", classes: [], type: "", schedule: [],
+        }))
+        .filter((t) => t.number);
+      if (list.length) return ok(list);
+    }
+
     const { json, error } = await getJson(
       ntesHost(),
       `/api/trains-search/v1/train/${encodeURIComponent(data.q)}`,
     );
-    if (error || !json) return fail(error ?? "जानकारी नहीं मिली।");
+    if (error || !json) return fail(INTERNAL_MSG);
     const body = Array.isArray(json["body"]) ? (json["body"] as Record<string, unknown>[]) : [];
     const rows: Record<string, unknown>[] = [];
     for (const group of body) {
@@ -491,58 +646,34 @@ export const railPnr = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Res<PnrStatus>> => {
     if (data.pnr.length !== 10) return fail("PNR 10 अंक का होना चाहिए।");
 
-    let d: Record<string, unknown> | undefined;
-    let list: Record<string, unknown>[] = [];
-
     const rk = await railkit((sdk) => sdk.checkPNRStatus(data.pnr));
-    if (rk.obj) {
-      d = rk.obj;
-      list = pickRows(rk.obj, "passengerList", "passengers", "passenger");
+    if (rk.obj && (rk.obj["train"] || rk.obj["passengers"])) {
+      return ok(mapRkPnr(rk.obj, data.pnr));
     }
+    if (rk.notFound) return fail("यह PNR नहीं मिला। नंबर दोबारा जाँचिए।");
 
-    if (!d) {
-      const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
-      if (error || !json) return fail(rk.error || error || "जानकारी नहीं मिली।");
-      if (json["status"] !== true || !json["data"]) {
-        return fail(rk.error || String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।"));
-      }
-      d = json["data"] as Record<string, unknown>;
-      list = pickRows(d, "passengerList", "passengers");
+    const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
+    if (error || !json) return fail(INTERNAL_MSG);
+    if (json["status"] !== true || !json["data"]) {
+      return fail(clean(String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।")));
     }
-
+    const d = json["data"] as Record<string, unknown>;
+    const list = pickRows(d, "passengerList", "passengers");
 
     const passengers: PnrPassenger[] = list.map((p, i) => {
       const current = str(p, "currentStatus", "currentStatusNew", "bookingStatus");
-      const coach = str(p, "currentCoachId", "bookingCoachId");
-      const berth = str(p, "currentBerthNo", "bookingBerthNo");
       return {
         serial: Number(p["passengerSerialNumber"] ?? i + 1),
         booking: [str(p, "bookingStatus"), str(p, "bookingCoachId"), str(p, "bookingBerthNo")]
           .filter(Boolean)
           .join(" "),
         current,
-        coach,
-        berth,
+        coach: str(p, "currentCoachId", "bookingCoachId"),
+        berth: str(p, "currentBerthNo", "bookingBerthNo"),
         berthType: berthType(str(p, "currentBerthCode", "bookingBerthCode")),
       };
     });
-
-    const primary = passengers[0]?.current ?? "";
-    const tone: PnrStatus["tone"] = /CNF|CONFIRM/i.test(primary)
-      ? "confirmed"
-      : /RAC/i.test(primary)
-        ? "rac"
-        : /WL/i.test(primary)
-          ? "waiting"
-          : "other";
-    const headline =
-      tone === "confirmed"
-        ? "Confirmed — आपकी सीट पक्की है"
-        : tone === "rac"
-          ? "RAC — यात्रा कर सकते हैं, सीट साझा"
-          : tone === "waiting"
-            ? "Waiting List — सीट अभी पक्की नहीं"
-            : primary || "स्थिति उपलब्ध";
+    const { tone, headline } = pnrTone(passengers[0]?.current ?? "");
 
     return ok<PnrStatus>({
       pnr: data.pnr,

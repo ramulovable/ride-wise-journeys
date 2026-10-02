@@ -977,7 +977,7 @@ export const railAvailability = createServerFn({ method: "POST" })
               { headers: { Authorization: `Bearer ${rrKey}` } },
             );
             if (r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500) return null;
-            const j = (await r.json()) as { success?: boolean; data?: { calendar?: Record<string, unknown>[] } };
+            const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { calendar?: Record<string, unknown>[] } };
             if (!j.success) return { cls, ok: false, error: "यह क्लास इस ट्रेन में उपलब्ध नहीं है।", days: [] };
             const cal = Array.isArray(j.data?.calendar) ? j.data!.calendar! : [];
             const days = cal.slice(0, 7).map((d) => {

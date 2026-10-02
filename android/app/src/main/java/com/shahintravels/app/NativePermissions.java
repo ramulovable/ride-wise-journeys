@@ -77,15 +77,29 @@ public class NativePermissions {
                 uri = androidx.core.content.FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", f);
             }
             final Uri open = uri;
-            activity.runOnUiThread(() -> {
-                android.widget.Toast.makeText(activity, "PDF Downloads me save ho gaya", android.widget.Toast.LENGTH_LONG).show();
-                try {
-                    Intent i = new Intent(Intent.ACTION_VIEW);
-                    i.setDataAndType(open, "application/pdf");
-                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    activity.startActivity(i);
-                } catch (Throwable ignored) { }
-            });
+            try {
+                android.app.NotificationManager nm = activity.getSystemService(android.app.NotificationManager.class);
+                if (Build.VERSION.SDK_INT >= 26 && nm != null) {
+                    nm.createNotificationChannel(new android.app.NotificationChannel(
+                            "downloads", "Downloads", android.app.NotificationManager.IMPORTANCE_HIGH));
+                }
+                Intent view = new Intent(Intent.ACTION_VIEW);
+                view.setDataAndType(open, "application/pdf");
+                view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                android.app.PendingIntent pi = android.app.PendingIntent.getActivity(activity,
+                        (int) (System.currentTimeMillis() & 0xffff), view,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+                androidx.core.app.NotificationCompat.Builder nb = new androidx.core.app.NotificationCompat.Builder(activity, "downloads")
+                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                        .setContentTitle("Download complete")
+                        .setContentText(fileName + " — open karne ke liye tap karein")
+                        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                        .setContentIntent(pi)
+                        .setAutoCancel(true);
+                if (nm != null) nm.notify((int) (System.currentTimeMillis() & 0xfffff), nb.build());
+            } catch (Throwable n) { Log.w(TAG, "pdf notify failed", n); }
+            activity.runOnUiThread(() ->
+                android.widget.Toast.makeText(activity, "PDF Downloads me save ho gaya", android.widget.Toast.LENGTH_LONG).show());
             return "ok";
         } catch (Throwable t) {
             Log.w(TAG, "savePdf failed", t);

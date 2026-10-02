@@ -21,9 +21,31 @@ const QUOTA: Record<string, string> = {
   SS: "SENIOR CITIZEN (SS)", HP: "HANDICAP (HP)", DF: "DEFENCE (DF)", HO: "HEAD QUARTER (HO)",
 };
 
+const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T) =>
+  Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
+
+async function logoDataUrl(url: string): Promise<string> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise<string>((r) => {
+      const fr = new FileReader();
+      fr.onload = () => r(String(fr.result));
+      fr.onerror = () => r("");
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
+
 export async function printPnrSlip(d: PnrStatus): Promise<void> {
   const origin = window.location.origin;
-  const logoUrl = logo.url.startsWith("http") ? logo.url : origin + logo.url;
+  const logoUrl = await withTimeout(
+    logoDataUrl(logo.url.startsWith("http") ? logo.url : origin + logo.url),
+    4000,
+    "",
+  );
   const qrText = `Shahin Travels PNR Slip | PNR:${d.pnr} | Train:${d.trainNo} ${d.trainName} | ${d.fromCode}-${d.toCode} | ${d.journeyDate} | ${d.headline}`;
   const qr = renderToStaticMarkup(createElement(QRCodeSVG, { value: qrText, size: 130, level: "M" }));
   const now = new Date().toLocaleString("en-IN", { hour12: false });
@@ -63,7 +85,7 @@ ol{margin:4px 0;padding-left:18px;font-size:10.5px;text-align:justify}ol li{marg
 @media print{.noprint{display:none}}
 </style></head><body>
 <div class="slip">
- <div class="sec hdr"><img src="${logoUrl}" alt="Shahin Travels"/>
+ <div class="sec hdr">${logoUrl ? `<img src="${logoUrl}" alt="Shahin Travels"/>` : `<div style="width:58px"></div>`}
   <div class="title"><u>Electronic Reservation Slip (ERS)</u><small>-PNR Status Copy</small></div>
   <div class="brand">SHAHIN<br/>TRAVELS</div></div>
  <div class="sec g3">
@@ -116,10 +138,14 @@ ol{margin:4px 0;padding-left:18px;font-size:10.5px;text-align:justify}ol li{marg
     doc.write(html);
     doc.close();
     await new Promise((r) => setTimeout(r, 150));
-    await Promise.all(
-      Array.from(doc.images).map((img) =>
-        img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; }),
+    await withTimeout(
+      Promise.all(
+        Array.from(doc.images).map((img) =>
+          img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; }),
+        ),
       ),
+      3000,
+      [],
     );
     iframe.style.height = doc.body.scrollHeight + 20 + "px";
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -127,9 +153,11 @@ ol{margin:4px 0;padding-left:18px;font-size:10.5px;text-align:justify}ol li{marg
       import("jspdf"),
     ]);
     const canvas = await html2canvas(doc.body, {
-      scale: 2,
+      scale: 1.6,
       backgroundColor: "#ffffff",
       useCORS: true,
+      imageTimeout: 3000,
+      logging: false,
       windowWidth: 820,
     });
     const pdf = new jsPDF({ unit: "mm", format: "a4" });
@@ -147,16 +175,24 @@ ol{margin:4px 0;padding-left:18px;font-size:10.5px;text-align:justify}ol li{marg
       ctx.fillRect(0, 0, c.width, h);
       ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
       if (page > 0) pdf.addPage();
-      pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", m, m, iw, h / pxPerMm);
+      pdf.addImage(c.toDataURL("image/jpeg", 0.9), "JPEG", m, m, iw, h / pxPerMm);
     }
     const fileName = `PNR-${d.pnr}-ShahinTravels.pdf`;
     const native = (window as unknown as { ShahinNative?: { savePdf?: (b: string, n: string) => string } }).ShahinNative;
     if (native?.savePdf) {
       const b64 = pdf.output("datauristring").split(",")[1] ?? "";
       if (native.savePdf(b64, fileName) !== "ok") throw new Error("save failed");
-    } else {
-      pdf.save(fileName);
+      return;
     }
+    const blob = pdf.output("blob");
+    const file = new File([blob], fileName, { type: "application/pdf" });
+    const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
+    const isAppWebView = /; wv\)/.test(navigator.userAgent);
+    if (isAppWebView && nav.canShare?.({ files: [file] })) {
+      await nav.share({ files: [file], title: fileName });
+      return;
+    }
+    pdf.save(fileName);
   } finally {
     iframe.remove();
   }

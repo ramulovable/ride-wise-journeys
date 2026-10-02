@@ -55,7 +55,7 @@ export type Prediction = {
 
 export function predict(opts: {
   currentWl: number;
-  bookingWl?: number;
+  bookingWl?: number | undefined;
   cls: string;
   quota: string;
   daysLeft: number;

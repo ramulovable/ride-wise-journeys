@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { POPULAR_STATIONS, POPULAR_TRAINS, type RailStation } from "@/lib/rail-stations";
 import {
   railAvailability,
+  railTrainClasses,
   railBetween,
   railLive,
   railPnr,

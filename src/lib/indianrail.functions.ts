@@ -936,6 +936,44 @@ export type ClassAvailability = {
 
 const ALLOWED_CLASSES = ["1A", "2A", "3A", "3E", "SL", "2S", "CC", "EC", "FC"];
 
+// Small in-memory caches to stay within RailRadar's per-minute limit.
+const rrClassCache = new Map<string, { at: number; classes: string[] }>();
+const rrSeatCache = new Map<string, { at: number; row: ClassAvailability }>();
+const SEAT_TTL = 5 * 60 * 1000;
+const CLASS_TTL = 24 * 60 * 60 * 1000;
+
+export const railTrainClasses = createServerFn({ method: "POST" })
+  .inputValidator((input: { trainNo: string }) => ({
+    trainNo: String(input.trainNo ?? "").replace(/\D/g, "").slice(0, 5),
+  }))
+  .handler(async ({ data }): Promise<Res<string[]>> => {
+    if (data.trainNo.length !== 5) return fail("ट्रेन नंबर सही नहीं है।");
+    const hit = rrClassCache.get(data.trainNo);
+    if (hit && Date.now() - hit.at < CLASS_TTL) return ok(hit.classes);
+    const rrKey = process.env["RAILRADAR_API_KEY"];
+    if (rrKey) {
+      try {
+        const r = await fetch(`https://api.railradar.in/v1/trains/${data.trainNo}`, {
+          headers: { Authorization: `Bearer ${rrKey}` },
+        });
+        if (r.ok) {
+          const j = (await r.json().catch(() => ({}))) as { data?: { train?: { classes?: unknown } } };
+          const raw = j.data?.train?.classes;
+          const list = (Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(/[,\s]+/) : [])
+            .map((c) => String(c).trim().toUpperCase())
+            .filter((c) => ALLOWED_CLASSES.includes(c));
+          if (list.length) {
+            rrClassCache.set(data.trainNo, { at: Date.now(), classes: list });
+            return ok(list);
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return ok(["SL", "3A", "2A", "1A"]);
+  });
+
 export const railAvailability = createServerFn({ method: "POST" })
   .inputValidator((input: {
     trainNo: string;
@@ -953,7 +991,7 @@ export const railAvailability = createServerFn({ method: "POST" })
     classes: (Array.isArray(input.classes) ? input.classes : [])
       .map((c) => String(c).trim().toUpperCase())
       .filter((c) => ALLOWED_CLASSES.includes(c))
-      .slice(0, 8),
+      .slice(0, 3),
   }))
   .handler(async ({ data }): Promise<Res<ClassAvailability[]>> => {
     if (data.trainNo.length !== 5 || !data.from || !data.to || !data.date) {
@@ -962,43 +1000,57 @@ export const railAvailability = createServerFn({ method: "POST" })
     const tatkal = tatkalWindowError(data.quota, data.date);
     if (tatkal) return fail(tatkal);
 
-    const list = data.classes.length ? data.classes : ["SL", "3A", "2A"];
+    const list = data.classes.length ? data.classes : ["SL"];
     const rkQuota = ["GN", "LD", "SS", "TQ"].includes(data.quota);
 
-    // Primary: RailRadar (all quotas, rolling multi-day calendar).
+    // Primary: RailRadar — one class at a time, sequential, cached.
     const rrKey = process.env["RAILRADAR_API_KEY"];
     if (rrKey) {
-      const rr = await Promise.all(
-        list.map(async (cls): Promise<ClassAvailability | null> => {
+      const rr: (ClassAvailability | null)[] = [];
+      for (const cls of list) {
+        const key = `${data.trainNo}|${data.from}|${data.to}|${data.date}|${data.quota}|${cls}`;
+        const hit = rrSeatCache.get(key);
+        if (hit && Date.now() - hit.at < SEAT_TTL) {
+          rr.push(hit.row);
+          continue;
+        }
+        let row: ClassAvailability | null = null;
+        for (let attempt = 0; attempt < 2 && !row; attempt++) {
           try {
             const r = await fetch(
               `https://api.railradar.in/v1/trains/${data.trainNo}/seats?from=${data.from}&to=${data.to}` +
                 `&date=${data.date}&class=${cls}&quota=${data.quota}`,
               { headers: { Authorization: `Bearer ${rrKey}` } },
             );
-            if (r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500) return null;
+            if (r.status === 429 && attempt === 0) {
+              await new Promise((res) => setTimeout(res, 1500));
+              continue;
+            }
+            if (r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500) break;
             const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { calendar?: Record<string, unknown>[] } };
-            if (!j.success) return { cls, ok: false, error: "यह क्लास इस ट्रेन में उपलब्ध नहीं है।", days: [] };
+            if (!j.success) {
+              row = { cls, ok: false, error: "यह क्लास इस कोटा/ट्रेन में उपलब्ध नहीं है।", days: [] };
+              break;
+            }
             const cal = Array.isArray(j.data?.calendar) ? j.data!.calendar! : [];
             const days = cal.slice(0, 7).map((d) => {
               const s = str(d, "status");
               return { date: str(d, "date"), status: s, label: s, fare: 0, probability: "" };
             });
-            return { cls, ok: days.length > 0, error: days.length ? "" : "जानकारी नहीं मिली।", days };
+            row = { cls, ok: days.length > 0, error: days.length ? "" : "जानकारी नहीं मिली।", days };
           } catch {
-            return null;
+            break;
           }
-        }),
-      );
-      // Accept partial results: classes not offered in this quota/train are skipped.
-      if (rr.every((x) => x) || rr.some((x) => x?.ok)) {
-        const rows = rr
-          .map((x, i): ClassAvailability => x ?? { cls: list[i] ?? "", ok: false, error: INTERNAL_MSG, days: [] })
-          .filter((x) => x.ok || x.error !== "यह क्लास इस ट्रेन में उपलब्ध नहीं है।");
-        if (rows.some((x) => x.ok)) return ok(rows);
-        if (!["TQ", "PT"].includes(data.quota) || rr.every((x) => x)) return ok(rr as ClassAvailability[]);
+        }
+        if (row) rrSeatCache.set(key, { at: Date.now(), row });
+        rr.push(row);
+      }
+      if (rr.every((x) => x)) return ok(rr as ClassAvailability[]);
+      if (!rkQuota) {
+        return ok(rr.map((x, i) => x ?? { cls: list[i] ?? "", ok: false, error: INTERNAL_MSG, days: [] }));
       }
     }
+
 
     const results = await Promise.all(
       list.map(async (cls): Promise<ClassAvailability> => {

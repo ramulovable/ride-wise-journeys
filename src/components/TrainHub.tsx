@@ -1244,10 +1244,20 @@ function QuotaSelect({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-function SevenDayTable({ rows, cls, onCls }: { rows: ClassAvailability[]; cls: string; onCls: (c: string) => void }) {
-  const usable = rows.filter((r) => r.ok && r.days.length);
-  const current = usable.find((r) => r.cls === cls) ?? usable[0];
-  if (!current) return <p className="text-xs text-muted-foreground">इस कोटा में कोई क्लास उपलब्ध नहीं है।</p>;
+function SevenDayTable({
+  classes,
+  rows,
+  cls,
+  onCls,
+  busy,
+}: {
+  classes: string[];
+  rows: ClassAvailability[];
+  cls: string;
+  onCls: (c: string) => void;
+  busy: boolean;
+}) {
+  const current = rows.find((r) => r.cls === cls);
   const tone = (s: string) =>
     /^AVAILABLE|AVL/i.test(s)
       ? "border-emerald-400 bg-emerald-50 text-emerald-800"
@@ -1268,19 +1278,42 @@ function SevenDayTable({ rows, cls, onCls }: { rows: ClassAvailability[]; cls: s
   return (
     <div>
       <div className="mb-2 flex flex-wrap justify-center gap-1.5">
-        {usable.map((r) => (
+        {classes.map((c) => (
           <button
-            key={r.cls}
+            key={c}
             type="button"
-            onClick={() => onCls(r.cls)}
+            onClick={() => onCls(c)}
             className={`min-w-11 rounded-lg border px-3 py-1.5 text-[13px] font-bold transition ${
-              r.cls === current.cls ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"
+              c === cls ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"
             }`}
           >
-            {r.cls}
+            {c}
           </button>
         ))}
       </div>
+      {!current ? (
+        <p className="py-3 text-center text-[12px] text-muted-foreground">{busy ? "सीटें देखी जा रही हैं…" : ""}</p>
+      ) : !current.ok || !current.days.length ? (
+        <p className="rounded-xl bg-muted p-2.5 text-center text-[11px] font-semibold text-muted-foreground">
+          {current.error || "इस क्लास में जानकारी नहीं मिली।"}
+        </p>
+      ) : (
+      <div className="overflow-hidden rounded-xl border border-border bg-background">
+        <p className="bg-muted py-1.5 text-center text-[12px] font-extrabold text-foreground">
+          {CLASS_NAMES[current.cls] ?? current.cls} ({current.cls})
+        </p>
+        {current.days.map((d) => (
+          <div key={d.date} className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
+            <span className="text-[12px] font-semibold text-foreground">{fmt(d.date)}</span>
+            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${tone(d.status)}`}>{d.status || "-"}</span>
+          </div>
+        ))}
+      </div>
+      )}
+    </div>
+  );
+}
+
       <div className="overflow-hidden rounded-xl border border-border bg-background">
         <p className="bg-muted py-1.5 text-center text-[12px] font-extrabold text-foreground">
           {CLASS_NAMES[current.cls] ?? current.cls} ({current.cls})

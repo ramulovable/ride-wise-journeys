@@ -56,6 +56,43 @@ public class NativePermissions {
         return updater.getProgress();
     }
 
+    /** Saves a base64 PDF into the phone's Downloads folder and opens it. Returns "ok" or an error. */
+    @android.webkit.JavascriptInterface
+    public String savePdf(String base64, String fileName) {
+        try {
+            byte[] bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+            Uri uri;
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.content.ContentValues cv = new android.content.ContentValues();
+                cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                cv.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
+                cv.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS);
+                uri = activity.getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) return "error";
+                try (java.io.OutputStream os = activity.getContentResolver().openOutputStream(uri)) { os.write(bytes); }
+            } else {
+                java.io.File dir = activity.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
+                java.io.File f = new java.io.File(dir, fileName);
+                try (java.io.FileOutputStream os = new java.io.FileOutputStream(f)) { os.write(bytes); }
+                uri = androidx.core.content.FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", f);
+            }
+            final Uri open = uri;
+            activity.runOnUiThread(() -> {
+                android.widget.Toast.makeText(activity, "PDF Downloads me save ho gaya", android.widget.Toast.LENGTH_LONG).show();
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW);
+                    i.setDataAndType(open, "application/pdf");
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    activity.startActivity(i);
+                } catch (Throwable ignored) { }
+            });
+            return "ok";
+        } catch (Throwable t) {
+            Log.w(TAG, "savePdf failed", t);
+            return "error";
+        }
+    }
+
     @android.webkit.JavascriptInterface
     public boolean isNativeApp() {
         return true;

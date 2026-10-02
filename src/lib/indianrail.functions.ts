@@ -993,7 +993,7 @@ export const railAvailability = createServerFn({ method: "POST" })
       // Accept partial results: classes not offered in this quota/train are skipped.
       if (rr.every((x) => x) || rr.some((x) => x?.ok)) {
         const rows = rr
-          .map((x, i) => x ?? { cls: list[i], ok: false, error: INTERNAL_MSG, days: [] })
+          .map((x, i): ClassAvailability => x ?? { cls: list[i] ?? "", ok: false, error: INTERNAL_MSG, days: [] })
           .filter((x) => x.ok || x.error !== "यह क्लास इस ट्रेन में उपलब्ध नहीं है।");
         if (rows.some((x) => x.ok)) return ok(rows);
         if (!["TQ", "PT"].includes(data.quota) || rr.every((x) => x)) return ok(rr as ClassAvailability[]);

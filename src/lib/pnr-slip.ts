@@ -152,7 +152,7 @@ ol{margin:4px 0;padding-left:18px;font-size:10.5px;text-align:justify}ol li{marg
     const fileName = `PNR-${d.pnr}-ShahinTravels.pdf`;
     const native = (window as unknown as { ShahinNative?: { savePdf?: (b: string, n: string) => string } }).ShahinNative;
     if (native?.savePdf) {
-      const b64 = pdf.output("datauristring").split(",")[1];
+      const b64 = pdf.output("datauristring").split(",")[1] ?? "";
       if (native.savePdf(b64, fileName) !== "ok") throw new Error("save failed");
     } else {
       pdf.save(fileName);

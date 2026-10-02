@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Download } from "lucide-react";
-import { printPnrSlip } from "@/lib/pnr-slip";
+import { printPnrSlip, type SlipPassengerInfo } from "@/lib/pnr-slip";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -690,12 +690,15 @@ function PnrResult({ d }: { d: PnrStatus }) {
   const [copied, setCopied] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState("");
+  const [pax, setPax] = useState<SlipPassengerInfo[]>(() => d.passengers.map(() => ({})));
+  const setPaxField = (i: number, k: keyof SlipPassengerInfo, val: string) =>
+    setPax((prev) => prev.map((p, j) => (j === i ? { ...p, [k]: val } : p)));
 
   async function downloadPdf() {
     setPdfBusy(true);
     setPdfErr("");
     try {
-      await printPnrSlip(d);
+      await printPnrSlip(d, pax);
     } catch {
       setPdfErr("PDF नहीं बन पाया। दोबारा कोशिश कीजिए।");
     } finally {

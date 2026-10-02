@@ -155,3 +155,12 @@
     color: var(--color-foreground);
   }
 }
+
+/* Live train journey scene */
+@keyframes lj-pan { from { transform: translate3d(0,0,0); } to { transform: translate3d(-50%,0,0); } }
+@keyframes lj-sleep { from { background-position: 0 0; } to { background-position: -24px 0; } }
+@keyframes lj-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-0.6px); } }
+.lj-layer { animation: lj-pan linear infinite; will-change: transform; }
+.lj-sleepers { background: repeating-linear-gradient(90deg, #5a4636 0 8px, transparent 8px 24px); animation: lj-sleep linear infinite; }
+.lj-bob { animation: lj-bob 0.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .lj-layer, .lj-sleepers, .lj-bob { animation: none !important; } }

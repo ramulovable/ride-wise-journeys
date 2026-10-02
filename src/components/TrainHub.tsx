@@ -688,6 +688,20 @@ function PnrScreen() {
 
 function PnrResult({ d }: { d: PnrStatus }) {
   const [copied, setCopied] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfErr, setPdfErr] = useState("");
+
+  async function downloadPdf() {
+    setPdfBusy(true);
+    setPdfErr("");
+    try {
+      await printPnrSlip(d);
+    } catch {
+      setPdfErr("PDF नहीं बन पाया। दोबारा कोशिश कीजिए।");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   const banner =
     d.tone === "confirmed"
@@ -838,9 +852,10 @@ function PnrResult({ d }: { d: PnrStatus }) {
         </div>
       ) : null}
 
-      <Button className="h-12 w-full rounded-xl text-[15px] font-extrabold" onClick={() => printPnrSlip(d)}>
-        <Download className="mr-1.5 size-4" /> Ticket PDF Download / Print
+      <Button className="h-12 w-full rounded-xl text-[15px] font-extrabold" disabled={pdfBusy} onClick={downloadPdf}>
+        <Download className="mr-1.5 size-4" /> {pdfBusy ? "PDF बन रहा है..." : "Ticket PDF Download"}
       </Button>
+      {pdfErr ? <ErrorNote text={pdfErr} /> : null}
       <div className="flex gap-2">
         <Button variant="outline" className="h-11 flex-1 rounded-xl font-bold" onClick={copyPnr}>
           <Copy className="mr-1.5 size-4" /> {copied ? "कॉपी हो गया" : "PNR कॉपी"}

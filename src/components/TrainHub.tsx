@@ -1314,25 +1314,12 @@ function SevenDayTable({
   );
 }
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background">
-        <p className="bg-muted py-1.5 text-center text-[12px] font-extrabold text-foreground">
-          {CLASS_NAMES[current.cls] ?? current.cls} ({current.cls})
-        </p>
-        {current.days.map((d) => (
-          <div key={d.date} className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
-            <span className="text-[12px] font-semibold text-foreground">{fmt(d.date)}</span>
-            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${tone(d.status)}`}>{d.status || "-"}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function SeatsScreen() {
   const betweenFn = useServerFn(railBetween);
   const searchFn = useServerFn(railTrainSearch);
   const availFn = useServerFn(railAvailability);
+  const classesFn = useServerFn(railTrainClasses);
+  const [classesFor, setClassesFor] = useState<Record<string, string[]>>({});
 
   const [mode, setMode] = useState<"stations" | "train">("stations");
   const pair = useStationPair();
@@ -1409,33 +1396,55 @@ function SeatsScreen() {
     }
   }
 
-  async function loadAvailability(t: RouteTrain, extra: boolean, q: string) {
+  const akey = (no: string, q: string) => `${no}|${q}|${ymd(date)}`;
+
+  async function getClasses(t: RouteTrain): Promise<string[]> {
+    if (classesFor[t.number]) return classesFor[t.number]!;
+    let list = ["SL", "3A", "2A", "1A"];
+    try {
+      const res = await classesFn({ data: { trainNo: t.number } });
+      if (res.success && res.data?.length) list = res.data;
+    } catch {
+      /* default */
+    }
+    const order = ["SL", "3A", "3E", "2A", "1A", "2S", "CC", "EC", "FC"];
+    list = [...list].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    setClassesFor((m) => ({ ...m, [t.number]: list }));
+    return list;
+  }
+
+  async function loadClass(t: RouteTrain, q: string, cls: string) {
+    const key = akey(t.number, q);
+    setClsFor((m) => ({ ...m, [t.number]: cls }));
     const windowErr = tatkalWindowError(q, ymd(date));
     if (windowErr) {
-      setAvailError((m) => ({ ...m, [t.number]: windowErr }));
-      setAvailMap((m) => ({ ...m, [t.number]: [] }));
+      setAvailError((m) => ({ ...m, [key]: windowErr }));
       return;
     }
+    if (availMap[key]?.some((r) => r.cls === cls)) return;
     setBusyNo(t.number);
-    setAvailError((m) => ({ ...m, [t.number]: "" }));
+    setAvailError((m) => ({ ...m, [key]: "" }));
     try {
       const res = await availFn({
-        data: {
-          trainNo: t.number,
-          from: t.fromCode,
-          to: t.toCode,
-          date: ymd(date),
-          quota: q,
-          classes: [...PRIMARY_CLASSES, ...EXTRA_CLASSES].slice(0, 8),
-        },
+        data: { trainNo: t.number, from: t.fromCode, to: t.toCode, date: ymd(date), quota: q, classes: [cls] },
       });
-      if (res.success) setAvailMap((m) => ({ ...m, [t.number]: res.data ?? [] }));
-      else setAvailError((m) => ({ ...m, [t.number]: res.error }));
+      if (res.success) {
+        setAvailMap((m) => ({
+          ...m,
+          [key]: [...(m[key] ?? []).filter((r) => r.cls !== cls), ...(res.data ?? [])],
+        }));
+      } else setAvailError((m) => ({ ...m, [key]: res.error }));
     } catch {
-      setAvailError((m) => ({ ...m, [t.number]: "नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।" }));
+      setAvailError((m) => ({ ...m, [key]: "नेटवर्क की दिक्कत है। दोबारा कोशिश कीजिए।" }));
     } finally {
       setBusyNo(null);
     }
+  }
+
+  async function openTrain(t: RouteTrain, q: string) {
+    const list = await getClasses(t);
+    const cls = clsFor[t.number] && list.includes(clsFor[t.number]!) ? clsFor[t.number]! : list[0]!;
+    await loadClass(t, q, cls);
   }
 
   function togglePick(t: RouteTrain) {
@@ -1444,15 +1453,13 @@ function SeatsScreen() {
       return;
     }
     setOpenNo(t.number);
-    if (!availMap[t.number]) void loadAvailability(t, extraFor[t.number] ?? false, quota);
+    void openTrain(t, quota);
   }
 
   function changeQuota(q: string) {
     setQuota(q);
-    setAvailMap({});
-    setAvailError({});
     const open = rows?.find((r) => r.number === openNo);
-    if (open) void loadAvailability(open, extraFor[open.number] ?? false, q);
+    if (open) void openTrain(open, q);
   }
 
   return (
@@ -1504,9 +1511,9 @@ function SeatsScreen() {
           </p>
           {rows.map((t) => {
             const open = openNo === t.number;
-            const avail = availMap[t.number];
-            const aErr = availError[t.number];
-            const extra = extraFor[t.number] ?? false;
+            const avail = availMap[akey(t.number, quota)] ?? [];
+            const aErr = availError[akey(t.number, quota)];
+            const classes = classesFor[t.number];
             return (
               <RouteTrainCard key={t.number} t={t} expanded={open} onPick={() => togglePick(t)}>
                 <div className="mb-2 flex items-center gap-2">
@@ -1524,17 +1531,17 @@ function SeatsScreen() {
                   <p className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
                     {aErr}
                   </p>
-                ) : busyNo === t.number && !avail ? (
-                  <p className="py-3 text-center text-[12px] text-muted-foreground">सीटें देखी जा रही हैं…</p>
-                ) : avail && avail.length ? (
+                ) : classes ? (
                   <SevenDayTable
+                    classes={classes}
                     rows={avail}
-                    cls={clsFor[t.number] ?? ""}
-                    onCls={(c) => setClsFor((m) => ({ ...m, [t.number]: c }))}
+                    cls={clsFor[t.number] ?? classes[0] ?? ""}
+                    busy={busyNo === t.number}
+                    onCls={(c) => void loadClass(t, quota, c)}
                   />
-                ) : avail ? (
-                  <p className="text-xs text-muted-foreground">इस ट्रेन के लिए जानकारी नहीं मिली।</p>
-                ) : null}
+                ) : (
+                  <p className="py-3 text-center text-[12px] text-muted-foreground">सीटें देखी जा रही हैं…</p>
+                )}
               </RouteTrainCard>
             );
           })}

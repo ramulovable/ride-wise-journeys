@@ -23,6 +23,8 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { Download } from "lucide-react";
 import { printPnrSlip, type SlipPassengerInfo } from "@/lib/pnr-slip";
+import { PnrInsights, pnrPrediction, chanceTone } from "@/components/RailInsights";
+import { parseWl, predict, daysUntil, parseJourneyDate } from "@/lib/rail-predict";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -820,6 +822,12 @@ function PnrResult({ d }: { d: PnrStatus }) {
                   >
                     {p.current || "-"}
                   </span>
+                  {(() => {
+                    const pr = pnrPrediction(d, p.current, p.booking);
+                    return pr ? (
+                      <p className={`mt-0.5 text-[11px] font-extrabold ${chanceTone(pr)}`}>{pr.cnf}% Chance</p>
+                    ) : null;
+                  })()}
                   {p.coach || p.berth ? (
                     <p className="mt-0.5 text-[11px] font-bold text-foreground">
                       {p.coach} {p.berth}
@@ -834,6 +842,8 @@ function PnrResult({ d }: { d: PnrStatus }) {
           ) : null}
         </div>
       </div>
+
+      <PnrInsights d={d} />
 
       {/* coach / berth cards */}
       {d.passengers.some((p) => p.coach) ? (
@@ -1369,7 +1379,19 @@ function SevenDayTable({
         {current.days.map((d) => (
           <div key={d.date} className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
             <span className="text-[12px] font-semibold text-foreground">{fmt(d.date)}</span>
-            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${tone(d.status)}`}>{d.status || "-"}</span>
+            <span className="flex flex-col items-end">
+              <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${tone(d.status)}`}>{d.status || "-"}</span>
+              {(() => {
+                const wl = parseWl(d.status);
+                if (!wl) return null;
+                const pr = predict({ currentWl: wl.num, cls: current.cls, quota: wl.quota, daysLeft: daysUntil(parseJourneyDate(d.date)) });
+                return (
+                  <span className={`mt-0.5 text-[10px] font-extrabold ${chanceTone(pr)}`}>
+                    CNF {pr.cnf}% • RAC {pr.rac}%
+                  </span>
+                );
+              })()}
+            </span>
           </div>
         ))}
       </div>

@@ -1333,7 +1333,7 @@ function SeatsScreen() {
   const [availMap, setAvailMap] = useState<Record<string, ClassAvailability[]>>({});
   const [availError, setAvailError] = useState<Record<string, string>>({});
   const [busyNo, setBusyNo] = useState<string | null>(null);
-  const [extraFor] = useState<Record<string, boolean>>({});
+
   const [clsFor, setClsFor] = useState<Record<string, string>>({});
 
   const tatkalNote = tatkalWindowError(quota, ymd(date));

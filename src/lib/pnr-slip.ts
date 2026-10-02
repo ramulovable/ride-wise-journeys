@@ -39,7 +39,9 @@ async function logoDataUrl(url: string): Promise<string> {
   }
 }
 
-export async function printPnrSlip(d: PnrStatus): Promise<void> {
+export type SlipPassengerInfo = { name?: string; age?: string; gender?: string };
+
+export async function printPnrSlip(d: PnrStatus, extra: SlipPassengerInfo[] = []): Promise<void> {
   const origin = window.location.origin;
   const logoUrl = await withTimeout(
     logoDataUrl(logo.url.startsWith("http") ? logo.url : origin + logo.url),
@@ -54,10 +56,11 @@ export async function printPnrSlip(d: PnrStatus): Promise<void> {
 
   const rows = d.passengers.length
     ? d.passengers
-        .map(
-          (p) => `<tr><td>${p.serial}.</td><td>Passenger ${p.serial}</td><td>-</td><td>-</td>
-          <td>${v(p.booking)}</td><td>${v(p.current)}${p.coach ? ` /${esc(p.coach)}` : ""}${p.berth ? `/${esc(p.berth)}` : ""}${p.berthType ? `/${esc(p.berthType).toUpperCase()}` : ""}</td></tr>`,
-        )
+        .map((p, i) => {
+          const x = extra[i] ?? {};
+          return `<tr><td>${p.serial}.</td><td>${x.name?.trim() ? esc(x.name.trim().toUpperCase()) : `Passenger ${p.serial}`}</td><td>${v(x.age?.trim())}</td><td>${v(x.gender)}</td>
+          <td>${v(p.booking)}</td><td>${v(p.current)}${p.coach ? ` /${esc(p.coach)}` : ""}${p.berth ? `/${esc(p.berth)}` : ""}${p.berthType ? `/${esc(p.berthType).toUpperCase()}` : ""}</td></tr>`;
+        })
         .join("")
     : `<tr><td colspan="6">Passenger details not available</td></tr>`;
 

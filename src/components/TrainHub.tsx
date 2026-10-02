@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Download } from "lucide-react";
-import { printPnrSlip } from "@/lib/pnr-slip";
+import { printPnrSlip, type SlipPassengerInfo } from "@/lib/pnr-slip";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -690,12 +690,15 @@ function PnrResult({ d }: { d: PnrStatus }) {
   const [copied, setCopied] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState("");
+  const [pax, setPax] = useState<SlipPassengerInfo[]>(() => d.passengers.map(() => ({})));
+  const setPaxField = (i: number, k: keyof SlipPassengerInfo, val: string) =>
+    setPax((prev) => prev.map((p, j) => (j === i ? { ...p, [k]: val } : p)));
 
   async function downloadPdf() {
     setPdfBusy(true);
     setPdfErr("");
     try {
-      await printPnrSlip(d);
+      await printPnrSlip(d, pax);
     } catch {
       setPdfErr("PDF नहीं बन पाया। दोबारा कोशिश कीजिए।");
     } finally {
@@ -849,6 +852,46 @@ function PnrResult({ d }: { d: PnrStatus }) {
                 <p className="text-[15px] font-extrabold text-primary">{p.berth || "-"}</p>
               </div>
             ))}
+        </div>
+      ) : null}
+
+      {d.passengers.length ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <p className="border-b border-border bg-muted/40 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+            PDF के लिए यात्री का नाम (वैकल्पिक)
+          </p>
+          <div className="space-y-2 p-3">
+            <p className="text-[11px] text-muted-foreground">
+              रेलवे सुरक्षा कारणों से PNR में नाम नहीं भेजता। टिकट से देखकर भरें — खाली छोड़ने पर “Passenger 1” दिखेगा।
+            </p>
+            {d.passengers.map((p, i) => (
+              <div key={p.serial} className="grid grid-cols-[1fr_56px_72px] gap-2">
+                <input
+                  value={pax[i]?.name ?? ""}
+                  onChange={(e) => setPaxField(i, "name", e.target.value.slice(0, 40))}
+                  placeholder={`यात्री ${p.serial} का नाम`}
+                  className="h-10 rounded-lg border border-input bg-background px-2 text-[13px] text-foreground"
+                />
+                <input
+                  value={pax[i]?.age ?? ""}
+                  onChange={(e) => setPaxField(i, "age", e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  inputMode="numeric"
+                  placeholder="उम्र"
+                  className="h-10 rounded-lg border border-input bg-background px-2 text-[13px] text-foreground"
+                />
+                <select
+                  value={pax[i]?.gender ?? ""}
+                  onChange={(e) => setPaxField(i, "gender", e.target.value)}
+                  className="h-10 rounded-lg border border-input bg-background px-1 text-[13px] text-foreground"
+                >
+                  <option value="">लिंग</option>
+                  <option value="MALE">पुरुष</option>
+                  <option value="FEMALE">महिला</option>
+                  <option value="TRANSGENDER">अन्य</option>
+                </select>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

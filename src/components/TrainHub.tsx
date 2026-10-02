@@ -21,6 +21,8 @@ import {
   X,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { Download } from "lucide-react";
+import { printPnrSlip } from "@/lib/pnr-slip";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -836,6 +838,9 @@ function PnrResult({ d }: { d: PnrStatus }) {
         </div>
       ) : null}
 
+      <Button className="h-12 w-full rounded-xl text-[15px] font-extrabold" onClick={() => printPnrSlip(d)}>
+        <Download className="mr-1.5 size-4" /> Ticket PDF Download / Print
+      </Button>
       <div className="flex gap-2">
         <Button variant="outline" className="h-11 flex-1 rounded-xl font-bold" onClick={copyPnr}>
           <Copy className="mr-1.5 size-4" /> {copied ? "कॉपी हो गया" : "PNR कॉपी"}

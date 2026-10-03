@@ -149,9 +149,49 @@ const SKY: Record<Phase, [string, string, string]> = {
   night: ["#060b1f", "#14204a", "#25305a"],
 };
 
+function useTrainSound(on: boolean, moving: boolean) {
+  const ctxRef = useRef<{ ctx: AudioContext; gain: GainNode; timer: number } | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+    const ctx = new AC();
+    const gain = ctx.createGain(); gain.gain.value = 0.0; gain.connect(ctx.destination);
+    // low rumble: filtered noise
+    const len = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 380;
+    src.connect(lp).connect(gain); src.start();
+    // clickety-clack of wheels over rail joints
+    const clack = () => {
+      const t = ctx.currentTime;
+      [0, 0.12, 0.9, 1.02].forEach((o) => {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.type = "triangle"; osc.frequency.value = 95;
+        g.gain.setValueAtTime(0.35, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.09);
+        osc.connect(g).connect(gain); osc.start(t + o); osc.stop(t + o + 0.1);
+      });
+    };
+    const timer = window.setInterval(() => { if (ctxRef.current && moving) clack(); }, 1800);
+    ctxRef.current = { ctx, gain, timer };
+    return () => { clearInterval(timer); void ctx.close(); ctxRef.current = null; };
+  }, [on]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const c = ctxRef.current; if (!c) return;
+    c.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0.08, c.ctx.currentTime + 1.2);
+  }, [moving, on]);
+}
+
 const RailScene = memo(function RailScene({
-  phase, moving, animate, quality, label,
-}: { phase: Phase; moving: boolean; animate: boolean; quality: number; label: string }) {
+  phase, moving, animate, label, atStation, stationName, platform, speed, updated, live, sound, onSound,
+}: {
+  phase: Phase; moving: boolean; animate: boolean; quality: number; label: string;
+  atStation: boolean; stationName: string; platform: string; speed: number; updated: string; live: boolean;
+  sound: boolean; onSound: () => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
   useEffect(() => {
@@ -161,106 +201,58 @@ const RailScene = memo(function RailScene({
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  const run = animate && moving && visible;
-  const night = phase === "night";
-  const [s1, s2, s3] = SKY[phase];
-  const speedScale = quality >= 3 ? 1 : quality <= 1 ? 1.6 : 1.25;
-  const dur = (base: number) => `${base * speedScale}s`;
+  const run = animate && moving && visible && !atStation;
+  const img = atStation ? sceneStation : phase === "night" ? sceneNight : sceneDay;
   const play = run ? "running" : "paused";
+  useTrainSound(sound, run);
 
   return (
-    <div
-      ref={ref}
-      role="img"
-      aria-label={label}
-      className="lj-scene relative h-48 w-full overflow-hidden rounded-2xl"
-      style={{ background: `linear-gradient(180deg, ${s1} 0%, ${s2} 55%, ${s3} 100%)` }}
-    >
-      {night ? (
-        <div className="absolute inset-0 opacity-80" style={{
-          backgroundImage: "radial-gradient(1px 1px at 20% 20%, #fff, transparent), radial-gradient(1px 1px at 60% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 82% 28%, #fff, transparent), radial-gradient(1px 1px at 40% 34%, #fff, transparent)",
-        }} />
+    <div ref={ref} role="img" aria-label={label}
+      className="relative h-56 w-full overflow-hidden rounded-2xl bg-black shadow-xl sm:h-72">
+      <div className={`absolute inset-0 ${run ? "lj-shake" : ""}`}>
+        <img src={img} alt="" width={1600} height={912}
+          className="lj-kenburns absolute inset-0 h-full w-full scale-110 object-cover"
+          style={{ animationPlayState: animate && visible ? "running" : "paused",
+            filter: phase === "sunset" && !atStation ? "sepia(0.25) saturate(1.2) hue-rotate(-10deg)" : undefined }} />
+        {/* foreground motion: blurred streaking ballast/grass */}
+        {!atStation ? (
+          <div className="lj-streak pointer-events-none absolute inset-x-0 bottom-0 h-[30%]"
+            style={{ backgroundImage: `url(${img})`, animationPlayState: play, opacity: run ? 0.55 : 0 }} />
+        ) : null}
+        {/* swaying foliage glints */}
+        {run ? <div className="lj-sway pointer-events-none absolute inset-y-0 left-0 w-1/4" /> : null}
+      </div>
+      {/* cinematic grade + letterbox */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55))]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
+
+      {atStation && stationName ? (
+        <div className="absolute right-[6%] top-[9%] w-[32%] rounded-sm border-2 border-black/70 bg-[#f5c518] px-1 py-1 text-center text-black shadow-lg">
+          <p className="truncate text-[11px] font-black uppercase leading-tight sm:text-sm">{stationName}</p>
+          {platform ? <p className="text-[9px] font-bold sm:text-[11px]">प्लेटफार्म {platform}</p> : null}
+        </div>
       ) : null}
-      <div className="absolute rounded-full" style={{
-        width: 34, height: 34, right: "14%", top: phase === "sunset" ? "40%" : "12%",
-        background: night ? "#f4f1de" : phase === "sunset" ? "#ffb26b" : "#fff6c9",
-        boxShadow: `0 0 40px ${night ? "#f4f1de88" : "#ffd27a"}`,
-      }} />
 
-      {/* far hills */}
-      <div className="lj-layer absolute bottom-[58px] left-0 h-16 w-[200%]" style={{ animationDuration: dur(60), animationPlayState: play }}>
-        <svg viewBox="0 0 800 60" preserveAspectRatio="none" className="h-full w-full">
-          <path d="M0 60 L0 35 Q60 5 120 30 T240 25 T360 32 T400 35 L400 60Z M400 60 L400 35 Q460 5 520 30 T640 25 T760 32 T800 35 L800 60Z"
-            fill={night ? "#1b2547" : phase === "sunset" ? "#7a5a8a" : "#9cc3a6"} />
-        </svg>
+      <div className="absolute left-3 top-3 rounded-xl bg-black/55 px-2.5 py-1.5 text-white backdrop-blur">
+        <p className="flex items-center gap-1.5 text-[12px] font-extrabold">
+          <span className={`size-2 rounded-full ${live ? "animate-pulse bg-emerald-400" : "bg-amber-400"}`} />
+          {live ? "LIVE" : "LAST KNOWN"}
+        </p>
+        <p className="text-[10px] opacity-90">{atStation ? "At Station" : moving ? "Train in Motion" : "Halted"}</p>
       </div>
-      {/* trees + fields */}
-      <div className="lj-layer absolute bottom-[44px] left-0 h-12 w-[200%]" style={{ animationDuration: dur(22), animationPlayState: play }}>
-        <svg viewBox="0 0 800 48" preserveAspectRatio="none" className="h-full w-full">
-          <rect y="34" width="800" height="14" fill={night ? "#1d3324" : "#6aa84f"} />
-          {Array.from({ length: 16 }).map((_, i) => {
-            const x = i * 50 + (i % 3) * 9;
-            return (
-              <g key={i} fill={night ? "#122418" : "#3f7d3a"}>
-                <rect x={x + 6} y={26} width="3" height="10" fill={night ? "#0d1a10" : "#5b4030"} />
-                <circle cx={x + 7.5} cy={20} r={i % 2 ? 9 : 7} />
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      {/* OHE poles + wire */}
-      <div className="lj-layer absolute bottom-[34px] left-0 h-24 w-[200%]" style={{ animationDuration: dur(7), animationPlayState: play }}>
-        <svg viewBox="0 0 800 96" preserveAspectRatio="none" className="h-full w-full">
-          <line x1="0" y1="14" x2="800" y2="14" stroke={night ? "#8892b0" : "#4a4a4a"} strokeWidth="0.8" />
-          {Array.from({ length: 8 }).map((_, i) => (
-            <g key={i} stroke={night ? "#8892b0" : "#555"}>
-              <line x1={i * 100 + 30} y1="8" x2={i * 100 + 30} y2="96" strokeWidth="2.5" />
-              <line x1={i * 100 + 30} y1="12" x2={i * 100 + 52} y2="14" strokeWidth="1.2" />
-              {i % 4 === 2 ? (
-                <g>
-                  <rect x={i * 100 + 70} y="46" width="7" height="16" rx="2" fill="#222" stroke="none" />
-                  <circle cx={i * 100 + 73.5} cy="51" r="2.2" fill="#2ee66b" stroke="none" />
-                  <line x1={i * 100 + 73.5} y1="62" x2={i * 100 + 73.5} y2="96" strokeWidth="1.5" />
-                </g>
-              ) : null}
-            </g>
-          ))}
-        </svg>
-      </div>
-      {/* ballast + track */}
-      <div className="absolute inset-x-0 bottom-0 h-[38px]" style={{ background: night ? "#2a2a2e" : "#8a7f73" }} />
-      <div className="lj-sleepers absolute inset-x-0 bottom-[10px] h-[10px]" style={{ animationDuration: dur(0.6), animationPlayState: play }} />
-      <div className="absolute inset-x-0 bottom-[17px] h-[2px]" style={{ background: "#c9c9cf" }} />
-      <div className="absolute inset-x-0 bottom-[10px] h-[2px]" style={{ background: "#c9c9cf" }} />
-
-      {/* train (WAP-7 style loco + LHB coaches) */}
-      <div className={`absolute bottom-[18px] left-[6%] w-[88%] ${run ? "lj-bob" : ""}`}>
-        <svg viewBox="0 0 520 54" className="h-auto w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.35)]">
-          {[0, 1, 2, 3].map((i) => (
-            <g key={i} transform={`translate(${i * 104},0)`}>
-              <rect x="2" y="10" width="98" height="36" rx="5" fill="#b22a2a" />
-              <rect x="2" y="30" width="98" height="5" fill="#f2c94c" />
-              {[0, 1, 2, 3, 4].map((w) => (
-                <rect key={w} x={10 + w * 18} y="15" width="12" height="10" rx="1.5"
-                  fill={night ? "#ffe8a3" : "#cfe3f0"} opacity={night ? 0.95 : 0.9} />
-              ))}
-              <circle cx="18" cy="48" r="5" fill="#222" /><circle cx="32" cy="48" r="5" fill="#222" />
-              <circle cx="70" cy="48" r="5" fill="#222" /><circle cx="84" cy="48" r="5" fill="#222" />
-            </g>
-          ))}
-          <g transform="translate(416,0)">
-            <path d="M2 10 H86 Q102 12 102 30 V46 H2Z" fill="#e8e2d0" />
-            <rect x="2" y="30" width="100" height="6" fill="#c0392b" />
-            <rect x="74" y="15" width="20" height="12" rx="2" fill={night ? "#ffe8a3" : "#9fc4dc"} />
-            <rect x="10" y="15" width="40" height="10" rx="1.5" fill="#6b6b6b" />
-            <path d="M40 10 L48 2 H62 L70 10" stroke="#333" strokeWidth="1.5" fill="none" />
-            <circle cx="18" cy="48" r="5" fill="#222" /><circle cx="34" cy="48" r="5" fill="#222" />
-            <circle cx="70" cy="48" r="5" fill="#222" /><circle cx="86" cy="48" r="5" fill="#222" />
-            {night ? <circle cx="100" cy="38" r="3" fill="#fffbe0" /> : null}
-          </g>
-        </svg>
-        {night ? <div className="absolute -right-8 bottom-1 h-6 w-24 rounded-full bg-[radial-gradient(ellipse_at_left,rgba(255,250,210,0.55),transparent_70%)]" /> : null}
+      {speed > 0 ? (
+        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl bg-black/55 px-2.5 py-1.5 text-white backdrop-blur">
+          <Gauge className="size-4" />
+          <div><p className="text-[9px] opacity-80">Speed</p><p className="text-[13px] font-extrabold leading-none">{speed} km/h</p></div>
+        </div>
+      ) : null}
+      <button type="button" onClick={onSound} aria-label={sound ? "Mute train sound" : "Play train sound"}
+        className="absolute bottom-3 left-3 flex size-9 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur active:scale-95">
+        {sound ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+      </button>
+      <div className="absolute bottom-3 right-3 rounded-xl bg-black/55 px-2.5 py-1 text-right text-white backdrop-blur">
+        <p className="text-[9px] opacity-80">Last Updated</p>
+        <p className="text-[11px] font-bold">{updated}</p>
       </div>
     </div>
   );

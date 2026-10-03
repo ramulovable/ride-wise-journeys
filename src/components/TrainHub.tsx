@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Download } from "lucide-react";
+import { LiveJourney } from "@/components/LiveJourney";
 import { printPnrSlip, type SlipPassengerInfo } from "@/lib/pnr-slip";
 import { PnrInsights, pnrPrediction, chanceTone } from "@/components/RailInsights";
 import { parseWl, predict, daysUntil, parseJourneyDate } from "@/lib/rail-predict";
@@ -959,12 +960,19 @@ function LiveScreen() {
         <SubmitButton loading={loading} onClick={run} label="Check Live Status" />
       </div>
       {error ? <ErrorNote text={error} /> : null}
-      {data ? <LiveResult d={data} name={train?.name ?? ""} /> : null}
+      {data && train ? (
+        <LiveJourney
+          initial={data}
+          name={train.name}
+          fetcher={() => liveFn({ data: { trainNo: train.number, date: compact(date) } })}
+        />
+      ) : null}
     </div>
   );
 }
 
-function LiveResult({ d, name }: { d: LiveStatus; name: string }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function LiveResult({ d, name }: { d: LiveStatus; name: string }) {
   return (
     <div className="space-y-3">
       {/* live train position card */}

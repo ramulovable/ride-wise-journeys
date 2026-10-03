@@ -11,6 +11,7 @@ import { useAppSettings } from "@/lib/settings";
 import { fetchRewardConditions } from "@/lib/referrals";
 import { useQuery } from "@tanstack/react-query";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import { LiveTrainAdmin } from "@/components/LiveTrainAdmin";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   head: () => ({
@@ -325,6 +326,7 @@ function SettingsPage() {
           {busy ? "Saving…" : "Save settings"}
         </Button>
       </div>
+      <div className="mt-6 max-w-md"><LiveTrainAdmin /></div>
     </AdminShell>
   );
 }

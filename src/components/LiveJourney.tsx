@@ -15,7 +15,7 @@ import {
 import type { LiveStatus, LiveStop } from "@/lib/indianrail.functions";
 import { useLiveTrainSettings, type LiveTrainSettings } from "@/lib/live-train-settings";
 
-type Res<T> = { success: true; data: T } | { success: false; error: string };
+type Res<T> = { success: boolean; data?: T | null; error?: string };
 
 /* ------------------------------------------------------------------ */
 /* trainAnimationEngine — position derived only from API data          */
@@ -48,10 +48,10 @@ const STATUS_LABEL: Record<UiState, string> = {
 
 type Engine = {
   state: UiState;
-  prev?: LiveStop;
-  cur?: LiveStop;
-  next?: LiveStop;
-  dest?: LiveStop;
+  prev: LiveStop | undefined;
+  cur: LiveStop | undefined;
+  next: LiveStop | undefined;
+  dest: LiveStop | undefined;
   /** 0..1 overall route position */
   routePos: number;
   /** 0..1 within current segment (only when estimated from timestamps) */
@@ -272,7 +272,7 @@ const RailScene = memo(function RailScene({
 
 export function LiveJourney({
   initial, name, fetcher,
-}: { initial: LiveStatus; name: string; fetcher: () => Promise<Res<LiveStatus>> }) {
+}: { initial: LiveStatus; name: string; fetcher: () => Promise<unknown> }) {
   const { data: cfg } = useLiveTrainSettings();
   const s: LiveTrainSettings | undefined = cfg;
   const [data, setData] = useState(initial);
@@ -306,7 +306,7 @@ export function LiveJourney({
     if (!navigator.onLine) { setOnline(false); return; }
     setRefreshing(true); setRefreshErr("");
     try {
-      const res = await fetcher();
+      const res = (await fetcher()) as Res<LiveStatus>;
       if (res.success && res.data && Array.isArray(res.data.stops) && res.data.stops.length > 0) {
         const nd = res.data;
         if (nd.currentCode && nd.currentCode !== lastCode.current) {

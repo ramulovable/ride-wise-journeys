@@ -14,9 +14,10 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import sceneDay from "@/assets/live-day.jpg";
-import sceneNight from "@/assets/live-night.jpg";
-import sceneStation from "@/assets/live-station.jpg";
+import sceneBg from "@/assets/lj-bg2.jpg";
+import sceneGrass from "@/assets/lj-grass2.webp";
+import scenePlatform from "@/assets/lj-platform.jpg";
+import sceneTrain from "@/assets/lj-train.webp";
 import type { LiveStatus, LiveStop } from "@/lib/indianrail.functions";
 import { useLiveTrainSettings, type LiveTrainSettings } from "@/lib/live-train-settings";
 
@@ -154,41 +155,70 @@ const SKY: Record<Phase, [string, string, string]> = {
   night: ["#060b1f", "#14204a", "#25305a"],
 };
 
-function useTrainSound(on: boolean, moving: boolean) {
-  const ctxRef = useRef<{ ctx: AudioContext; gain: GainNode; timer: number } | null>(null);
+/** Synthesised train audio (wheel rumble, rail-joint clacks tied to speed, horn on departure). Starts only after a tap. */
+function useTrainSound(on: boolean, moving: boolean, speed: number, atStation: boolean) {
+  const ref = useRef<{ ctx: AudioContext; gain: GainNode; amb: GainNode; horn: () => void } | null>(null);
+  const live = useRef({ moving, speed });
+  live.current = { moving, speed };
   useEffect(() => {
     if (!on) return;
     const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
     const ctx = new AC();
-    const gain = ctx.createGain(); gain.gain.value = 0.0; gain.connect(ctx.destination);
-    // low rumble: filtered noise
-    const len = ctx.sampleRate * 2;
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < len; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
-    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 380;
-    src.connect(lp).connect(gain); src.start();
-    // clickety-clack of wheels over rail joints
-    const clack = () => {
-      const t = ctx.currentTime;
-      [0, 0.12, 0.9, 1.02].forEach((o) => {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.type = "triangle"; osc.frequency.value = 95;
-        g.gain.setValueAtTime(0.35, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.09);
-        osc.connect(g).connect(gain); osc.start(t + o); osc.stop(t + o + 0.1);
+    const master = ctx.createGain(); master.gain.value = 0.9;
+    const comp = ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
+    const gain = ctx.createGain(); gain.gain.value = 0; gain.connect(master);
+    const amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);
+    const noise = (sec: number, brown: boolean) => {
+      const b = ctx.createBuffer(2, ctx.sampleRate * sec, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let l = 0;
+        for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; l = brown ? (l + 0.02 * w) / 1.02 : w; d[i] = brown ? l * 3.5 : w * 0.3; } }
+      const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; return s;
+    };
+    const rum = noise(3, true); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
+    rum.connect(lp).connect(gain); rum.start();
+    const hiss = noise(3, false); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 0.6;
+    const hg = ctx.createGain(); hg.gain.value = 0.25; hiss.connect(bp).connect(hg).connect(gain); hiss.start();
+    const crowd = noise(3, false); const cf = ctx.createBiquadFilter(); cf.type = "bandpass"; cf.frequency.value = 700; cf.Q.value = 0.4;
+    crowd.connect(cf).connect(amb); crowd.start();
+    const clack = (t: number, pan: number) => {
+      const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(gain);
+      [0, 0.11].forEach((o) => {
+        const s = noise(0.1, false); const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 3;
+        const g = ctx.createGain(); g.gain.setValueAtTime(1.4, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.07);
+        s.connect(f).connect(g).connect(p); s.start(t + o); s.stop(t + o + 0.08);
+        const osc = ctx.createOscillator(); const og = ctx.createGain(); osc.frequency.value = 85;
+        og.gain.setValueAtTime(0.5, t + o); og.gain.exponentialRampToValueAtTime(0.001, t + o + 0.1);
+        osc.connect(og).connect(p); osc.start(t + o); osc.stop(t + o + 0.12);
       });
     };
-    const timer = window.setInterval(() => { if (ctxRef.current && moving) clack(); }, 1800);
-    ctxRef.current = { ctx, gain, timer };
-    return () => { clearInterval(timer); void ctx.close(); ctxRef.current = null; };
-  }, [on]); // eslint-disable-line react-hooks/exhaustive-deps
+    let next = ctx.currentTime + 0.3; let side = -0.6;
+    const sched = window.setInterval(() => {
+      const { moving: m, speed: v } = live.current;
+      if (!m) { next = ctx.currentTime + 0.3; return; }
+      const gap = Math.max(0.35, 13 / ((v || 55) / 3.6)); // 13m rail lengths
+      while (next < ctx.currentTime + 0.25) { clack(next, side); side = -side; next += gap; }
+    }, 100);
+    const horn = () => {
+      const t = ctx.currentTime; const hg2 = ctx.createGain(); hg2.connect(master);
+      hg2.gain.setValueAtTime(0, t); hg2.gain.linearRampToValueAtTime(0.18, t + 0.08); hg2.gain.setValueAtTime(0.18, t + 1.1); hg2.gain.linearRampToValueAtTime(0, t + 1.4);
+      [311, 370, 466].forEach((f) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.connect(hg2); o.start(t); o.stop(t + 1.5); });
+    };
+    ref.current = { ctx, gain, amb, horn };
+    void ctx.resume();
+    return () => { clearInterval(sched); void ctx.close(); ref.current = null; };
+  }, [on]);
+  const wasMoving = useRef(moving);
   useEffect(() => {
-    const c = ctxRef.current; if (!c) return;
-    c.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0.08, c.ctx.currentTime + 1.2);
-  }, [moving, on]);
+    const c = ref.current; if (!c) return;
+    const t = c.ctx.currentTime;
+    c.gain.gain.cancelScheduledValues(t); c.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0, t + (moving ? 3 : 4));
+    c.amb.gain.linearRampToValueAtTime(atStation ? 0.08 : 0, t + 2);
+    if (moving && !wasMoving.current) c.horn();
+    wasMoving.current = moving;
+  }, [moving, atStation, on]);
 }
+
+const BASE_PX_PER_KMH = 7; // foreground (track) pixels per second per km/h
 
 const RailScene = memo(function RailScene({
   phase, moving, animate, label, atStation, stationName, platform, speed, updated, live, sound, onSound,
@@ -198,6 +228,11 @@ const RailScene = memo(function RailScene({
   sound: boolean; onSound: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const bgRef = useRef<HTMLDivElement>(null);
+  const poleRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const grassRef = useRef<HTMLDivElement>(null);
+  const trainRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
   useEffect(() => {
     const el = ref.current;
@@ -206,49 +241,87 @@ const RailScene = memo(function RailScene({
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  const run = animate && moving && visible && !atStation;
-  const img = atStation ? sceneStation : phase === "night" ? sceneNight : sceneDay;
-  const play = run ? "running" : "paused";
-  useTrainSound(sound, run);
+  const run = moving && !atStation;
+  const target = run ? (speed > 0 ? speed : 55) : 0;
+  useTrainSound(sound, run, target, atStation);
+
+  // physics loop: velocity eases toward target (smooth departure/braking), layers scroll by parallax depth
+  const tgt = useRef(target); tgt.current = animate ? target : 0;
+  useEffect(() => {
+    if (!visible) return;
+    let raf = 0, last = performance.now(), v = 0, x = 0, t = 0;
+    const loop = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.05); last = now; t += dt;
+      v += (tgt.current - v) * (1 - Math.exp(-0.6 * dt));
+      if (v < 0.05 && tgt.current === 0) v = 0;
+      x += v * BASE_PX_PER_KMH * dt;
+      if (bgRef.current) bgRef.current.style.backgroundPositionX = `${-x * 0.06}px`;
+      if (poleRef.current) poleRef.current.style.backgroundPositionX = `${-x * 0.55}px`;
+      if (trackRef.current) trackRef.current.style.backgroundPositionX = `${-x * 0.9}px`;
+      if (grassRef.current) grassRef.current.style.backgroundPositionX = `${-x * 1.5}px`;
+      if (trainRef.current) {
+        const a = Math.min(v / 60, 1);
+        trainRef.current.style.transform = `translate3d(0,${(Math.sin(t * 13) * 0.6 + Math.sin(t * 5.3) * 0.4) * a}px,0)`;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [visible]);
+
+  const grade = phase === "night" ? "brightness(0.45) saturate(0.8) hue-rotate(15deg)" : phase === "day" ? "saturate(1.05) brightness(1.05) hue-rotate(-8deg)" : undefined;
 
   return (
     <div ref={ref} role="img" aria-label={label}
       className="relative h-56 w-full overflow-hidden rounded-2xl bg-black shadow-xl sm:h-72">
-      <div className={`absolute inset-0 ${run ? "lj-shake" : ""}`}>
-        <img src={img} alt="" width={1600} height={912}
-          className="lj-kenburns absolute inset-0 h-full w-full scale-110 object-cover"
-          style={{ animationPlayState: animate && visible ? "running" : "paused",
-            filter: phase === "sunset" && !atStation ? "sepia(0.25) saturate(1.2) hue-rotate(-10deg)" : undefined }} />
-        {/* foreground motion: blurred streaking ballast/grass */}
+      <div className="absolute inset-0" style={{ filter: grade }}>
+        {atStation ? (
+          <img src={scenePlatform} alt="" width={1920} height={640} className="absolute inset-0 h-full w-full object-cover object-bottom" />
+        ) : (
+          <>
+            <div ref={bgRef} className="absolute inset-x-0 top-0 h-[78%] bg-repeat-x"
+              style={{ backgroundImage: `url(${sceneBg})`, backgroundSize: "auto 100%", backgroundPositionY: "70%" }} />
+            {/* catenary masts + contact wire */}
+            <div ref={poleRef} className="absolute inset-x-0 top-[8%] h-[62%] bg-repeat-x opacity-90"
+              style={{ backgroundImage: "linear-gradient(90deg, transparent 0 96%, #2b2b2b 96% 97.4%, #555 97.4% 98%, transparent 98%), linear-gradient(180deg, transparent 0 9%, #3a3a3a 9% 10%, transparent 10% 13%, #222 13% 13.6%, transparent 13.6%)", backgroundSize: "260px 100%, 100% 100%" }} />
+            {/* ballast + sleepers + rails */}
+            <div ref={trackRef} className="absolute inset-x-0 bottom-0 h-[30%] bg-repeat-x"
+              style={{ backgroundImage: "linear-gradient(180deg, transparent 0 22%, #9a9a9a 22% 25%, #4a4a4a 25% 27%, transparent 27%), repeating-linear-gradient(90deg, #6d5a49 0 9px, transparent 9px 22px), radial-gradient(circle at 30% 40%, #8a8378 0 1.5px, transparent 2px), radial-gradient(circle at 70% 70%, #5e5850 0 1.5px, transparent 2px), linear-gradient(180deg, #7a7166, #4e473f)", backgroundSize: "100% 100%, 22px 30%, 7px 7px, 9px 9px, 100% 100%", backgroundPositionY: "0, 36%, 0, 0, 0" }} />
+          </>
+        )}
+        {/* the train — fixed in frame, world moves past (tracking shot) */}
+        <div ref={trainRef} className={`absolute will-change-transform ${atStation ? "bottom-[13%] h-[28%]" : "bottom-[22%] h-[30%]"}`}
+          style={{ right: "-6%", aspectRatio: "1920 / 158" }}>
+          <img src={sceneTrain} alt="" width={1920} height={158} className="h-full w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.5)]" />
+          <span className="absolute right-[0.6%] top-[40%] size-[0.5%] rounded-full bg-amber-100 shadow-[0_0_12px_6px_rgba(255,240,180,0.7)]" />
+        </div>
         {!atStation ? (
-          <div className="lj-streak pointer-events-none absolute inset-x-0 bottom-0 h-[30%]"
-            style={{ backgroundImage: `url(${img})`, animationPlayState: play, opacity: run ? 0.55 : 0 }} />
+          <div ref={grassRef} className="pointer-events-none absolute inset-x-0 -bottom-[4%] h-[34%] bg-repeat-x"
+            style={{ backgroundImage: `url(${sceneGrass})`, backgroundSize: "auto 100%", filter: "blur(1.2px) brightness(0.8)" }} />
         ) : null}
-        {/* swaying foliage glints */}
-        {run ? <div className="lj-sway pointer-events-none absolute inset-y-0 left-0 w-1/4" /> : null}
       </div>
-      {/* cinematic grade + letterbox */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55))]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
+      {/* cinematic grade */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.5))]" />
+      {phase === "sunset" ? <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-orange-300/20 to-transparent mix-blend-overlay" /> : null}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/50 to-transparent" />
 
       {atStation && stationName ? (
-        <div className="absolute right-[6%] top-[9%] w-[32%] rounded-sm border-2 border-black/70 bg-[#f5c518] px-1 py-1 text-center text-black shadow-lg">
-          <p className="truncate text-[11px] font-black uppercase leading-tight sm:text-sm">{stationName}</p>
-          {platform ? <p className="text-[9px] font-bold sm:text-[11px]">प्लेटफार्म {platform}</p> : null}
+        <div className="absolute left-1/2 top-[10%] w-[46%] -translate-x-1/2 rounded-sm border-2 border-black/80 bg-[#f5c518] px-1 py-1 text-center text-black shadow-lg">
+          <p className="truncate text-[12px] font-black uppercase leading-tight sm:text-sm">{stationName}</p>
+          {platform ? <p className="text-[9px] font-bold sm:text-[11px]">Platform {platform}</p> : null}
         </div>
       ) : null}
 
-      <div className="absolute left-3 top-3 rounded-xl bg-black/55 px-2.5 py-1.5 text-white backdrop-blur">
-        <p className="flex items-center gap-1.5 text-[12px] font-extrabold">
+      <div className="absolute left-3 top-10 rounded-xl bg-black/55 px-2.5 py-1 text-white backdrop-blur">
+        <p className="flex items-center gap-1.5 text-[11px] font-extrabold">
           <span className={`size-2 rounded-full ${live ? "animate-pulse bg-emerald-400" : "bg-amber-400"}`} />
-          {live ? "LIVE" : "LAST KNOWN"}
+          {atStation ? "Stopped at station" : run ? "Train in Motion" : "Halted"}
         </p>
-        <p className="text-[10px] opacity-90">{atStation ? "At Station" : moving ? "Train in Motion" : "Halted"}</p>
       </div>
       {speed > 0 ? (
         <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl bg-black/55 px-2.5 py-1.5 text-white backdrop-blur">
           <Gauge className="size-4" />
-          <div><p className="text-[9px] opacity-80">Speed</p><p className="text-[13px] font-extrabold leading-none">{speed} km/h</p></div>
+          <div><p className="text-[9px] opacity-80">Avg speed</p><p className="text-[13px] font-extrabold leading-none">{speed} km/h</p></div>
         </div>
       ) : null}
       <button type="button" onClick={onSound} aria-label={sound ? "Mute train sound" : "Play train sound"}
@@ -256,7 +329,7 @@ const RailScene = memo(function RailScene({
         {sound ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
       </button>
       <div className="absolute bottom-3 right-3 rounded-xl bg-black/55 px-2.5 py-1 text-right text-white backdrop-blur">
-        <p className="text-[9px] opacity-80">Last Updated</p>
+        <p className="text-[9px] opacity-80">Last railway data update</p>
         <p className="text-[11px] font-bold">{updated}</p>
       </div>
     </div>

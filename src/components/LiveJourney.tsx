@@ -11,7 +11,12 @@ import {
   TrainFront,
   WifiOff,
   AlertTriangle,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
+import sceneDay from "@/assets/live-day.jpg";
+import sceneNight from "@/assets/live-night.jpg";
+import sceneStation from "@/assets/live-station.jpg";
 import type { LiveStatus, LiveStop } from "@/lib/indianrail.functions";
 import { useLiveTrainSettings, type LiveTrainSettings } from "@/lib/live-train-settings";
 
@@ -274,6 +279,7 @@ export function LiveJourney({
   const [justUpdated, setJustUpdated] = useState(false);
   const [online, setOnline] = useState(true);
   const [showRoute, setShowRoute] = useState(false);
+  const [sound, setSound] = useState(false);
   const [event, setEvent] = useState<string>("");
   const [, tick] = useState(0);
   const lastCode = useRef(initial.currentCode);
@@ -322,7 +328,7 @@ export function LiveJourney({
   // auto refresh (DB-configured), paused when app hidden
   useEffect(() => {
     if (!s || !s.autoRefresh || data.terminated) return;
-    const ms = Math.max(30, s.intervalSec) * 1000;
+    const ms = Math.max(15, s.intervalSec) * 1000;
     const id = setInterval(() => { if (!document.hidden && navigator.onLine) void refresh(); }, ms);
     const onVis = () => { if (!document.hidden && Date.now() - fetchedAt > ms) void refresh(); };
     document.addEventListener("visibilitychange", onVis);
@@ -380,6 +386,14 @@ export function LiveJourney({
           animate={on("animation")}
           quality={s?.quality ?? 2}
           label={`${name} ${STATUS_LABEL[eng.state]}${eng.cur ? ` near ${eng.cur.name}` : ""}`}
+          atStation={!eng.moving && !!eng.cur}
+          stationName={eng.cur?.name ?? ""}
+          platform={eng.cur?.platform ?? ""}
+          speed={on("showSpeed") ? data.avgSpeedKmph : 0}
+          updated={fmtStamp(fetchedAt)}
+          live={isLive}
+          sound={sound}
+          onSound={() => setSound((v) => !v)}
         />
         <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-[11px] font-extrabold text-foreground backdrop-blur">
           {STATUS_LABEL[eng.state]}{on("showDelay") && delayKnown ? ` • ${delayLabel(data.delayMin)}` : ""}

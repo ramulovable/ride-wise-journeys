@@ -164,3 +164,13 @@
 .lj-sleepers { background: repeating-linear-gradient(90deg, #5a4636 0 8px, transparent 8px 24px); animation: lj-sleep linear infinite; }
 .lj-bob { animation: lj-bob 0.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .lj-layer, .lj-sleepers, .lj-bob { animation: none !important; } }
+
+@keyframes lj-kb { 0% { transform: scale(1.1) translate3d(0,0,0); } 50% { transform: scale(1.16) translate3d(-1.5%,0.5%,0); } 100% { transform: scale(1.1) translate3d(0,0,0); } }
+@keyframes lj-shk { 0%,100% { transform: translate3d(0,0,0); } 25% { transform: translate3d(0.4px,-0.6px,0); } 50% { transform: translate3d(-0.4px,0.3px,0); } 75% { transform: translate3d(0.3px,0.5px,0); } }
+@keyframes lj-str { from { background-position: 0 100%; } to { background-position: -800px 100%; } }
+@keyframes lj-sw { 0%,100% { transform: skewX(0deg); opacity: .15; } 50% { transform: skewX(4deg); opacity: .3; } }
+.lj-kenburns { animation: lj-kb 24s ease-in-out infinite; }
+.lj-shake { animation: lj-shk 0.35s linear infinite; }
+.lj-streak { background-size: 1600px auto; background-repeat: repeat-x; filter: blur(6px); animation: lj-str 1.2s linear infinite; mask-image: linear-gradient(to top, black 40%, transparent); transition: opacity .8s; }
+.lj-sway { background: linear-gradient(90deg, oklch(0.5 0.12 140 / 0.5), transparent); transform-origin: bottom; animation: lj-sw 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .lj-kenburns, .lj-shake, .lj-streak, .lj-sway { animation: none !important; } }

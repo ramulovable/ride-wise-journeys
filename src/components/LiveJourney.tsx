@@ -155,68 +155,112 @@ const SKY: Record<Phase, [string, string, string]> = {
   night: ["#060b1f", "#14204a", "#25305a"],
 };
 
-/** Synthesised train audio (wheel rumble, rail-joint clacks tied to speed, horn on departure). Starts only after a tap. */
+/**
+ * Single app-wide train audio engine. Only ONE AudioContext / one set of loops / one scheduler
+ * ever exists, no matter how often the scene re-renders, refreshes or remounts.
+ */
+type TrainAudio = { ctx: AudioContext; master: GainNode; gain: GainNode; amb: GainNode; horn: () => void; live: { moving: boolean; speed: number }; sched: number };
+let AUDIO: TrainAudio | null = null;
+let AUDIO_USERS = 0;
+let AUDIO_CLOSE_T = 0;
+
+function getTrainAudio(): TrainAudio {
+  if (AUDIO) return AUDIO;
+  const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+  const ctx = new AC();
+  const master = ctx.createGain(); master.gain.value = 0;
+  const comp = ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
+  const gain = ctx.createGain(); gain.gain.value = 0; gain.connect(master);
+  const amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);
+  const noise = (sec: number, brown: boolean) => {
+    const b = ctx.createBuffer(2, ctx.sampleRate * sec, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let l = 0;
+      for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; l = brown ? (l + 0.02 * w) / 1.02 : w; d[i] = brown ? l * 3.5 : w * 0.3; } }
+    const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; return s;
+  };
+  const rum = noise(4, true); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
+  rum.connect(lp).connect(gain); rum.start();
+  const hiss = noise(4, false); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 0.6;
+  const hg = ctx.createGain(); hg.gain.value = 0.25; hiss.connect(bp).connect(hg).connect(gain); hiss.start();
+  const crowd = noise(4, false); const cf = ctx.createBiquadFilter(); cf.type = "bandpass"; cf.frequency.value = 700; cf.Q.value = 0.4;
+  crowd.connect(cf).connect(amb); crowd.start();
+  const clack = (t: number, pan: number) => {
+    const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(gain);
+    [0, 0.11].forEach((o) => {
+      const osc = ctx.createOscillator(); const og = ctx.createGain(); osc.frequency.value = 85;
+      og.gain.setValueAtTime(0.6, t + o); og.gain.exponentialRampToValueAtTime(0.001, t + o + 0.1);
+      osc.connect(og).connect(p); osc.start(t + o); osc.stop(t + o + 0.12);
+      const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 3;
+      const s = ctx.createBufferSource(); s.buffer = clickBuf; const g = ctx.createGain();
+      g.gain.setValueAtTime(1.4, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.07);
+      s.connect(f).connect(g).connect(p); s.start(t + o);
+    });
+  };
+  const clickBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+  { const d = clickBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.3; }
+  const live = { moving: false, speed: 0 };
+  let next = ctx.currentTime + 0.3; let side = -0.6;
+  const sched = window.setInterval(() => {
+    if (ctx.state !== "running") return;
+    if (!live.moving) { next = ctx.currentTime + 0.3; return; }
+    const gap = Math.max(0.35, 13 / ((live.speed || 55) / 3.6));
+    while (next < ctx.currentTime + 0.25) { clack(next, side); side = -side; next += gap; }
+  }, 100);
+  const horn = () => {
+    const t = ctx.currentTime; const hg2 = ctx.createGain(); hg2.connect(master);
+    hg2.gain.setValueAtTime(0, t); hg2.gain.linearRampToValueAtTime(0.18, t + 0.08); hg2.gain.setValueAtTime(0.18, t + 1.1); hg2.gain.linearRampToValueAtTime(0, t + 1.4);
+    [311, 370, 466].forEach((f) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.connect(hg2); o.start(t); o.stop(t + 1.5); });
+  };
+  AUDIO = { ctx, master, gain, amb, horn, live, sched };
+  return AUDIO;
+}
+
 function useTrainSound(on: boolean, moving: boolean, speed: number, atStation: boolean) {
-  const ref = useRef<{ ctx: AudioContext; gain: GainNode; amb: GainNode; horn: () => void } | null>(null);
-  const live = useRef({ moving, speed });
-  live.current = { moving, speed };
+  // mount/unmount bookkeeping — close the single engine only when no scene uses it
   useEffect(() => {
-    if (!on) return;
-    const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    const ctx = new AC();
-    const master = ctx.createGain(); master.gain.value = 0.9;
-    const comp = ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
-    const gain = ctx.createGain(); gain.gain.value = 0; gain.connect(master);
-    const amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);
-    const noise = (sec: number, brown: boolean) => {
-      const b = ctx.createBuffer(2, ctx.sampleRate * sec, ctx.sampleRate);
-      for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let l = 0;
-        for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; l = brown ? (l + 0.02 * w) / 1.02 : w; d[i] = brown ? l * 3.5 : w * 0.3; } }
-      const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; return s;
+    AUDIO_USERS++; clearTimeout(AUDIO_CLOSE_T);
+    return () => {
+      AUDIO_USERS--;
+      AUDIO_CLOSE_T = window.setTimeout(() => {
+        if (AUDIO_USERS > 0 || !AUDIO) return;
+        clearInterval(AUDIO.sched); void AUDIO.ctx.close(); AUDIO = null;
+      }, 500);
     };
-    const rum = noise(3, true); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
-    rum.connect(lp).connect(gain); rum.start();
-    const hiss = noise(3, false); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 0.6;
-    const hg = ctx.createGain(); hg.gain.value = 0.25; hiss.connect(bp).connect(hg).connect(gain); hiss.start();
-    const crowd = noise(3, false); const cf = ctx.createBiquadFilter(); cf.type = "bandpass"; cf.frequency.value = 700; cf.Q.value = 0.4;
-    crowd.connect(cf).connect(amb); crowd.start();
-    const clack = (t: number, pan: number) => {
-      const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(gain);
-      [0, 0.11].forEach((o) => {
-        const s = noise(0.1, false); const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 3;
-        const g = ctx.createGain(); g.gain.setValueAtTime(1.4, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.07);
-        s.connect(f).connect(g).connect(p); s.start(t + o); s.stop(t + o + 0.08);
-        const osc = ctx.createOscillator(); const og = ctx.createGain(); osc.frequency.value = 85;
-        og.gain.setValueAtTime(0.5, t + o); og.gain.exponentialRampToValueAtTime(0.001, t + o + 0.1);
-        osc.connect(og).connect(p); osc.start(t + o); osc.stop(t + o + 0.12);
-      });
-    };
-    let next = ctx.currentTime + 0.3; let side = -0.6;
-    const sched = window.setInterval(() => {
-      const { moving: m, speed: v } = live.current;
-      if (!m) { next = ctx.currentTime + 0.3; return; }
-      const gap = Math.max(0.35, 13 / ((v || 55) / 3.6)); // 13m rail lengths
-      while (next < ctx.currentTime + 0.25) { clack(next, side); side = -side; next += gap; }
-    }, 100);
-    const horn = () => {
-      const t = ctx.currentTime; const hg2 = ctx.createGain(); hg2.connect(master);
-      hg2.gain.setValueAtTime(0, t); hg2.gain.linearRampToValueAtTime(0.18, t + 0.08); hg2.gain.setValueAtTime(0.18, t + 1.1); hg2.gain.linearRampToValueAtTime(0, t + 1.4);
-      [311, 370, 466].forEach((f) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.connect(hg2); o.start(t); o.stop(t + 1.5); });
-    };
-    ref.current = { ctx, gain, amb, horn };
-    void ctx.resume();
-    return () => { clearInterval(sched); void ctx.close(); ref.current = null; };
+  }, []);
+  // ON/OFF: never creates a second engine; OFF mutes instantly and suspends
+  useEffect(() => {
+    if (!on) {
+      if (AUDIO) { const t = AUDIO.ctx.currentTime; AUDIO.master.gain.cancelScheduledValues(t); AUDIO.master.gain.setValueAtTime(0, t); void AUDIO.ctx.suspend(); }
+      return;
+    }
+    const a = getTrainAudio();
+    void a.ctx.resume().then(() => { const t = a.ctx.currentTime; a.master.gain.cancelScheduledValues(t); a.master.gain.setValueAtTime(0, t); a.master.gain.linearRampToValueAtTime(0.9, t + 0.6); });
   }, [on]);
   const wasMoving = useRef(moving);
   useEffect(() => {
-    const c = ref.current; if (!c) return;
-    const t = c.ctx.currentTime;
-    c.gain.gain.cancelScheduledValues(t); c.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0, t + (moving ? 3 : 4));
-    c.amb.gain.linearRampToValueAtTime(atStation ? 0.08 : 0, t + 2);
-    if (moving && !wasMoving.current) c.horn();
+    const a = AUDIO;
+    if (a) { a.live.moving = moving; a.live.speed = speed; }
+    if (!a || !on) { wasMoving.current = moving; return; }
+    const t = a.ctx.currentTime;
+    a.gain.gain.cancelScheduledValues(t); a.gain.gain.setValueAtTime(a.gain.gain.value, t);
+    a.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0, t + (moving ? 3 : 4));
+    a.amb.gain.cancelScheduledValues(t); a.amb.gain.setValueAtTime(a.amb.gain.value, t);
+    a.amb.gain.linearRampToValueAtTime(atStation ? 0.08 : 0, t + 2);
+    if (moving && !wasMoving.current) a.horn();
     wasMoving.current = moving;
-  }, [moving, atStation, on]);
+  }, [moving, atStation, on, speed]);
 }
+
+/** Camera shots. Bridge/tunnel/aerial shots are omitted: the provider gives no verified route geography. */
+type Shot = { id: string; label: string; world: string; train: string };
+const RUN_SHOTS: Shot[] = [
+  { id: "side", label: "Side tracking", world: "scale(1.08) translate3d(0,0,0)", train: "translate3d(0,0,0) scale(1)" },
+  { id: "front", label: "Front tracking", world: "perspective(900px) rotateY(-14deg) scale(1.35) translate3d(-6%,2%,0)", train: "translate3d(-4%,4%,0) scale(1.25)" },
+  { id: "low", label: "Low trackside", world: "scale(1.5) translate3d(4%,-8%,0)", train: "translate3d(6%,10%,0) scale(1.4)" },
+  { id: "wide", label: "Wide landscape", world: "scale(1) translate3d(0,0,0)", train: "translate3d(0,6%,0) scale(0.8)" },
+  { id: "rear", label: "Rear view", world: "perspective(900px) rotateY(14deg) scale(1.35) translate3d(6%,2%,0)", train: "translate3d(-24%,4%,0) scale(1.2)" },
+];
+const STATION_SHOT: Shot = { id: "platform", label: "Platform view", world: "scale(1.05)", train: "translate3d(0,0,0) scale(1)" };
 
 const BASE_PX_PER_KMH = 7; // foreground (track) pixels per second per km/h
 

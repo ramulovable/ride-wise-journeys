@@ -22,7 +22,7 @@ const TOGGLES: Array<[LiveTrainSettingKey, string]> = [
   ["showTimeline", "Show route timeline"],
 ];
 const NUMBERS: Array<[LiveTrainSettingKey, string, number, number]> = [
-  ["intervalSec", "Refresh interval (seconds)", 30, 3600],
+  ["intervalSec", "Refresh interval (seconds)", 1, 3600],
   ["quality", "Animation quality (1 low – 3 high)", 1, 3],
   ["staleMin", "Stale data threshold (minutes)", 1, 600],
   ["fallbackMin", "API failure fallback (minutes)", 1, 1440],

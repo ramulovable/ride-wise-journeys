@@ -296,7 +296,7 @@ const RailScene = memo(function RailScene({
     const id = setInterval(() => setShotIdx((i) => (i + 1) % RUN_SHOTS.length), 9000);
     return () => clearInterval(id);
   }, [run, visible]);
-  const shot = atStation ? STATION_SHOT : RUN_SHOTS[shotIdx];
+  const shot = atStation ? STATION_SHOT : (RUN_SHOTS[shotIdx] ?? RUN_SHOTS[0]!);
 
   // physics loop: velocity eases toward target (smooth departure/braking); each layer has its own
   // depth speed plus slow independent drift/jitter so the tiling never reads as a loop

@@ -401,7 +401,7 @@ export function LiveJourney({
   // auto refresh (DB-configured), paused when app hidden
   useEffect(() => {
     if (!s || !s.autoRefresh || data.terminated) return;
-    const ms = Math.max(15, s.intervalSec) * 1000;
+    const ms = Math.max(1, s.intervalSec) * 1000;
     const id = setInterval(() => { if (!document.hidden && navigator.onLine) void refresh(); }, ms);
     const onVis = () => { if (!document.hidden && Date.now() - fetchedAt > ms) void refresh(); };
     document.addEventListener("visibilitychange", onVis);
@@ -463,7 +463,7 @@ export function LiveJourney({
           stationName={eng.cur?.name ?? ""}
           platform={eng.cur?.platform ?? ""}
           speed={on("showSpeed") ? data.avgSpeedKmph : 0}
-          updated={fmtStamp(fetchedAt)}
+          updated={providerAge != null ? (providerAge < 1 ? "just now" : `${providerAge} min ago`) : fmtStamp(fetchedAt)}
           live={isLive}
           sound={sound}
           onSound={() => setSound((v) => !v)}

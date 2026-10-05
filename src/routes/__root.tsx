@@ -113,6 +113,12 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/* After a new publish, old file names disappear. If a page still points at them, reload once to get the new version. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var K="st-chunk-reload";function r(){try{var l=+sessionStorage.getItem(K)||0;if(Date.now()-l<10000)return;sessionStorage.setItem(K,String(Date.now()));}catch(e){}location.reload();}window.addEventListener("vite:preloadError",function(e){e.preventDefault();r();});window.addEventListener("unhandledrejection",function(e){var m=String(e.reason&&e.reason.message||e.reason||"");if(/dynamically imported module|Importing a module script failed|error loading dynamically imported/i.test(m))r();});window.addEventListener("error",function(e){var m=String(e.message||"");if(/dynamically imported module|Importing a module script failed/i.test(m))r();});})();`,
+          }}
+        />
         <HeadContent />
       </head>
       <body>

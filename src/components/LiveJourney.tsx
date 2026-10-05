@@ -155,68 +155,112 @@ const SKY: Record<Phase, [string, string, string]> = {
   night: ["#060b1f", "#14204a", "#25305a"],
 };
 
-/** Synthesised train audio (wheel rumble, rail-joint clacks tied to speed, horn on departure). Starts only after a tap. */
+/**
+ * Single app-wide train audio engine. Only ONE AudioContext / one set of loops / one scheduler
+ * ever exists, no matter how often the scene re-renders, refreshes or remounts.
+ */
+type TrainAudio = { ctx: AudioContext; master: GainNode; gain: GainNode; amb: GainNode; horn: () => void; live: { moving: boolean; speed: number }; sched: number };
+let AUDIO: TrainAudio | null = null;
+let AUDIO_USERS = 0;
+let AUDIO_CLOSE_T = 0;
+
+function getTrainAudio(): TrainAudio {
+  if (AUDIO) return AUDIO;
+  const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+  const ctx = new AC();
+  const master = ctx.createGain(); master.gain.value = 0;
+  const comp = ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
+  const gain = ctx.createGain(); gain.gain.value = 0; gain.connect(master);
+  const amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);
+  const noise = (sec: number, brown: boolean) => {
+    const b = ctx.createBuffer(2, ctx.sampleRate * sec, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let l = 0;
+      for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; l = brown ? (l + 0.02 * w) / 1.02 : w; d[i] = brown ? l * 3.5 : w * 0.3; } }
+    const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; return s;
+  };
+  const rum = noise(4, true); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
+  rum.connect(lp).connect(gain); rum.start();
+  const hiss = noise(4, false); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 0.6;
+  const hg = ctx.createGain(); hg.gain.value = 0.25; hiss.connect(bp).connect(hg).connect(gain); hiss.start();
+  const crowd = noise(4, false); const cf = ctx.createBiquadFilter(); cf.type = "bandpass"; cf.frequency.value = 700; cf.Q.value = 0.4;
+  crowd.connect(cf).connect(amb); crowd.start();
+  const clack = (t: number, pan: number) => {
+    const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(gain);
+    [0, 0.11].forEach((o) => {
+      const osc = ctx.createOscillator(); const og = ctx.createGain(); osc.frequency.value = 85;
+      og.gain.setValueAtTime(0.6, t + o); og.gain.exponentialRampToValueAtTime(0.001, t + o + 0.1);
+      osc.connect(og).connect(p); osc.start(t + o); osc.stop(t + o + 0.12);
+      const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 3;
+      const s = ctx.createBufferSource(); s.buffer = clickBuf; const g = ctx.createGain();
+      g.gain.setValueAtTime(1.4, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.07);
+      s.connect(f).connect(g).connect(p); s.start(t + o);
+    });
+  };
+  const clickBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+  { const d = clickBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.3; }
+  const live = { moving: false, speed: 0 };
+  let next = ctx.currentTime + 0.3; let side = -0.6;
+  const sched = window.setInterval(() => {
+    if (ctx.state !== "running") return;
+    if (!live.moving) { next = ctx.currentTime + 0.3; return; }
+    const gap = Math.max(0.35, 13 / ((live.speed || 55) / 3.6));
+    while (next < ctx.currentTime + 0.25) { clack(next, side); side = -side; next += gap; }
+  }, 100);
+  const horn = () => {
+    const t = ctx.currentTime; const hg2 = ctx.createGain(); hg2.connect(master);
+    hg2.gain.setValueAtTime(0, t); hg2.gain.linearRampToValueAtTime(0.18, t + 0.08); hg2.gain.setValueAtTime(0.18, t + 1.1); hg2.gain.linearRampToValueAtTime(0, t + 1.4);
+    [311, 370, 466].forEach((f) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.connect(hg2); o.start(t); o.stop(t + 1.5); });
+  };
+  AUDIO = { ctx, master, gain, amb, horn, live, sched };
+  return AUDIO;
+}
+
 function useTrainSound(on: boolean, moving: boolean, speed: number, atStation: boolean) {
-  const ref = useRef<{ ctx: AudioContext; gain: GainNode; amb: GainNode; horn: () => void } | null>(null);
-  const live = useRef({ moving, speed });
-  live.current = { moving, speed };
+  // mount/unmount bookkeeping — close the single engine only when no scene uses it
   useEffect(() => {
-    if (!on) return;
-    const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    const ctx = new AC();
-    const master = ctx.createGain(); master.gain.value = 0.9;
-    const comp = ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
-    const gain = ctx.createGain(); gain.gain.value = 0; gain.connect(master);
-    const amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);
-    const noise = (sec: number, brown: boolean) => {
-      const b = ctx.createBuffer(2, ctx.sampleRate * sec, ctx.sampleRate);
-      for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let l = 0;
-        for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; l = brown ? (l + 0.02 * w) / 1.02 : w; d[i] = brown ? l * 3.5 : w * 0.3; } }
-      const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; return s;
+    AUDIO_USERS++; clearTimeout(AUDIO_CLOSE_T);
+    return () => {
+      AUDIO_USERS--;
+      AUDIO_CLOSE_T = window.setTimeout(() => {
+        if (AUDIO_USERS > 0 || !AUDIO) return;
+        clearInterval(AUDIO.sched); void AUDIO.ctx.close(); AUDIO = null;
+      }, 500);
     };
-    const rum = noise(3, true); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
-    rum.connect(lp).connect(gain); rum.start();
-    const hiss = noise(3, false); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 0.6;
-    const hg = ctx.createGain(); hg.gain.value = 0.25; hiss.connect(bp).connect(hg).connect(gain); hiss.start();
-    const crowd = noise(3, false); const cf = ctx.createBiquadFilter(); cf.type = "bandpass"; cf.frequency.value = 700; cf.Q.value = 0.4;
-    crowd.connect(cf).connect(amb); crowd.start();
-    const clack = (t: number, pan: number) => {
-      const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(gain);
-      [0, 0.11].forEach((o) => {
-        const s = noise(0.1, false); const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 3;
-        const g = ctx.createGain(); g.gain.setValueAtTime(1.4, t + o); g.gain.exponentialRampToValueAtTime(0.001, t + o + 0.07);
-        s.connect(f).connect(g).connect(p); s.start(t + o); s.stop(t + o + 0.08);
-        const osc = ctx.createOscillator(); const og = ctx.createGain(); osc.frequency.value = 85;
-        og.gain.setValueAtTime(0.5, t + o); og.gain.exponentialRampToValueAtTime(0.001, t + o + 0.1);
-        osc.connect(og).connect(p); osc.start(t + o); osc.stop(t + o + 0.12);
-      });
-    };
-    let next = ctx.currentTime + 0.3; let side = -0.6;
-    const sched = window.setInterval(() => {
-      const { moving: m, speed: v } = live.current;
-      if (!m) { next = ctx.currentTime + 0.3; return; }
-      const gap = Math.max(0.35, 13 / ((v || 55) / 3.6)); // 13m rail lengths
-      while (next < ctx.currentTime + 0.25) { clack(next, side); side = -side; next += gap; }
-    }, 100);
-    const horn = () => {
-      const t = ctx.currentTime; const hg2 = ctx.createGain(); hg2.connect(master);
-      hg2.gain.setValueAtTime(0, t); hg2.gain.linearRampToValueAtTime(0.18, t + 0.08); hg2.gain.setValueAtTime(0.18, t + 1.1); hg2.gain.linearRampToValueAtTime(0, t + 1.4);
-      [311, 370, 466].forEach((f) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.connect(hg2); o.start(t); o.stop(t + 1.5); });
-    };
-    ref.current = { ctx, gain, amb, horn };
-    void ctx.resume();
-    return () => { clearInterval(sched); void ctx.close(); ref.current = null; };
+  }, []);
+  // ON/OFF: never creates a second engine; OFF mutes instantly and suspends
+  useEffect(() => {
+    if (!on) {
+      if (AUDIO) { const t = AUDIO.ctx.currentTime; AUDIO.master.gain.cancelScheduledValues(t); AUDIO.master.gain.setValueAtTime(0, t); void AUDIO.ctx.suspend(); }
+      return;
+    }
+    const a = getTrainAudio();
+    void a.ctx.resume().then(() => { const t = a.ctx.currentTime; a.master.gain.cancelScheduledValues(t); a.master.gain.setValueAtTime(0, t); a.master.gain.linearRampToValueAtTime(0.9, t + 0.6); });
   }, [on]);
   const wasMoving = useRef(moving);
   useEffect(() => {
-    const c = ref.current; if (!c) return;
-    const t = c.ctx.currentTime;
-    c.gain.gain.cancelScheduledValues(t); c.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0, t + (moving ? 3 : 4));
-    c.amb.gain.linearRampToValueAtTime(atStation ? 0.08 : 0, t + 2);
-    if (moving && !wasMoving.current) c.horn();
+    const a = AUDIO;
+    if (a) { a.live.moving = moving; a.live.speed = speed; }
+    if (!a || !on) { wasMoving.current = moving; return; }
+    const t = a.ctx.currentTime;
+    a.gain.gain.cancelScheduledValues(t); a.gain.gain.setValueAtTime(a.gain.gain.value, t);
+    a.gain.gain.linearRampToValueAtTime(moving ? 0.55 : 0, t + (moving ? 3 : 4));
+    a.amb.gain.cancelScheduledValues(t); a.amb.gain.setValueAtTime(a.amb.gain.value, t);
+    a.amb.gain.linearRampToValueAtTime(atStation ? 0.08 : 0, t + 2);
+    if (moving && !wasMoving.current) a.horn();
     wasMoving.current = moving;
-  }, [moving, atStation, on]);
+  }, [moving, atStation, on, speed]);
 }
+
+/** Camera shots. Bridge/tunnel/aerial shots are omitted: the provider gives no verified route geography. */
+type Shot = { id: string; label: string; world: string; train: string };
+const RUN_SHOTS: Shot[] = [
+  { id: "side", label: "Side tracking", world: "scale(1.08) translate3d(0,0,0)", train: "translate3d(0,0,0) scale(1)" },
+  { id: "front", label: "Front tracking", world: "perspective(900px) rotateY(-14deg) scale(1.35) translate3d(-6%,2%,0)", train: "translate3d(-4%,4%,0) scale(1.25)" },
+  { id: "low", label: "Low trackside", world: "scale(1.5) translate3d(4%,-8%,0)", train: "translate3d(6%,10%,0) scale(1.4)" },
+  { id: "wide", label: "Wide landscape", world: "scale(1) translate3d(0,0,0)", train: "translate3d(0,6%,0) scale(0.8)" },
+  { id: "rear", label: "Rear view", world: "perspective(900px) rotateY(14deg) scale(1.35) translate3d(6%,2%,0)", train: "translate3d(-24%,4%,0) scale(1.2)" },
+];
+const STATION_SHOT: Shot = { id: "platform", label: "Platform view", world: "scale(1.05)", train: "translate3d(0,0,0) scale(1)" };
 
 const BASE_PX_PER_KMH = 7; // foreground (track) pixels per second per km/h
 
@@ -245,8 +289,20 @@ const RailScene = memo(function RailScene({
   const target = run ? (speed > 0 ? speed : 55) : 0;
   useTrainSound(sound, run, target, atStation);
 
-  // physics loop: velocity eases toward target (smooth departure/braking), layers scroll by parallax depth
+  // camera director — lives inside this memoised scene, so data refreshes never reset it
+  const [shotIdx, setShotIdx] = useState(0);
+  useEffect(() => {
+    if (!run || !visible) return;
+    const id = setInterval(() => setShotIdx((i) => (i + 1) % RUN_SHOTS.length), 9000);
+    return () => clearInterval(id);
+  }, [run, visible]);
+  const shot = atStation ? STATION_SHOT : (RUN_SHOTS[shotIdx] ?? RUN_SHOTS[0]!);
+
+  // physics loop: velocity eases toward target (smooth departure/braking); each layer has its own
+  // depth speed plus slow independent drift/jitter so the tiling never reads as a loop
   const tgt = useRef(target); tgt.current = animate ? target : 0;
+  const cloudRef = useRef<HTMLDivElement>(null);
+  const wheelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!visible) return;
     let raf = 0, last = performance.now(), v = 0, x = 0, t = 0;
@@ -255,14 +311,21 @@ const RailScene = memo(function RailScene({
       v += (tgt.current - v) * (1 - Math.exp(-0.6 * dt));
       if (v < 0.05 && tgt.current === 0) v = 0;
       x += v * BASE_PX_PER_KMH * dt;
-      if (bgRef.current) bgRef.current.style.backgroundPositionX = `${-x * 0.06}px`;
-      if (poleRef.current) poleRef.current.style.backgroundPositionX = `${-x * 0.55}px`;
+      const a = Math.min(v / 60, 1);
+      const wind = Math.sin(t * 0.7) * 0.6 + Math.sin(t * 1.9 + 1.3) * 0.4;
+      if (cloudRef.current) cloudRef.current.style.transform = `translate3d(${-(t * 4 + x * 0.02) % 1200}px,${Math.sin(t * 0.13) * 4}px,0)`;
+      if (bgRef.current) { bgRef.current.style.backgroundPositionX = `${-x * 0.06}px`; bgRef.current.style.transform = `scale(${1.02 + Math.sin(t * 0.05) * 0.015})`; }
+      if (poleRef.current) poleRef.current.style.backgroundPositionX = `${-x * 0.55 + Math.sin(x * 0.003) * 40}px, 0`;
       if (trackRef.current) trackRef.current.style.backgroundPositionX = `${-x * 0.9}px`;
-      if (grassRef.current) grassRef.current.style.backgroundPositionX = `${-x * 1.5}px`;
-      if (trainRef.current) {
-        const a = Math.min(v / 60, 1);
-        trainRef.current.style.transform = `translate3d(0,${(Math.sin(t * 13) * 0.6 + Math.sin(t * 5.3) * 0.4) * a}px,0)`;
+      if (grassRef.current) {
+        grassRef.current.style.backgroundPositionX = `${-x * 1.5}px`;
+        grassRef.current.style.transform = `skewX(${wind * (1.5 + a * 4)}deg)`;
+        grassRef.current.style.filter = `blur(${0.8 + a * 2.2}px) brightness(0.8)`;
       }
+      if (trainRef.current) {
+        trainRef.current.style.transform = `translate3d(${Math.sin(t * 0.4) * 6 * a}px,${(Math.sin(t * 13) * 0.7 + Math.sin(t * 5.3) * 0.5) * a}px,0)`;
+      }
+      if (wheelRef.current) wheelRef.current.style.backgroundPositionX = `${-x * 0.9}px`;
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -274,31 +337,39 @@ const RailScene = memo(function RailScene({
   return (
     <div ref={ref} role="img" aria-label={label}
       className="relative h-56 w-full overflow-hidden rounded-2xl bg-black shadow-xl sm:h-72">
-      <div className="absolute inset-0" style={{ filter: grade }}>
+      <div className="absolute inset-0 origin-center transition-transform duration-[2500ms] ease-in-out" style={{ filter: grade, transform: shot.world }}>
         {atStation ? (
           <img src={scenePlatform} alt="" width={1920} height={640} className="absolute inset-0 h-full w-full object-cover object-bottom" />
         ) : (
           <>
-            <div ref={bgRef} className="absolute inset-x-0 top-0 h-[78%] bg-repeat-x"
+            <div ref={bgRef} className="absolute inset-x-0 top-0 h-[78%] origin-bottom bg-repeat-x"
               style={{ backgroundImage: `url(${sceneBg})`, backgroundSize: "auto 100%", backgroundPositionY: "70%" }} />
-            {/* catenary masts + contact wire */}
+            {/* soft drifting cloud light, independent of train speed */}
+            <div ref={cloudRef} className="pointer-events-none absolute -inset-x-[50%] top-0 h-[40%] opacity-40 mix-blend-screen"
+              style={{ backgroundImage: "radial-gradient(ellipse 18% 40% at 20% 50%, rgba(255,255,255,0.5), transparent 70%), radial-gradient(ellipse 25% 35% at 63% 40%, rgba(255,240,220,0.4), transparent 70%), radial-gradient(ellipse 14% 30% at 88% 60%, rgba(255,255,255,0.35), transparent 70%)" }} />
             <div ref={poleRef} className="absolute inset-x-0 top-[8%] h-[62%] bg-repeat-x opacity-90"
               style={{ backgroundImage: "linear-gradient(90deg, transparent 0 96%, #2b2b2b 96% 97.4%, #555 97.4% 98%, transparent 98%), linear-gradient(180deg, transparent 0 9%, #3a3a3a 9% 10%, transparent 10% 13%, #222 13% 13.6%, transparent 13.6%)", backgroundSize: "260px 100%, 100% 100%" }} />
-            {/* ballast + sleepers + rails */}
             <div ref={trackRef} className="absolute inset-x-0 bottom-0 h-[30%] bg-repeat-x"
               style={{ backgroundImage: "linear-gradient(180deg, transparent 0 22%, #9a9a9a 22% 25%, #4a4a4a 25% 27%, transparent 27%), repeating-linear-gradient(90deg, #6d5a49 0 9px, transparent 9px 22px), radial-gradient(circle at 30% 40%, #8a8378 0 1.5px, transparent 2px), radial-gradient(circle at 70% 70%, #5e5850 0 1.5px, transparent 2px), linear-gradient(180deg, #7a7166, #4e473f)", backgroundSize: "100% 100%, 22px 30%, 7px 7px, 9px 9px, 100% 100%", backgroundPositionY: "0, 36%, 0, 0, 0" }} />
           </>
         )}
-        {/* the train — fixed in frame, world moves past (tracking shot) */}
-        <div ref={trainRef} className={`absolute will-change-transform ${atStation ? "bottom-[13%] h-[28%]" : "bottom-[22%] h-[30%]"}`}
-          style={{ right: "-6%", aspectRatio: "1920 / 158" }}>
-          <img src={sceneTrain} alt="" width={1920} height={158} className="h-full w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.5)]" />
-          <span className="absolute right-[0.6%] top-[40%] size-[0.5%] rounded-full bg-amber-100 shadow-[0_0_12px_6px_rgba(255,240,180,0.7)]" />
+        <div className="absolute inset-0 transition-transform duration-[2500ms] ease-in-out" style={{ transform: shot.train }}>
+          <div ref={trainRef} className={`absolute will-change-transform ${atStation ? "bottom-[13%] h-[28%]" : "bottom-[22%] h-[30%]"}`}
+            style={{ right: "-6%", aspectRatio: "1920 / 158" }}>
+            <img src={sceneTrain} alt="" width={1920} height={158} className="h-full w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.5)]" />
+            {/* rotating wheel/bogie streak — moves only with real speed */}
+            <div ref={wheelRef} className="pointer-events-none absolute inset-x-0 bottom-[2%] h-[16%] opacity-50 mix-blend-multiply"
+              style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(0,0,0,0.6) 0 3px, transparent 3px 14px)" }} />
+            <span className="absolute right-[0.6%] top-[40%] size-[0.5%] rounded-full bg-amber-100 shadow-[0_0_12px_6px_rgba(255,240,180,0.7)]" />
+          </div>
         </div>
         {!atStation ? (
-          <div ref={grassRef} className="pointer-events-none absolute inset-x-0 -bottom-[4%] h-[34%] bg-repeat-x"
-            style={{ backgroundImage: `url(${sceneGrass})`, backgroundSize: "auto 100%", filter: "blur(1.2px) brightness(0.8)" }} />
+          <div ref={grassRef} className="pointer-events-none absolute inset-x-0 -bottom-[4%] h-[34%] origin-bottom bg-repeat-x"
+            style={{ backgroundImage: `url(${sceneGrass})`, backgroundSize: "auto 100%" }} />
         ) : null}
+      </div>
+      <div className="pointer-events-none absolute bottom-14 left-3 rounded-md bg-black/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
+        {shot.label}
       </div>
       {/* cinematic grade */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.5))]" />

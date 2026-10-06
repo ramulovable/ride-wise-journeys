@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Download } from "lucide-react";
-import { LiveJourney } from "@/components/LiveJourney";
+import { InTrainToggle } from "@/components/InTrainToggle";
 import { printPnrSlip, type SlipPassengerInfo } from "@/lib/pnr-slip";
 import { PnrInsights, pnrPrediction, chanceTone } from "@/components/RailInsights";
 import { parseWl, predict, daysUntil, parseJourneyDate } from "@/lib/rail-predict";
@@ -961,11 +961,15 @@ function LiveScreen() {
       </div>
       {error ? <ErrorNote text={error} /> : null}
       {data && train ? (
-        <LiveJourney
-          initial={data}
-          name={train.name}
-          fetcher={() => liveFn({ data: { trainNo: train.number, date: compact(date) } })}
-        />
+        <>
+          <InTrainToggle trainRunning={!data.terminated && /depart|running|crossed|left/i.test(data.message)} />
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" disabled={loading} onClick={run}>
+              {loading ? "Refreshing…" : "↻ Refresh"}
+            </Button>
+          </div>
+          <LiveResult d={data} name={train.name} />
+        </>
       ) : null}
     </div>
   );

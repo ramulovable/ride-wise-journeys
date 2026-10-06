@@ -295,11 +295,12 @@ const RailScene = memo(function RailScene({
 
   // camera director — lives inside this memoised scene, so data refreshes never reset it
   const [shotIdx, setShotIdx] = useState(0);
+  const [autoCam, setAutoCam] = useState(true);
   useEffect(() => {
-    if (!run || !visible) return;
+    if (!run || !visible || !autoCam) return;
     const id = setInterval(() => setShotIdx((i) => (i + 1) % RUN_SHOTS.length), 9000);
     return () => clearInterval(id);
-  }, [run, visible]);
+  }, [run, visible, autoCam]);
   const shot = atStation ? STATION_SHOT : (RUN_SHOTS[shotIdx] ?? RUN_SHOTS[0]!);
 
   // physics loop: velocity eases toward target (smooth departure/braking); each layer has its own
@@ -307,7 +308,8 @@ const RailScene = memo(function RailScene({
   const tgt = useRef(target); tgt.current = animate ? target : 0;
   const cloudRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLDivElement>(null);
-  const photoRefs = useRef<{ front?: HTMLImageElement | null; rear?: HTMLImageElement | null; drone?: HTMLImageElement | null }>({});
+  const fxRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const photoRefs = useRef<{ front?: HTMLElement | null; rear?: HTMLElement | null; drone?: HTMLElement | null }>({});
   useEffect(() => {
     if (!visible) return;
     let raf = 0, last = performance.now(), v = 0, x = 0, t = 0;
@@ -338,12 +340,23 @@ const RailScene = memo(function RailScene({
       // rear: train recedes (pull-out)
       if (fr.rear) fr.rear.style.transform = `scale(${1.12 - 0.08 * (0.5 + 0.5 * Math.sin(x * 0.00035))}) translate3d(0,${shake}px,0)`;
       // drone: overhead camera tracks alongside the train
-      if (fr.drone) fr.drone.style.transform = `scale(1.12) translate3d(${-3 + 3 * Math.sin(x * 0.0002)}%,${-2 + 2 * Math.cos(x * 0.00015)}%,0)`;
+      if (fr.drone) fr.drone.style.transform = `scale(1.18) translate3d(${-6 + 6 * Math.sin(x * 0.0006)}%,${-4 + 4 * Math.cos(x * 0.0005)}%,0) rotate(${Math.sin(x * 0.0004) * 1.2}deg)`;
+      // ground / pole streams for front (towards camera) and rear (away from camera)
+      const fx = fxRefs.current;
+      const g = x * 2.2;
+      if (fx["front-ground"]) fx["front-ground"].style.backgroundPositionY = `${g}px`;
+      if (fx["rear-ground"]) fx["rear-ground"].style.backgroundPositionY = `${-g}px`;
+      if (fx["front-sides"]) fx["front-sides"].style.backgroundPositionX = `${-x * 1.6}px, ${x * 1.6}px`;
+      if (fx["rear-sides"]) fx["rear-sides"].style.backgroundPositionX = `${x * 1.6}px, ${-x * 1.6}px`;
+      if (fx["drone-ground"]) fx["drone-ground"].style.backgroundPosition = `${x * 0.9}px ${-x * 0.5}px`;
+      for (const k of ["front-blur", "rear-blur", "drone-blur"]) if (fx[k]) fx[k]!.style.opacity = String(a * 0.85);
+      if (fx["rear-lamp"]) fx["rear-lamp"].style.opacity = String(Math.sin(t * 5) > 0 ? 1 : 0.15);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [visible]);
+  const setFx = (k: string) => (el: HTMLDivElement | null) => { fxRefs.current[k] = el; };
 
   const grade = phase === "night" ? "brightness(0.45) saturate(0.8) hue-rotate(15deg)" : phase === "day" ? "saturate(1.05) brightness(1.05) hue-rotate(-8deg)" : undefined;
 
@@ -385,12 +398,53 @@ const RailScene = memo(function RailScene({
         ) : null}
       </div>
       {!atStation ? PHOTO_SHOTS.map((p) => (
-        <div key={p.id} className="absolute inset-0 overflow-hidden transition-opacity duration-[1800ms] ease-in-out"
+        <div key={p.id} className="absolute inset-0 overflow-hidden transition-opacity duration-[1200ms] ease-in-out"
           style={{ opacity: shot.id === p.id ? 1 : 0, filter: grade }}>
-          <img ref={(el) => { (photoRefs.current as Record<string, HTMLImageElement | null>)[p.id] = el; }} src={p.img} alt="" width={1920} height={1088}
-            loading="lazy" className="h-full w-full object-cover will-change-transform" />
+          <div ref={(el) => { (photoRefs.current as Record<string, HTMLElement | null>)[p.id] = el; }} className="absolute inset-0 will-change-transform">
+            <img src={p.img} alt="" width={1920} height={1088} loading="lazy" className="h-full w-full object-cover" />
+            {p.id === "rear" ? (
+              <div ref={setFx("rear-lamp")} className="pointer-events-none absolute left-[52%] top-[44.8%] size-[2.5%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 shadow-[0_0_14px_6px_rgba(255,40,40,0.8)]" />
+            ) : null}
+          </div>
+          {p.id === "front" || p.id === "rear" ? (
+            <>
+              {/* moving sleepers/ballast in perspective */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[22%] overflow-hidden" style={{ perspective: "260px" }}>
+                <div ref={setFx(`${p.id}-ground`)} className="absolute -inset-x-[40%] -top-[60%] bottom-0 origin-bottom opacity-60 mix-blend-multiply"
+                  style={{ transform: "rotateX(62deg)", backgroundImage: "repeating-linear-gradient(180deg, rgba(40,28,18,0.85) 0 10px, transparent 10px 34px)", maskImage: "linear-gradient(90deg, transparent 18%, #000 30%, #000 70%, transparent 82%)" }} />
+              </div>
+              {/* passing OHE masts on both sides */}
+              <div ref={setFx(`${p.id}-sides`)} className="pointer-events-none absolute inset-0 opacity-70"
+                style={{ backgroundImage: "linear-gradient(90deg, transparent 0 46%, rgba(30,30,30,0.9) 46% 50%, transparent 50%), linear-gradient(90deg, transparent 0 46%, rgba(30,30,30,0.9) 46% 50%, transparent 50%)", backgroundSize: "180px 100%, 180px 100%", backgroundRepeat: "repeat-x", maskImage: "linear-gradient(90deg, #000 0 14%, transparent 22% 78%, #000 86%)" }} />
+            </>
+          ) : null}
+          {p.id === "drone" ? (
+            <div ref={setFx("drone-ground")} className="pointer-events-none absolute inset-0 opacity-25 mix-blend-soft-light"
+              style={{ backgroundImage: "radial-gradient(ellipse 30% 20% at 30% 40%, rgba(0,0,0,0.6), transparent 70%), radial-gradient(ellipse 25% 15% at 75% 70%, rgba(0,0,0,0.5), transparent 70%)", backgroundSize: "600px 400px" }} />
+          ) : null}
+          {/* speed blur at the edges, scales with real speed */}
+          <div ref={setFx(`${p.id}-blur`)} className="pointer-events-none absolute inset-0 opacity-0"
+            style={{ backdropFilter: "blur(2px)", maskImage: "radial-gradient(ellipse 55% 50% at 50% 50%, transparent 60%, #000 100%)" }} />
         </div>
       )) : null}
+      {!atStation ? (
+        <div className="absolute inset-x-2 top-[38%] z-10 flex justify-center gap-1">
+          {RUN_SHOTS.filter((x) => x.id !== "wide").map((c) => {
+            const i = RUN_SHOTS.indexOf(c);
+            const active = shot.id === c.id;
+            return (
+              <button key={c.id} type="button" onClick={() => { setShotIdx(i); setAutoCam(false); }}
+                className={`rounded-full px-2 py-1 text-[10px] font-bold backdrop-blur active:scale-95 ${active ? "bg-white text-black" : "bg-black/50 text-white"}`}>
+                {c.id === "side" ? "Side" : c.id === "front" ? "Front" : c.id === "drone" ? "Drone" : "Rear"}
+              </button>
+            );
+          })}
+          <button type="button" onClick={() => setAutoCam((v) => !v)}
+            className={`rounded-full px-2 py-1 text-[10px] font-bold backdrop-blur active:scale-95 ${autoCam ? "bg-emerald-500 text-white" : "bg-black/50 text-white"}`}>
+            Auto
+          </button>
+        </div>
+      ) : null}
       <div className="pointer-events-none absolute bottom-14 left-3 rounded-md bg-black/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
         {shot.label}
       </div>

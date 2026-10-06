@@ -14,7 +14,10 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import sceneBg from "@/assets/lj-bg2.jpg";
+import sceneBg from "@/assets/lj-bg3.jpg";
+import shotFront from "@/assets/lj-front.jpg";
+import shotRear from "@/assets/lj-rear.jpg";
+import shotDrone from "@/assets/lj-drone.jpg";
 import sceneGrass from "@/assets/lj-grass2.webp";
 import scenePlatform from "@/assets/lj-platform.jpg";
 import sceneTrain from "@/assets/lj-train.webp";
@@ -252,15 +255,16 @@ function useTrainSound(on: boolean, moving: boolean, speed: number, atStation: b
 }
 
 /** Camera shots. Bridge/tunnel/aerial shots are omitted: the provider gives no verified route geography. */
-type Shot = { id: string; label: string; world: string; train: string };
+type Shot = { id: string; label: string; world: string; train: string; img?: string };
 const RUN_SHOTS: Shot[] = [
-  { id: "side", label: "Side tracking", world: "scale(1.08) translate3d(0,0,0)", train: "translate3d(0,0,0) scale(1)" },
-  { id: "front", label: "Front tracking", world: "perspective(900px) rotateY(-14deg) scale(1.35) translate3d(-6%,2%,0)", train: "translate3d(-4%,4%,0) scale(1.25)" },
-  { id: "low", label: "Low trackside", world: "scale(1.5) translate3d(4%,-8%,0)", train: "translate3d(6%,10%,0) scale(1.4)" },
-  { id: "wide", label: "Wide landscape", world: "scale(1) translate3d(0,0,0)", train: "translate3d(0,6%,0) scale(0.8)" },
-  { id: "rear", label: "Rear view", world: "perspective(900px) rotateY(14deg) scale(1.35) translate3d(6%,2%,0)", train: "translate3d(-24%,4%,0) scale(1.2)" },
+  { id: "side", label: "Side tracking", world: "scale(1.04)", train: "translate3d(0,0,0) scale(1)" },
+  { id: "front", label: "Front camera", world: "none", train: "none", img: shotFront },
+  { id: "drone", label: "Drone camera", world: "none", train: "none", img: shotDrone },
+  { id: "wide", label: "Wide landscape", world: "scale(1)", train: "translate3d(0,6%,0) scale(0.8)" },
+  { id: "rear", label: "Rear camera", world: "none", train: "none", img: shotRear },
 ];
 const STATION_SHOT: Shot = { id: "platform", label: "Platform view", world: "scale(1.05)", train: "translate3d(0,0,0) scale(1)" };
+const PHOTO_SHOTS = RUN_SHOTS.filter((x) => x.img);
 
 const BASE_PX_PER_KMH = 7; // foreground (track) pixels per second per km/h
 
@@ -303,6 +307,7 @@ const RailScene = memo(function RailScene({
   const tgt = useRef(target); tgt.current = animate ? target : 0;
   const cloudRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLDivElement>(null);
+  const photoRefs = useRef<Record<string, HTMLImageElement | null>>({});
   useEffect(() => {
     if (!visible) return;
     let raf = 0, last = performance.now(), v = 0, x = 0, t = 0;
@@ -326,6 +331,14 @@ const RailScene = memo(function RailScene({
         trainRef.current.style.transform = `translate3d(${Math.sin(t * 0.4) * 6 * a}px,${(Math.sin(t * 13) * 0.7 + Math.sin(t * 5.3) * 0.5) * a}px,0)`;
       }
       if (wheelRef.current) wheelRef.current.style.backgroundPositionX = `${-x * 0.9}px`;
+      const shake = (Math.sin(t * 17) * 0.6 + Math.sin(t * 7.1) * 0.4) * a;
+      const fr = photoRefs.current;
+      // front: locomotive approaches camera (push-in tied to distance travelled)
+      if (fr.front) fr.front.style.transform = `scale(${1.04 + 0.08 * (0.5 + 0.5 * Math.sin(x * 0.00035))}) translate3d(0,${shake}px,0)`;
+      // rear: train recedes (pull-out)
+      if (fr.rear) fr.rear.style.transform = `scale(${1.12 - 0.08 * (0.5 + 0.5 * Math.sin(x * 0.00035))}) translate3d(0,${shake}px,0)`;
+      // drone: overhead camera tracks alongside the train
+      if (fr.drone) fr.drone.style.transform = `scale(1.12) translate3d(${-3 + 3 * Math.sin(x * 0.0002)}%,${-2 + 2 * Math.cos(x * 0.00015)}%,0)`;
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -344,11 +357,8 @@ const RailScene = memo(function RailScene({
           <>
             <div ref={bgRef} className="absolute inset-x-0 top-0 h-[78%] origin-bottom bg-repeat-x"
               style={{ backgroundImage: `url(${sceneBg})`, backgroundSize: "auto 100%", backgroundPositionY: "70%" }} />
-            {/* soft drifting cloud light, independent of train speed */}
-            <div ref={cloudRef} className="pointer-events-none absolute -inset-x-[50%] top-0 h-[40%] opacity-40 mix-blend-screen"
-              style={{ backgroundImage: "radial-gradient(ellipse 18% 40% at 20% 50%, rgba(255,255,255,0.5), transparent 70%), radial-gradient(ellipse 25% 35% at 63% 40%, rgba(255,240,220,0.4), transparent 70%), radial-gradient(ellipse 14% 30% at 88% 60%, rgba(255,255,255,0.35), transparent 70%)" }} />
-            <div ref={poleRef} className="absolute inset-x-0 top-[8%] h-[62%] bg-repeat-x opacity-90"
-              style={{ backgroundImage: "linear-gradient(90deg, transparent 0 96%, #2b2b2b 96% 97.4%, #555 97.4% 98%, transparent 98%), linear-gradient(180deg, transparent 0 9%, #3a3a3a 9% 10%, transparent 10% 13%, #222 13% 13.6%, transparent 13.6%)", backgroundSize: "260px 100%, 100% 100%" }} />
+            <div ref={poleRef} className="absolute inset-x-0 top-[12%] h-[60%] bg-repeat-x opacity-90"
+              style={{ backgroundImage: "linear-gradient(90deg, transparent 0 96%, #2b2b2b 96% 97.4%, #555 97.4% 98%, transparent 98%)", backgroundSize: "260px 100%" }} />
             <div ref={trackRef} className="absolute inset-x-0 bottom-0 h-[30%] bg-repeat-x"
               style={{ backgroundImage: "linear-gradient(180deg, transparent 0 22%, #9a9a9a 22% 25%, #4a4a4a 25% 27%, transparent 27%), repeating-linear-gradient(90deg, #6d5a49 0 9px, transparent 9px 22px), radial-gradient(circle at 30% 40%, #8a8378 0 1.5px, transparent 2px), radial-gradient(circle at 70% 70%, #5e5850 0 1.5px, transparent 2px), linear-gradient(180deg, #7a7166, #4e473f)", backgroundSize: "100% 100%, 22px 30%, 7px 7px, 9px 9px, 100% 100%", backgroundPositionY: "0, 36%, 0, 0, 0" }} />
           </>
@@ -356,6 +366,12 @@ const RailScene = memo(function RailScene({
         <div className="absolute inset-0 transition-transform duration-[2500ms] ease-in-out" style={{ transform: shot.train }}>
           <div ref={trainRef} className={`absolute will-change-transform ${atStation ? "bottom-[13%] h-[28%]" : "bottom-[22%] h-[30%]"}`}
             style={{ right: "-6%", aspectRatio: "1920 / 158" }}>
+            {!atStation ? (
+              <>
+                <div className="pointer-events-none absolute -left-[60%] top-0 h-[1.5px] w-[200%] bg-neutral-800/90" />
+                <div className="pointer-events-none absolute -left-[60%] -top-[9%] h-px w-[200%] bg-neutral-700/80" />
+              </>
+            ) : null}
             <img src={sceneTrain} alt="" width={1920} height={158} className="h-full w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.5)]" />
             {/* rotating wheel/bogie streak — moves only with real speed */}
             <div ref={wheelRef} className="pointer-events-none absolute inset-x-0 bottom-[2%] h-[16%] opacity-50 mix-blend-multiply"
@@ -368,6 +384,13 @@ const RailScene = memo(function RailScene({
             style={{ backgroundImage: `url(${sceneGrass})`, backgroundSize: "auto 100%" }} />
         ) : null}
       </div>
+      {!atStation ? PHOTO_SHOTS.map((p) => (
+        <div key={p.id} className="absolute inset-0 overflow-hidden transition-opacity duration-[1800ms] ease-in-out"
+          style={{ opacity: shot.id === p.id ? 1 : 0, filter: grade }}>
+          <img ref={(el) => { photoRefs.current[p.id] = el; }} src={p.img} alt="" width={1920} height={1088}
+            loading="lazy" className="h-full w-full object-cover will-change-transform" />
+        </div>
+      )) : null}
       <div className="pointer-events-none absolute bottom-14 left-3 rounded-md bg-black/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
         {shot.label}
       </div>

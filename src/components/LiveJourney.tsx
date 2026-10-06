@@ -307,7 +307,7 @@ const RailScene = memo(function RailScene({
   const tgt = useRef(target); tgt.current = animate ? target : 0;
   const cloudRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLDivElement>(null);
-  const photoRefs = useRef<Record<string, HTMLImageElement | null>>({});
+  const photoRefs = useRef<{ front?: HTMLImageElement | null; rear?: HTMLImageElement | null; drone?: HTMLImageElement | null }>({});
   useEffect(() => {
     if (!visible) return;
     let raf = 0, last = performance.now(), v = 0, x = 0, t = 0;
@@ -387,7 +387,7 @@ const RailScene = memo(function RailScene({
       {!atStation ? PHOTO_SHOTS.map((p) => (
         <div key={p.id} className="absolute inset-0 overflow-hidden transition-opacity duration-[1800ms] ease-in-out"
           style={{ opacity: shot.id === p.id ? 1 : 0, filter: grade }}>
-          <img ref={(el) => { photoRefs.current[p.id] = el; }} src={p.img} alt="" width={1920} height={1088}
+          <img ref={(el) => { (photoRefs.current as Record<string, HTMLImageElement | null>)[p.id] = el; }} src={p.img} alt="" width={1920} height={1088}
             loading="lazy" className="h-full w-full object-cover will-change-transform" />
         </div>
       )) : null}

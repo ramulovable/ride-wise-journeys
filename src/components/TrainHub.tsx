@@ -939,7 +939,6 @@ function LiveScreen() {
     }
     setLoading(true);
     setError("");
-    setData(null);
     try {
       const res = await liveFn({ data: { trainNo: train.number, date: compact(date) } });
       if (res.success) setData(res.data);

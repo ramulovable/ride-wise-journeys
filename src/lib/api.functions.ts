@@ -1553,6 +1553,42 @@ export const deleteRiderAccount = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Customer contact details for a booking, visible only to the assigned driver of an active ride. */
+export const getRideCustomerDetails = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ rideId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: ride, error } = await context.supabase
+      .from("rides")
+      .select("id, customer_id, rider_id, status, pickup_note")
+      .eq("id", data.rideId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!ride || ride.rider_id !== context.userId) throw new Error("Booking not found.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, mobile, photo_url")
+      .eq("id", ride.customer_id)
+      .maybeSingle();
+    let photoUrl: string | null = null;
+    const p = profile?.photo_url;
+    if (p) {
+      if (p.startsWith("http")) photoUrl = p;
+      else {
+        const signed = await supabaseAdmin.storage.from("avatars").createSignedUrl(p, 3600);
+        photoUrl = signed.data?.signedUrl ?? null;
+      }
+    }
+    const active = !["completed", "cancelled"].includes(ride.status);
+    return {
+      name: profile?.full_name || "Customer",
+      mobile: active ? (profile?.mobile ?? null) : null,
+      photoUrl,
+      pickupNote: ride.pickup_note,
+    };
+  });
+
 /** Driver, vehicle and contact details for a booking, visible to that booking's customer only. */
 export const getRideDriverDetails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

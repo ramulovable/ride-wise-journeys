@@ -26,10 +26,21 @@ import {
   setRiderApproval,
   setRiderBlocked,
   setRiderVerified,
+  setRiderVoiceAlert,
+  getRiderAlertDevices,
 } from "@/lib/api.functions";
 import { formatDateTime, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 import { WALLET_TXN_LABEL, WITHDRAWAL_STATUS_LABEL } from "@/lib/wallet";
+import { MessageCircle, Volume2, VolumeX } from "lucide-react";
+
+function waLink(mobile?: string | null, name?: string | null): string | null {
+  const digits = (mobile ?? "").replace(/\D/g, "");
+  const ten = digits.slice(-10);
+  if (ten.length !== 10) return null;
+  const text = `Namaste ${name || ""}, Shahin Travels admin se baat kar rahe hain.`;
+  return `https://wa.me/91${ten}?text=${encodeURIComponent(text)}`;
+}
 
 export const Route = createFileRoute("/_authenticated/admin/riders")({ component: Riders });
 
@@ -67,6 +78,12 @@ function Riders() {
     queryFn: () => getAdminRiderWalletSummaries({ data: { riderIds } }),
   });
   const walletOf = (id: string) => wallets.data?.find((w) => w.riderId === id);
+  const devices = useQuery({
+    queryKey: ["admin-rider-devices", riderIds.join(",")],
+    enabled: riderIds.length > 0,
+    queryFn: () => getRiderAlertDevices({ data: { riderIds } }),
+  });
+  const deviceOf = (id: string) => devices.data?.find((d) => d.userId === id);
 
   async function run(fn: Promise<unknown>, message: string) {
     try {
@@ -103,8 +120,37 @@ function Riders() {
                       {r.is_verified ? <VerifiedTick /> : null}
                     </p>
                     {r.is_verified ? <VerifiedByline className="block" /> : null}
-                    <p className="text-xs text-muted-foreground">
-                      {r.profile?.mobile} · {r.is_online ? "Online" : "Offline"}
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>
+                        {r.profile?.mobile} · {r.is_online ? "Online" : "Offline"}
+                      </span>
+                      {waLink(r.profile?.mobile, r.profile?.full_name) ? (
+                        <a
+                          href={waLink(r.profile?.mobile, r.profile?.full_name)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="WhatsApp chat"
+                          className="inline-flex items-center gap-1 rounded-full bg-[#25D366] px-2 py-0.5 font-semibold text-white"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                        </a>
+                      ) : null}
+                    </p>
+                    <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-medium ${r.voice_alert_enabled ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}
+                      >
+                        Voice alert {r.voice_alert_enabled ? "ON" : "OFF (admin)"}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-medium ${deviceOf(r.user_id) ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                      >
+                        {devices.isPending
+                          ? "Phone…"
+                          : deviceOf(r.user_id)
+                            ? `Phone connected · ${formatDateTime(deviceOf(r.user_id)!.lastSeen)}`
+                            : "Phone alerts not connected"}
+                      </span>
                     </p>
                     <p className="mt-1 text-xs">
                       Subscription: {r.subscription_valid_until || "not paid"}
@@ -174,6 +220,25 @@ function Riders() {
                     }
                   >
                     Record 1 month
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={r.voice_alert_enabled ? "secondary" : "outline"}
+                    onClick={() =>
+                      run(
+                        setRiderVoiceAlert({
+                          data: { riderId: r.user_id, enabled: !r.voice_alert_enabled },
+                        }),
+                        r.voice_alert_enabled ? "Voice alert OFF." : "Voice alert ON.",
+                      )
+                    }
+                  >
+                    {r.voice_alert_enabled ? (
+                      <Volume2 className="mr-1.5 h-4 w-4" />
+                    ) : (
+                      <VolumeX className="mr-1.5 h-4 w-4" />
+                    )}
+                    Voice alert: {r.voice_alert_enabled ? "ON" : "OFF"}
                   </Button>
                   <Button
                     size="sm"

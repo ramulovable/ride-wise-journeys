@@ -1492,6 +1492,41 @@ export const setRiderBlocked = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setRiderVoiceAlert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => adminRiderInput.extend({ enabled: z.boolean() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("rider_details")
+      .update({ voice_alert_enabled: data.enabled })
+      .eq("user_id", data.riderId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getRiderAlertDevices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ riderIds: z.array(z.string().uuid()).max(500) }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    if (!data.riderIds.length) return [] as { userId: string; lastSeen: string }[];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("notification_devices")
+      .select("user_id, updated_at")
+      .eq("is_active", true)
+      .in("user_id", data.riderIds);
+    if (error) throw new Error(error.message);
+    const map = new Map<string, string>();
+    for (const r of rows ?? []) {
+      const prev = map.get(r.user_id);
+      if (!prev || prev < r.updated_at) map.set(r.user_id, r.updated_at);
+    }
+    return [...map].map(([userId, lastSeen]) => ({ userId, lastSeen }));
+  });
+
 export const recordSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) =>

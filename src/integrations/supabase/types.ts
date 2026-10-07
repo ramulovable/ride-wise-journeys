@@ -1594,6 +1594,7 @@ export type Database = {
           vehicle_category_id: string | null
           vehicle_model: string | null
           vehicle_number: string | null
+          voice_alert_enabled: boolean
         }
         Insert: {
           base_location_id?: string | null
@@ -1610,6 +1611,7 @@ export type Database = {
           vehicle_category_id?: string | null
           vehicle_model?: string | null
           vehicle_number?: string | null
+          voice_alert_enabled?: boolean
         }
         Update: {
           base_location_id?: string | null
@@ -1626,6 +1628,7 @@ export type Database = {
           vehicle_category_id?: string | null
           vehicle_model?: string | null
           vehicle_number?: string | null
+          voice_alert_enabled?: boolean
         }
         Relationships: [
           {

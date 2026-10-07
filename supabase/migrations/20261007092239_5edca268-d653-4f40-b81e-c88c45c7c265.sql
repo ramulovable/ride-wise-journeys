@@ -1,0 +1,1 @@
+ALTER TABLE public.rider_details ADD COLUMN IF NOT EXISTS voice_alert_enabled boolean NOT NULL DEFAULT true;

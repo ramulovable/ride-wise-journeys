@@ -1576,7 +1576,7 @@ export const getRideCustomerDetails = createServerFn({ method: "GET" })
     if (p) {
       if (p.startsWith("http")) photoUrl = p;
       else {
-        const signed = await supabaseAdmin.storage.from("avatars").createSignedUrl(p, 3600);
+        const signed = await supabaseAdmin.storage.from("profile-photos").createSignedUrl(p, 3600);
         photoUrl = signed.data?.signedUrl ?? null;
       }
     }

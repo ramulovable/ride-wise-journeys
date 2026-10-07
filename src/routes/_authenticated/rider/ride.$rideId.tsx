@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { LiveRideMap, useDriverLocationBroadcast } from "@/components/LiveRideMap";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { updateRiderRide } from "@/lib/api.functions";
+import { getRideCustomerDetails, updateRiderRide } from "@/lib/api.functions";
+import { Phone } from "lucide-react";
 import { formatDateTime, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
@@ -71,6 +72,11 @@ function RiderRideDetail() {
   }, [rideId, qc]);
 
   const r = ride.data;
+  const customer = useQuery({
+    queryKey: ["ride-customer", rideId, r?.status],
+    enabled: Boolean(r && user && r.rider_id === user.id),
+    queryFn: () => getRideCustomerDetails({ data: { rideId } }),
+  });
   const live = Boolean(
     r && user && r.rider_id === user.id && !["completed", "cancelled"].includes(r.status),
   );
@@ -117,6 +123,45 @@ function RiderRideDetail() {
               {r.distance_km ? `${r.distance_km} km · ` : ""}cash on completion
             </p>
           </section>
+
+          {customer.data ? (
+            <section className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center gap-3">
+                {customer.data.photoUrl ? (
+                  <img
+                    src={customer.data.photoUrl}
+                    alt={`${customer.data.name}, customer`}
+                    className="size-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex size-12 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+                    {customer.data.name.slice(0, 1)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {customer.data.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {customer.data.mobile ? `+91 ${customer.data.mobile.replace(/^\+?91/, "")}` : "Customer"}
+                  </p>
+                </div>
+                {customer.data.mobile ? (
+                  <Button asChild size="sm">
+                    <a href={`tel:${customer.data.mobile}`}>
+                      <Phone className="mr-1.5 h-4 w-4" /> Call
+                    </a>
+                  </Button>
+                ) : null}
+              </div>
+              {customer.data.pickupNote ? (
+                <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                  Pickup note: {customer.data.pickupNote}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
 
           {next ? (
             <Button

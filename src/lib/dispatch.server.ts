@@ -256,6 +256,7 @@ async function activeDriverIds(): Promise<Set<string>> {
     .eq("is_approved", true)
     .eq("is_blocked", false)
     .eq("is_online", true)
+    .eq("voice_alert_enabled", true)
     .gte("subscription_valid_until", today);
   return new Set((data ?? []).map((row) => row.user_id));
 }

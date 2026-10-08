@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, BatteryCharging, Bell, CheckCircle2, Smartphone } from "lucide-react";
+import { BatteryCharging, Bell, CheckCircle2, Smartphone } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   type AlertPermissionKey,
   type AlertPermissionStatus,
@@ -114,13 +114,10 @@ export function DriverAlertSetup() {
   };
 
   return (
-    <section className="rounded-2xl border-2 border-destructive/40 bg-card p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
-        Ride alert setup adhoora hai
-      </h2>
+    <section className="rounded-2xl border border-border bg-card p-4">
+      <h2 className="text-sm font-semibold text-foreground">Ride alert setup</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Jab tak teeno ON nahi honge, lock screen par ride nahi dikhegi. Button dabane par phone ki wahi setting khulegi.
+        Teeno switch ON karein taaki lock screen par bhi ride dikhe. Switch slide karne par phone ki wahi setting khulegi.
       </p>
       <ul className="mt-3 space-y-3">
         {ITEMS.map((item) => {
@@ -134,18 +131,14 @@ export function DriverAlertSetup() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{item.title}</p>
                 <p className="text-xs text-muted-foreground">{item.description}</p>
-                {!done ? <p className="mt-0.5 text-[11px] text-destructive">{item.hint}</p> : null}
+                {!done ? <p className="mt-0.5 text-[11px] text-muted-foreground">{item.hint}</p> : null}
               </div>
-              {done ? (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  Allowed
-                </span>
-              ) : (
-                <Button size="sm" variant="destructive" onClick={() => open(item.key)}>
-                  Allow
-                </Button>
-              )}
+              <Switch
+                className="mt-1"
+                checked={done}
+                onCheckedChange={() => open(item.key)}
+                aria-label={item.title}
+              />
             </li>
           );
         })}

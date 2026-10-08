@@ -20,6 +20,7 @@ import { RiderShell } from "@/components/shells";
 import { ProfileAvatar, VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { EmptyState } from "@/components/EmptyState";
 import { DriverAlertSetup } from "@/components/DriverAlertSetup";
+import { TravelDesk } from "@/components/TravelDesk";
 import { IstClock } from "@/components/IstClock";
 import { AdBanner } from "@/components/AdBanner";
 import { Button } from "@/components/ui/button";
@@ -495,6 +496,9 @@ function RiderDashboard() {
         ) : null}
 
         <DriverAlertSetup />
+
+        <TravelDesk />
+
 
 
         <section className="grid grid-cols-2 gap-3">

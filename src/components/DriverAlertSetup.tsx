@@ -1,75 +1,52 @@
 import { useCallback, useEffect, useState } from "react";
-import { BatteryCharging, Bell, CheckCircle2, Smartphone, X } from "lucide-react";
+import { AlertTriangle, BatteryCharging, Bell, CheckCircle2, Smartphone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   type AlertPermissionKey,
   type AlertPermissionStatus,
   isNativeApp,
+  nativeBridge,
   readAlertPermissions,
   requestAlertPermission,
 } from "@/lib/native-permissions";
-
-const MARK_PREFIX = "shahin.alertPermission.";
-const HIDE_KEY = "shahin.alertSetup.hidden";
-
-function readMarks(): AlertPermissionStatus {
-  const get = (key: AlertPermissionKey) => {
-    try {
-      return window.localStorage.getItem(MARK_PREFIX + key) === "1";
-    } catch {
-      return false;
-    }
-  };
-  return {
-    notifications: get("notifications"),
-    overlay: get("overlay"),
-    battery: get("battery"),
-  };
-}
-
-function writeMark(key: AlertPermissionKey) {
-  try {
-    window.localStorage.setItem(MARK_PREFIX + key, "1");
-  } catch {
-    // Private mode storage is simply unavailable.
-  }
-}
-
 
 const ITEMS: {
   key: AlertPermissionKey;
   title: string;
   description: string;
+  hint: string;
   icon: typeof Bell;
 }[] = [
   {
     key: "notifications",
     title: "Ride notifications",
     description: "Nayi ride ka alert aur ringtone milegi.",
+    hint: "Setting khulne par 'Allow notifications' ON karein.",
     icon: Bell,
   },
   {
     key: "overlay",
     title: "Appear on lock screen",
     description: "Ride aane par screen apne aap on hokar Accept/Decline dikhega.",
+    hint: "'Display over other apps' ON karein. Redmi/Vivo/Oppo me 'Pop-up windows in background' aur 'Show on lock screen' bhi ON karein.",
     icon: Smartphone,
   },
   {
     key: "battery",
     title: "Background running",
     description: "Phone lock hone par bhi app band nahi hogi.",
+    hint: "'Allow' / 'Unrestricted' chunein.",
     icon: BatteryCharging,
   },
 ];
 
 /**
- * Shown only inside the Shahin Travels Android app. Walks the driver through
- * the three phone settings a call-style lock screen ride alert needs.
+ * Shown only inside the Android app. Status comes only from the phone itself,
+ * so a permission shows "Allowed" only after it is really switched on.
  */
 export function DriverAlertSetup() {
   const [native, setNative] = useState(false);
-  const [hidden, setHidden] = useState(false);
   const [status, setStatus] = useState<AlertPermissionStatus>({
     notifications: false,
     overlay: false,
@@ -78,20 +55,18 @@ export function DriverAlertSetup() {
 
   const refresh = useCallback(() => {
     if (!isNativeApp()) return;
-    const live = readAlertPermissions();
-    const marks = readMarks();
-    setStatus({
-      notifications: live.notifications || marks.notifications,
-      overlay: live.overlay || marks.overlay,
-      battery: live.battery || marks.battery,
-    });
+    setStatus(readAlertPermissions());
   }, []);
 
   useEffect(() => {
     if (!isNativeApp()) return;
     setNative(true);
+    // Clear old "allowed" marks from earlier app versions.
     try {
-      setHidden(window.localStorage.getItem(HIDE_KEY) === "1");
+      for (const k of ["notifications", "overlay", "battery"]) {
+        window.localStorage.removeItem("shahin.alertPermission." + k);
+      }
+      window.localStorage.removeItem("shahin.alertSetup.hidden");
     } catch {
       // ignore
     }
@@ -101,7 +76,7 @@ export function DriverAlertSetup() {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", refresh);
-    const timer = window.setInterval(refresh, 3000);
+    const timer = window.setInterval(refresh, 2000);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", refresh);
@@ -109,33 +84,43 @@ export function DriverAlertSetup() {
     };
   }, [refresh]);
 
-  if (!native || hidden) return null;
+  if (!native) return null;
 
   const allDone = ITEMS.every((item) => status[item.key]);
-  if (allDone) return null;
 
-  const dismiss = () => {
-    try {
-      window.localStorage.setItem(HIDE_KEY, "1");
-    } catch {
-      // ignore
+  if (allDone) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-xs font-medium text-primary">
+        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+        Ride alert: teeno permission chalu hain
+      </div>
+    );
+  }
+
+  const open = (key: AlertPermissionKey) => {
+    requestAlertPermission(key);
+    if (key === "notifications") {
+      // If Android does not show its popup (denied earlier), open the exact settings page.
+      window.setTimeout(() => {
+        if (!readAlertPermissions().notifications && document.visibilityState === "visible") {
+          try {
+            nativeBridge()?.openNotificationSettings?.();
+          } catch {
+            // ignore
+          }
+        }
+      }, 1200);
     }
-    setHidden(true);
   };
 
   return (
-    <section className="relative rounded-2xl border border-border bg-card p-4">
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Hide ride alert setup"
-        className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted"
-      >
-        <X className="h-4 w-4" aria-hidden="true" />
-      </button>
-      <h2 className="text-sm font-semibold text-foreground">Ride alert setup</h2>
-      <p className="mt-1 pr-6 text-xs text-muted-foreground">
-        Teeno allow karne ke baad phone lock hone par bhi ride aate hi screen on ho jayegi.
+    <section className="rounded-2xl border-2 border-destructive/40 bg-card p-4">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
+        Ride alert setup adhoora hai
+      </h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Jab tak teeno ON nahi honge, lock screen par ride nahi dikhegi. Button dabane par phone ki wahi setting khulegi.
       </p>
       <ul className="mt-3 space-y-3">
         {ITEMS.map((item) => {
@@ -149,6 +134,7 @@ export function DriverAlertSetup() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{item.title}</p>
                 <p className="text-xs text-muted-foreground">{item.description}</p>
+                {!done ? <p className="mt-0.5 text-[11px] text-destructive">{item.hint}</p> : null}
               </div>
               {done ? (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
@@ -156,15 +142,7 @@ export function DriverAlertSetup() {
                   Allowed
                 </span>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    requestAlertPermission(item.key);
-                    writeMark(item.key);
-                    setStatus((prev) => ({ ...prev, [item.key]: true }));
-                    window.setTimeout(refresh, 1500);
-                  }}
-                >
+                <Button size="sm" variant="destructive" onClick={() => open(item.key)}>
                   Allow
                 </Button>
               )}
@@ -175,4 +153,3 @@ export function DriverAlertSetup() {
     </section>
   );
 }
-

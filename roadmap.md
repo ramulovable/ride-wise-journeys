@@ -94,3 +94,7 @@
 - [x] Customer home: Flights + Hotels (Trip.com affiliate, INR) opening inside the app
 - [x] Trains card with bold "COMING SOON" sticker badge
 
+
+## Driver alerts + train info
+- [ ] Driver permission card: real phone status only, direct settings, never hides while missing
+- [ ] Train Info section on driver dashboard

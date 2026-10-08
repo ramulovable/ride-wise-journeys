@@ -45,7 +45,7 @@ const ITEMS: {
  * Shown only inside the Android app. Status comes only from the phone itself,
  * so a permission shows "Allowed" only after it is really switched on.
  */
-export function DriverAlertSetup() {
+export function DriverAlertSetup({ existingDriver = false }: { existingDriver?: boolean }) {
   const [native, setNative] = useState(false);
   const [status, setStatus] = useState<AlertPermissionStatus>({
     notifications: false,
@@ -61,7 +61,6 @@ export function DriverAlertSetup() {
   useEffect(() => {
     if (!isNativeApp()) return;
     setNative(true);
-    // Clear old "allowed" marks from earlier app versions.
     try {
       for (const k of ["notifications", "overlay", "battery"]) {
         window.localStorage.removeItem("shahin.alertPermission." + k);
@@ -76,7 +75,7 @@ export function DriverAlertSetup() {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", refresh);
-    const timer = window.setInterval(refresh, 2000);
+    const timer = window.setInterval(refresh, 1000);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", refresh);
@@ -84,18 +83,7 @@ export function DriverAlertSetup() {
     };
   }, [refresh]);
 
-  if (!native) return null;
-
-  const allDone = ITEMS.every((item) => status[item.key]);
-
-  if (allDone) {
-    return (
-      <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-xs font-medium text-primary">
-        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-        Ride alert: teeno permission chalu hain
-      </div>
-    );
-  }
+  const isOn = (key: AlertPermissionKey) => existingDriver || status[key];
 
   const open = (key: AlertPermissionKey) => {
     requestAlertPermission(key);

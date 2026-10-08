@@ -495,11 +495,14 @@ function RiderDashboard() {
           </section>
         ) : null}
 
-        {/* Only drivers who joined after this cutoff see the setup card. */}
-        {riderDetails &&
-        new Date((riderDetails as { created_at?: string }).created_at ?? 0).getTime() >=
-          Date.parse("2026-10-08T05:00:00Z") ? (
-          <DriverAlertSetup />
+        {/* All drivers see the card; drivers who joined before the cutoff start as ON. */}
+        {riderDetails ? (
+          <DriverAlertSetup
+            existingDriver={
+              new Date((riderDetails as { created_at?: string }).created_at ?? 0).getTime() <
+              Date.parse("2026-10-08T05:00:00Z")
+            }
+          />
         ) : null}
 
         <TravelDesk />

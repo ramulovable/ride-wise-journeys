@@ -220,6 +220,7 @@ public class NativePermissions {
             }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
+            watchAndReturn("notifications");
         } catch (Throwable t) {
             Log.w(TAG, "openNotificationSettings failed", t);
         }
@@ -234,6 +235,7 @@ public class NativePermissions {
                 Uri.parse("package:" + activity.getPackageName()));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
+            watchAndReturn("overlay");
         } catch (Throwable t) {
             Log.w(TAG, "requestOverlay failed", t);
             openAppSettings();
@@ -250,6 +252,7 @@ public class NativePermissions {
                 Uri.parse("package:" + activity.getPackageName()));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
+            watchAndReturn("battery");
         } catch (Throwable t) {
             Log.w(TAG, "requestBattery failed", t);
             openAppSettings();
@@ -271,5 +274,31 @@ public class NativePermissions {
         return new Intent(
             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.parse("package:" + activity.getPackageName()));
+    }
+
+    /** Watches a setting after opening it; once granted, brings the app back to the front. */
+    private void watchAndReturn(final String key) {
+        final android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+        final long until = System.currentTimeMillis() + 120000;
+        h.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                boolean ok = "overlay".equals(key) ? overlayEnabled()
+                    : "battery".equals(key) ? batteryUnrestricted()
+                    : notificationsEnabled();
+                if (ok) {
+                    try {
+                        Intent back = new Intent(activity, MainActivity.class);
+                        back.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                            | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        activity.startActivity(back);
+                    } catch (Throwable t) {
+                        Log.w(TAG, "return to app failed", t);
+                    }
+                    return;
+                }
+                if (System.currentTimeMillis() < until) h.postDelayed(this, 700);
+            }
+        }, 1000);
     }
 }

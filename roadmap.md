@@ -98,3 +98,5 @@
 ## Driver alerts + train info
 - [x] Driver permission card: real phone status only, direct settings, never hides while missing
 - [x] Train Info section on driver dashboard
+
+- [x] Permission card for all drivers (existing ON), auto-return to app after granting (needs new APK)

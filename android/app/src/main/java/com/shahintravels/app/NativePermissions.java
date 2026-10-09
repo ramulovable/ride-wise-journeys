@@ -220,6 +220,7 @@ public class NativePermissions {
             }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
+            watchAndReturn("notifications");
         } catch (Throwable t) {
             Log.w(TAG, "openNotificationSettings failed", t);
         }
@@ -234,6 +235,7 @@ public class NativePermissions {
                 Uri.parse("package:" + activity.getPackageName()));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
+            watchAndReturn("overlay");
         } catch (Throwable t) {
             Log.w(TAG, "requestOverlay failed", t);
             openAppSettings();
@@ -250,6 +252,7 @@ public class NativePermissions {
                 Uri.parse("package:" + activity.getPackageName()));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
+            watchAndReturn("battery");
         } catch (Throwable t) {
             Log.w(TAG, "requestBattery failed", t);
             openAppSettings();

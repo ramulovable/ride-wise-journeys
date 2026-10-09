@@ -109,7 +109,7 @@ export function DriverAlertSetup({ existingDriver = false }: { existingDriver?: 
       </p>
       <ul className="mt-3 space-y-3">
         {ITEMS.map((item) => {
-          const done = status[item.key];
+          const done = isOn(item.key);
           const Icon = item.icon;
           return (
             <li key={item.key} className="flex items-start gap-3">
@@ -124,7 +124,9 @@ export function DriverAlertSetup({ existingDriver = false }: { existingDriver?: 
               <Switch
                 className="mt-1"
                 checked={done}
-                onCheckedChange={() => open(item.key)}
+                onCheckedChange={() => {
+                  if (native && !status[item.key]) open(item.key);
+                }}
                 aria-label={item.title}
               />
             </li>

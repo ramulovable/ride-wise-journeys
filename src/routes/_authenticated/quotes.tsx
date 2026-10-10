@@ -126,7 +126,7 @@ function PosterSheet({ q, bg, name, photo, onClose }: { q: Quote; bg: string; na
 
   async function download() {
     const f = await getFile();
-    if (!f) return toast.error("पोस्टर नहीं बन पाया");
+    if (!f) { toast.error("पोस्टर नहीं बन पाया"); return; }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(f);
     a.download = f.name;

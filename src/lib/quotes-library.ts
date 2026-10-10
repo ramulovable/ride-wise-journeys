@@ -9,7 +9,7 @@ export type QuoteCategory =
   | "festival"
   | "birthday";
 
-export type Quote = { id: string; cat: QuoteCategory; text: string; by?: string };
+export type Quote = { id: string; cat: QuoteCategory; text: string; by?: string | undefined };
 
 export const CATEGORIES: { id: QuoteCategory; label: string }[] = [
   { id: "today", label: "आज के लिए" },
@@ -124,7 +124,7 @@ const raw: Record<Exclude<QuoteCategory, "today" | "festival">, string[]> = {
 export const QUOTES: Quote[] = Object.entries(raw).flatMap(([cat, list]) =>
   list.map((line, i) => {
     const [text, by] = line.split("|");
-    return { id: `${cat}-${i}`, cat: cat as QuoteCategory, text, by };
+    return { id: `${cat}-${i}`, cat: cat as QuoteCategory, text: text ?? "", by };
   }),
 );
 
@@ -168,7 +168,7 @@ function istToday(): Date {
 }
 
 function festivalDate(f: Festival, year: number): Date {
-  const parts = f.date.split("-").map(Number);
+  const parts = f.date.split("-").map(Number) as [number, number, number];
   if (parts.length === 3) return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
   return new Date(Date.UTC(year, parts[0] - 1, parts[1]));
 }

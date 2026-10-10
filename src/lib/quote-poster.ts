@@ -20,7 +20,7 @@ export const BACKGROUNDS: Record<Exclude<QuoteCategory, "today">, string[]> = {
 
 export function bgFor(cat: QuoteCategory, idx: number) {
   const list = BACKGROUNDS[cat === "today" ? "morning" : cat];
-  return list[idx % list.length];
+  return list[idx % list.length] ?? sunrise;
 }
 
 const cache = new Map<string, Promise<HTMLImageElement | null>>();
@@ -59,10 +59,10 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, max: number) {
 
 export type PosterInput = {
   text: string;
-  by?: string;
+  by?: string | undefined;
   bg: string;
   name: string;
-  photo?: string | null;
+  photo?: string | null | undefined;
 };
 
 const W = 1080;

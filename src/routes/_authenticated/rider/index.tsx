@@ -21,6 +21,7 @@ import { ProfileAvatar, VerifiedByline, VerifiedTick } from "@/components/Profil
 import { EmptyState } from "@/components/EmptyState";
 import { DriverAlertSetup } from "@/components/DriverAlertSetup";
 import { TravelDesk } from "@/components/TravelDesk";
+import { QuotesStudioCard } from "@/components/QuotesStudioCard";
 import { IstClock } from "@/components/IstClock";
 import { AdBanner } from "@/components/AdBanner";
 import { Button } from "@/components/ui/button";
@@ -506,6 +507,7 @@ function RiderDashboard() {
         ) : null}
 
         <TravelDesk />
+        <QuotesStudioCard />
 
 
 

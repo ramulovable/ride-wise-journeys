@@ -105,7 +105,7 @@ function QuotesStudio() {
   return <CustomerShell title="Quotes Studio">{body}</CustomerShell>;
 }
 
-function PosterSheet({ q, bg, name, photo, onClose }: { q: Quote; bg: string; name: string; photo?: string | null; onClose: () => void }) {
+function PosterSheet({ q, bg, name, photo, onClose }: { q: Quote; bg: string; name: string; photo?: string | null | undefined; onClose: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
 

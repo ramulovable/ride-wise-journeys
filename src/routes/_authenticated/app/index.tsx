@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
 import { AdBanner } from "@/components/AdBanner";
 import { TravelDesk } from "@/components/TravelDesk";
+import { QuotesStudioCard } from "@/components/QuotesStudioCard";
 
 import { toast } from "sonner";
 import {
@@ -254,6 +255,7 @@ function BookPage() {
             {/* Big landscape advertising banner, managed from Admin > Banners. */}
             <AdBanner />
             <TravelDesk />
+            <QuotesStudioCard />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
 

@@ -44,7 +44,7 @@ function waLink(mobile?: string | null, name?: string | null): string | null {
 
 export const Route = createFileRoute("/_authenticated/admin/riders")({
   validateSearch: (s: Record<string, unknown>): { status?: "online" | "offline" } =>
-    s.status === "online" || s.status === "offline" ? { status: s.status } : {},
+    s["status"] === "online" || s["status"] === "offline" ? { status: s["status"] } : {},
   component: Riders,
 });
 

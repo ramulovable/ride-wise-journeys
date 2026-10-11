@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/quotes")({
 });
 
 function QuotesStudio() {
-  const { user, role, profile } = useAuth();
+  const { role, profile } = useAuth();
   const [cat, setCat] = useState<QuoteCategory>("today");
   const [list, setList] = useState<Quote[]>([]);
   const [name, setName] = useState("");

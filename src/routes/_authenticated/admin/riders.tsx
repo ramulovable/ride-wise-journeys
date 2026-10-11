@@ -42,7 +42,17 @@ function waLink(mobile?: string | null, name?: string | null): string | null {
   return `https://wa.me/91${ten}?text=${encodeURIComponent(text)}`;
 }
 
-export const Route = createFileRoute("/_authenticated/admin/riders")({ component: Riders });
+export const Route = createFileRoute("/_authenticated/admin/riders")({
+  validateSearch: (s: Record<string, unknown>): { status?: "online" | "offline" } =>
+    s["status"] === "online" || s["status"] === "offline" ? { status: s["status"] } : {},
+  component: Riders,
+});
+
+function lastSeenText(online: boolean, at?: string | null) {
+  if (!at) return online ? "Online" : "Offline";
+  const t = new Date(at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  return online ? `Online · since ${t}` : `Last seen ${t}`;
+}
 
 function Riders() {
   useRoleGuard("admin");
@@ -51,6 +61,8 @@ function Riders() {
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
   const [reviewsFor, setReviewsFor] = useState<string | null>(null);
   const [walletFor, setWalletFor] = useState<string | null>(null);
+  const { status } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   const riders = useQuery({
     queryKey: ["admin-riders"],
@@ -64,10 +76,17 @@ function Riders() {
       const { data: profiles } = ids.length
         ? await supabase.from("profiles").select("id,full_name,mobile,photo_url").in("id", ids)
         : { data: [] };
-      return (details ?? []).map((d) => ({
-        ...d,
-        profile: profiles?.find((p) => p.id === d.user_id),
-      }));
+      const { data: presence } = ids.length
+        ? await supabase.from("rider_presence").select("rider_id,last_seen_at,updated_at").in("rider_id", ids)
+        : { data: [] };
+      return (details ?? []).map((d) => {
+        const pr = presence?.find((p) => p.rider_id === d.user_id);
+        return {
+          ...d,
+          profile: profiles?.find((p) => p.id === d.user_id),
+          seenAt: d.is_online ? d.updated_at : (pr?.last_seen_at ?? d.updated_at),
+        };
+      });
     },
   });
 
@@ -85,6 +104,10 @@ function Riders() {
   });
   const deviceOf = (id: string) => devices.data?.find((d) => d.userId === id);
 
+  const list = (riders.data ?? []).filter((r) =>
+    status === "online" ? r.is_online : status === "offline" ? !r.is_online : true,
+  );
+
   async function run(fn: Promise<unknown>, message: string) {
     try {
       await fn;
@@ -101,11 +124,22 @@ function Riders() {
         <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <span className="text-xs text-muted-foreground">monthly cash fee</span>
       </div>
-      {riders.isSuccess && riders.data.length === 0 ? (
+      <div className="mb-3 flex gap-2">
+        {([undefined, "online", "offline"] as const).map((k) => (
+          <button
+            key={k ?? "all"}
+            onClick={() => navigate({ search: k ? { status: k } : {} })}
+            className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${status === k ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
+          >
+            {k === "online" ? "Online" : k === "offline" ? "Offline" : "All"}
+          </button>
+        ))}
+      </div>
+      {riders.isSuccess && list.length === 0 ? (
         <EmptyState title="No drivers" description="Registered driver accounts will appear here." />
       ) : (
         <div className="space-y-3">
-          {riders.data?.map((r) => (
+          {list.map((r) => (
             <article key={r.user_id} className="rounded-2xl border bg-card p-4">
               <div className="flex flex-wrap justify-between gap-3">
                 <div className="flex gap-3">
@@ -122,7 +156,7 @@ function Riders() {
                     {r.is_verified ? <VerifiedByline className="block" /> : null}
                     <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span>
-                        {r.profile?.mobile} · {r.is_online ? "Online" : "Offline"}
+                        {r.profile?.mobile} · {lastSeenText(r.is_online, r.seenAt)}
                       </span>
                       {waLink(r.profile?.mobile, r.profile?.full_name) ? (
                         <a

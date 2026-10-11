@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Loader2, RefreshCw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerShell, RiderShell } from "@/components/shells";
@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import {
   CATEGORIES,
-  QUOTES,
   festivalQuotes,
-  shuffled,
-  todaysPicks,
+  festivalState,
   type Quote,
   type QuoteCategory,
 } from "@/lib/quotes-library";
+import { nextQuotes } from "@/lib/quotes-generator";
 import { bgFor, canvasBlob, renderPoster } from "@/lib/quote-poster";
 
 export const Route = createFileRoute("/_authenticated/quotes")({
@@ -32,9 +31,9 @@ export const Route = createFileRoute("/_authenticated/quotes")({
 });
 
 function QuotesStudio() {
-  const { user, role, profile } = useAuth();
+  const { role, profile } = useAuth();
   const [cat, setCat] = useState<QuoteCategory>("today");
-  const [seed, setSeed] = useState("0");
+  const [list, setList] = useState<Quote[]>([]);
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<{ q: Quote; i: number } | null>(null);
 
@@ -42,12 +41,21 @@ function QuotesStudio() {
     if (profile?.full_name && !name) setName(profile.full_name);
   }, [profile?.full_name, name]);
 
-  const list = useMemo(() => {
-    const uid = user?.id ?? "x";
-    if (cat === "today") return todaysPicks(uid + seed, 8);
-    if (cat === "festival") return festivalQuotes();
-    return shuffled(QUOTES.filter((q) => q.cat === cat), uid + seed);
-  }, [cat, seed, user?.id]);
+  function load(reset: boolean) {
+    if (cat === "festival") { setList(festivalQuotes()); return; }
+    setList((prev) => {
+      const base = reset ? [] : prev;
+      const extra = nextQuotes(cat, 12, new Set(base.map((q) => q.id)));
+      const fest = reset && cat === "today" ? festivalQuotes().slice(0, festivalState().active.length) : [];
+      return [...fest, ...base, ...extra];
+    });
+  }
+
+  useEffect(() => {
+    load(true);
+    window.scrollTo?.(0, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat]);
 
   const body = (
     <div className="space-y-4 pb-24">
@@ -69,7 +77,7 @@ function QuotesStudio() {
         ))}
       </div>
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" onClick={() => setSeed(String(Date.now()))}>
+        <Button size="sm" variant="outline" onClick={() => load(true)}>
           <RefreshCw className="mr-1 h-4 w-4" /> नए कोट्स
         </Button>
       </div>
@@ -89,6 +97,11 @@ function QuotesStudio() {
           </button>
         ))}
       </div>
+      {cat !== "festival" && list.length > 0 && (
+        <Button variant="outline" className="w-full" onClick={() => load(false)}>
+          और नए कोट्स देखें
+        </Button>
+      )}
       {selected && (
         <PosterSheet
           q={selected.q}

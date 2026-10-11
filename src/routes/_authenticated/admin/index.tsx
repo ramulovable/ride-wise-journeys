@@ -63,7 +63,7 @@ function AdminDashboard() {
     { label: "Customers", value: ready ? stats.data.customers : "—", to: "/admin/customers" },
     { label: "Drivers", value: ready ? stats.data.riders : "—", to: "/admin/riders" },
     { label: "Pending approvals", value: ready ? stats.data.pending : "—", to: "/admin/riders" },
-    { label: "Drivers online", value: ready ? stats.data.active : "—", to: "/admin/riders" },
+    { label: "Drivers online", value: ready ? stats.data.active : "—", to: "/admin/riders", search: { status: "online" } },
     { label: "Total bookings", value: ready ? stats.data.rides : "—", to: "/admin/rides" },
     { label: "Open support", value: ready ? stats.data.support : "—", to: "/admin/support" },
     {
@@ -83,6 +83,7 @@ function AdminDashboard() {
           <Link
             key={c.label}
             to={c.to}
+            search={("search" in c ? c.search : undefined) as never}
             className="flex aspect-square min-h-[7rem] flex-col items-center justify-center gap-2 rounded-2xl border bg-card p-3 text-center shadow-sm transition active:scale-[0.98]"
           >
             <p className="text-2xl font-bold leading-none text-primary sm:text-3xl">{c.value}</p>

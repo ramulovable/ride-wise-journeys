@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, rupees } from "@/lib/format";
 import { employeeApproveDriver, employeeDashboard, employeeTagAcquisition } from "@/lib/field.functions";
-import { RangeFilter, Stat } from "@/routes/_authenticated/admin/hq";
+import { RangeFilter, Stat } from "@/components/HqUi";
 
 export const Route = createFileRoute("/_authenticated/employee/")({
   head: () => ({

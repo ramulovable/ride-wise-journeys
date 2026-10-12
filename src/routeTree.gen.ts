@@ -44,6 +44,7 @@ import { Route as AuthenticatedAdminWithdrawalsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppEticketRouteImport } from './routes/_authenticated/app/eticket'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
+import { Route as AuthenticatedEmployeeIndexRouteImport } from './routes/_authenticated/employee/index'
 import { Route as AuthenticatedRescueIdRouteImport } from './routes/_authenticated/rescue.$id'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
 import { Route as AuthenticatedRiderEarningsRouteImport } from './routes/_authenticated/rider/earnings'
@@ -53,6 +54,7 @@ import { Route as AuthenticatedRiderRidesRouteImport } from './routes/_authentic
 import { Route as AuthenticatedRiderServicesRouteImport } from './routes/_authenticated/rider/services'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
 import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/public/razorpay-webhook'
+import { Route as AuthenticatedAdminVerifyEmployeeTokenRouteImport } from './routes/_authenticated/admin/verify-employee.$token'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
 import { Route as AuthenticatedRiderRideRideIdRouteImport } from './routes/_authenticated/rider/ride.$rideId'
 
@@ -245,6 +247,12 @@ const AuthenticatedAppRidesRoute = AuthenticatedAppRidesRouteImport.update({
   path: '/app/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedEmployeeIndexRoute =
+  AuthenticatedEmployeeIndexRouteImport.update({
+    id: '/employee/',
+    path: '/employee/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRescueIdRoute = AuthenticatedRescueIdRouteImport.update({
   id: '/rescue/$id',
   path: '/rescue/$id',
@@ -294,6 +302,12 @@ const ApiPublicRazorpayWebhookRoute =
     id: '/api/public/razorpay-webhook',
     path: '/api/public/razorpay-webhook',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAdminVerifyEmployeeTokenRoute =
+  AuthenticatedAdminVerifyEmployeeTokenRouteImport.update({
+    id: '/admin/verify-employee/$token',
+    path: '/admin/verify-employee/$token',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAppRideRideIdRoute =
   AuthenticatedAppRideRideIdRouteImport.update({
@@ -351,7 +365,9 @@ export interface FileRoutesByFullPath {
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/employee/': typeof AuthenticatedEmployeeIndexRoute
   '/rider/': typeof AuthenticatedRiderIndexRoute
+  '/admin/verify-employee/$token': typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
   '/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -398,7 +414,9 @@ export interface FileRoutesByTo {
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/employee': typeof AuthenticatedEmployeeIndexRoute
   '/rider': typeof AuthenticatedRiderIndexRoute
+  '/admin/verify-employee/$token': typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
   '/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -447,7 +465,9 @@ export interface FileRoutesById {
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/employee/': typeof AuthenticatedEmployeeIndexRoute
   '/_authenticated/rider/': typeof AuthenticatedRiderIndexRoute
+  '/_authenticated/admin/verify-employee/$token': typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   '/_authenticated/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
   '/_authenticated/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -496,7 +516,9 @@ export interface FileRouteTypes {
     | '/api/public/razorpay-webhook'
     | '/admin/'
     | '/app/'
+    | '/employee/'
     | '/rider/'
+    | '/admin/verify-employee/$token'
     | '/app/ride/$rideId'
     | '/rider/ride/$rideId'
   fileRoutesByTo: FileRoutesByTo
@@ -543,7 +565,9 @@ export interface FileRouteTypes {
     | '/api/public/razorpay-webhook'
     | '/admin'
     | '/app'
+    | '/employee'
     | '/rider'
+    | '/admin/verify-employee/$token'
     | '/app/ride/$rideId'
     | '/rider/ride/$rideId'
   id:
@@ -591,7 +615,9 @@ export interface FileRouteTypes {
     | '/api/public/razorpay-webhook'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
+    | '/_authenticated/employee/'
     | '/_authenticated/rider/'
+    | '/_authenticated/admin/verify-employee/$token'
     | '/_authenticated/app/ride/$rideId'
     | '/_authenticated/rider/ride/$rideId'
   fileRoutesById: FileRoutesById
@@ -852,6 +878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRidesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employee/': {
+      id: '/_authenticated/employee/'
+      path: '/employee'
+      fullPath: '/employee/'
+      preLoaderRoute: typeof AuthenticatedEmployeeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/rescue/$id': {
       id: '/_authenticated/rescue/$id'
       path: '/rescue/$id'
@@ -915,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRazorpayWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/verify-employee/$token': {
+      id: '/_authenticated/admin/verify-employee/$token'
+      path: '/admin/verify-employee/$token'
+      fullPath: '/admin/verify-employee/$token'
+      preLoaderRoute: typeof AuthenticatedAdminVerifyEmployeeTokenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/ride/$rideId': {
       id: '/_authenticated/app/ride/$rideId'
       path: '/app/ride/$rideId'
@@ -970,7 +1010,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedEmployeeIndexRoute: typeof AuthenticatedEmployeeIndexRoute
   AuthenticatedRiderIndexRoute: typeof AuthenticatedRiderIndexRoute
+  AuthenticatedAdminVerifyEmployeeTokenRoute: typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   AuthenticatedAppRideRideIdRoute: typeof AuthenticatedAppRideRideIdRoute
   AuthenticatedRiderRideRideIdRoute: typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -1013,7 +1055,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedEmployeeIndexRoute: AuthenticatedEmployeeIndexRoute,
   AuthenticatedRiderIndexRoute: AuthenticatedRiderIndexRoute,
+  AuthenticatedAdminVerifyEmployeeTokenRoute:
+    AuthenticatedAdminVerifyEmployeeTokenRoute,
   AuthenticatedAppRideRideIdRoute: AuthenticatedAppRideRideIdRoute,
   AuthenticatedRiderRideRideIdRoute: AuthenticatedRiderRideRideIdRoute,
 }

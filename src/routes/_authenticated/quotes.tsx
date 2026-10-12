@@ -6,6 +6,7 @@ import { CustomerShell, RiderShell } from "@/components/shells";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
+import { useAvatarUrl } from "@/components/ProfileAvatar";
 import {
   CATEGORIES,
   festivalQuotes,
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/quotes")({
 
 function QuotesStudio() {
   const { role, profile } = useAuth();
+  const { data: photoUrl } = useAvatarUrl(profile?.photo_url);
   const [cat, setCat] = useState<QuoteCategory>("today");
   const [list, setList] = useState<Quote[]>([]);
   const [name, setName] = useState("");
@@ -107,7 +109,7 @@ function QuotesStudio() {
           q={selected.q}
           bg={bgFor(selected.q.cat, selected.i)}
           name={name || profile?.full_name || "Shahin Travels"}
-          photo={profile?.photo_url}
+          photo={photoUrl}
           onClose={() => setSelected(null)}
         />
       )}

@@ -74,7 +74,7 @@ const employeeNav: NavItem[] = [
   { to: "/profile", label: "Profile", icon: icon(<User className="h-4 w-4" />) },
 ];
 
-export function EmployeeShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+export function EmployeeShell({ title, subtitle, children }: { title: string; subtitle?: string | undefined; children: ReactNode }) {
   return (
     <AppShell title={title} {...(subtitle ? { subtitle } : {})} nav={employeeNav}>
       {children}

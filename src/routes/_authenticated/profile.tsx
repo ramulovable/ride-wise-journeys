@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeCanvas } from "qrcode.react";
-import { Star } from "lucide-react";
+import { ChevronRight, LifeBuoy, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminShell, CustomerShell, RiderShell } from "@/components/shells";
@@ -145,6 +145,19 @@ function ProfilePage() {
       </section>
       {role === "rider" ? <RiderVehicleQr /> : null}
       {role === "rider" ? <RiderReviews reviews={reviews.data ?? []} /> : null}
+      <Link
+        to="/support"
+        className="flex items-center justify-between rounded-2xl border border-border bg-card p-4"
+      >
+        <span className="flex items-center gap-3">
+          <LifeBuoy className="h-5 w-5 text-primary" />
+          <span>
+            <span className="block text-sm font-semibold text-foreground">Help & Support</span>
+            <span className="block text-xs text-muted-foreground">सहायता के लिए यहाँ टैप करें</span>
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+      </Link>
       <AppVersionBadge />
     </div>
   );

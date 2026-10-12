@@ -215,8 +215,8 @@ export function LiveRideMap({
   mapClassName?: string;
   followDriver?: boolean;
   navTarget?: "pickup" | "drop";
-  vehicleName?: string | null;
-  vehicleClass?: string | null;
+  vehicleName?: string | null | undefined;
+  vehicleClass?: string | null | undefined;
 }) {
   const vehicleIcon = categoryArtwork(vehicleName, vehicleClass);
   const [localPos, setLocalPos] = useState<LatLng | null>(null);

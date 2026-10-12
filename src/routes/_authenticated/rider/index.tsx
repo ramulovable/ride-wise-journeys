@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -162,6 +162,7 @@ function RiderDashboard() {
     };
   }, [user?.id, qc]);
 
+  const navigateTo = useNavigate();
   const action = useMutation({
     mutationFn: async ({
       rideId,
@@ -180,9 +181,13 @@ function RiderDashboard() {
       if (!vehicle) throw new Error("No eligible active vehicle for this booking.");
       return acceptRide({ data: { rideId, vehicleId: vehicle.id } });
     },
-    onSuccess: () => {
+    onSuccess: (_result, vars) => {
       toast.success("Ride updated.");
       void qc.invalidateQueries({ queryKey: ["rider-rides"] });
+      // Open live navigation automatically as soon as a ride is accepted.
+      if (vars.next === "accept") {
+        void navigateTo({ to: "/rider/ride/$rideId", params: { rideId: vars.rideId } });
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

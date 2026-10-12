@@ -101,7 +101,14 @@ function RiderRideDetail() {
         <p className="text-sm text-muted-foreground">Loading trip…</p>
       ) : (
         <div className="space-y-4">
-          <LiveRideMap rideId={rideId} active={live} className="h-72 w-full rounded-2xl" />
+          <LiveRideMap
+            rideId={rideId}
+            active={live}
+            followDriver
+            navTarget={["accepted", "on_the_way", "arrived"].includes(r.status) ? "pickup" : "drop"}
+            mapClassName="h-[60vh] min-h-80"
+            className="w-full"
+          />
           {broadcast.denied ? (
             <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
               Location access is blocked. Allow location so the customer can track you.

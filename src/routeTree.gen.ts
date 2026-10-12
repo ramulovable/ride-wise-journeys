@@ -19,6 +19,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedQuotesRouteImport } from './routes/_authenticated/quotes'
 import { Route as AuthenticatedReferralRouteImport } from './routes/_authenticated/referral'
 import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
+import { Route as AuthenticatedTravelRouteImport } from './routes/_authenticated/travel'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as VehicleTokenRouteImport } from './routes/vehicle.$token'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -101,6 +102,11 @@ const AuthenticatedReferralRoute = AuthenticatedReferralRouteImport.update({
 const AuthenticatedSupportRoute = AuthenticatedSupportRouteImport.update({
   id: '/support',
   path: '/support',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTravelRoute = AuthenticatedTravelRouteImport.update({
+  id: '/travel',
+  path: '/travel',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
@@ -299,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/quotes': typeof AuthenticatedQuotesRoute
   '/referral': typeof AuthenticatedReferralRoute
   '/support': typeof AuthenticatedSupportRoute
+  '/travel': typeof AuthenticatedTravelRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/vehicle/$token': typeof VehicleTokenRoute
   '/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
@@ -343,6 +350,7 @@ export interface FileRoutesByTo {
   '/quotes': typeof AuthenticatedQuotesRoute
   '/referral': typeof AuthenticatedReferralRoute
   '/support': typeof AuthenticatedSupportRoute
+  '/travel': typeof AuthenticatedTravelRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/vehicle/$token': typeof VehicleTokenRoute
   '/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
@@ -389,6 +397,7 @@ export interface FileRoutesById {
   '/_authenticated/quotes': typeof AuthenticatedQuotesRoute
   '/_authenticated/referral': typeof AuthenticatedReferralRoute
   '/_authenticated/support': typeof AuthenticatedSupportRoute
+  '/_authenticated/travel': typeof AuthenticatedTravelRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/vehicle/$token': typeof VehicleTokenRoute
   '/_authenticated/admin/auth-settings': typeof AuthenticatedAdminAuthSettingsRoute
@@ -435,6 +444,7 @@ export interface FileRouteTypes {
     | '/quotes'
     | '/referral'
     | '/support'
+    | '/travel'
     | '/wallet'
     | '/vehicle/$token'
     | '/admin/auth-settings'
@@ -479,6 +489,7 @@ export interface FileRouteTypes {
     | '/quotes'
     | '/referral'
     | '/support'
+    | '/travel'
     | '/wallet'
     | '/vehicle/$token'
     | '/admin/auth-settings'
@@ -524,6 +535,7 @@ export interface FileRouteTypes {
     | '/_authenticated/quotes'
     | '/_authenticated/referral'
     | '/_authenticated/support'
+    | '/_authenticated/travel'
     | '/_authenticated/wallet'
     | '/vehicle/$token'
     | '/_authenticated/admin/auth-settings'
@@ -638,6 +650,13 @@ declare module '@tanstack/react-router' {
       path: '/support'
       fullPath: '/support'
       preLoaderRoute: typeof AuthenticatedSupportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/travel': {
+      id: '/_authenticated/travel'
+      path: '/travel'
+      fullPath: '/travel'
+      preLoaderRoute: typeof AuthenticatedTravelRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/wallet': {
@@ -881,6 +900,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedQuotesRoute: typeof AuthenticatedQuotesRoute
   AuthenticatedReferralRoute: typeof AuthenticatedReferralRoute
   AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
+  AuthenticatedTravelRoute: typeof AuthenticatedTravelRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedAdminAuthSettingsRoute: typeof AuthenticatedAdminAuthSettingsRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
@@ -921,6 +941,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedQuotesRoute: AuthenticatedQuotesRoute,
   AuthenticatedReferralRoute: AuthenticatedReferralRoute,
   AuthenticatedSupportRoute: AuthenticatedSupportRoute,
+  AuthenticatedTravelRoute: AuthenticatedTravelRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedAdminAuthSettingsRoute: AuthenticatedAdminAuthSettingsRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,

@@ -199,6 +199,20 @@ export function AiVideoAssistant() {
           </p>
         ) : null}
       </div>
+      {micNote ? <p className="px-2 pt-2 text-[11px] text-muted-foreground">{micNote}</p> : null}
+      {status === "live" ? (
+        <form onSubmit={sendText} className="flex gap-2 px-2 pt-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={micAvailable ? "Ya yahan type karein…" : "Apna sawal likhiye…"}
+            className="min-w-0 flex-1 rounded-full border border-input bg-background px-3 py-1.5 text-sm text-foreground"
+          />
+          <button type="submit" className="rounded-full bg-primary px-3 text-sm text-primary-foreground">
+            Bhejein
+          </button>
+        </form>
+      ) : null}
       <div className="flex items-center justify-between gap-2 p-2">
         <span className="text-xs text-muted-foreground">
           {status === "live" && !muted

@@ -16,6 +16,8 @@ type GMap = {
   panTo: (p: LatLng) => void;
   setZoom: (z: number) => void;
   getZoom: () => number;
+  setTilt?: (t: number) => void;
+  setHeading?: (h: number) => void;
 };
 type GBounds = { extend: (position: LatLng) => void; isEmpty: () => boolean };
 type MapsApi = {
@@ -192,6 +194,20 @@ export function LiveRideMap({
   followDriver?: boolean;
   navTarget?: "pickup" | "drop";
 }) {
+  const [localPos, setLocalPos] = useState<LatLng | null>(null);
+  // Driver device: use its own GPS directly so the vehicle moves instantly.
+  useEffect(() => {
+    if (!followDriver || !active || !("geolocation" in navigator)) return;
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        if (p.coords.accuracy > 80) return;
+        setLocalPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+      },
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [followDriver, active]);
   const shownRef = useRef<LatLng | null>(null);
   const headingRef = useRef(0);
   const animRef = useRef<number | null>(null);
@@ -202,7 +218,8 @@ export function LiveRideMap({
   const driverMarkerRef = useRef<GMarker | null>(null);
   const overlaysRef = useRef<GMapObject[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const driver = useDriverPosition(rideId, active);
+  const remoteDriver = useDriverPosition(rideId, active);
+  const driver = localPos ?? remoteDriver;
 
   const geometry = useQuery({
     queryKey: ["ride-geometry", rideId, driver ? Math.round(driver.lat * 1000) : null],
@@ -230,6 +247,8 @@ export function LiveRideMap({
           streetViewControl: false,
           mapTypeControl: false,
           gestureHandling: "greedy",
+          mapId: "DEMO_MAP_ID",
+          tilt: followDriver ? 60 : 0,
         });
         new api.TrafficLayer().setMap(mapRef.current);
       })
@@ -317,7 +336,15 @@ export function LiveRideMap({
     }
     if (followDriver && !followedOnce.current) {
       followedOnce.current = true;
-      map.setZoom(17);
+      map.setZoom(18);
+    }
+    if (followDriver && moved) {
+      try {
+        map.setTilt?.(60);
+        map.setHeading?.(headingRef.current);
+      } catch {
+        /* raster fallback */
+      }
     }
     // Glide smoothly from the last shown point to the new GPS fix.
     if (animRef.current) cancelAnimationFrame(animRef.current);
@@ -342,11 +369,19 @@ export function LiveRideMap({
     };
   }, [driver, followDriver]);
 
-  const navUrl = useMemo(() => {
-    if (!navTarget || !data) return null;
-    const point = navTarget === "pickup" ? data.pickup : data.drop;
-    return `https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}&travelmode=driving&dir_action=navigate`;
-  }, [navTarget, data]);
+  const navInfo = useMemo(() => {
+    if (!navTarget || !data || !driver) return null;
+    const t = navTarget === "pickup" ? data.pickup : data.drop;
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(t.latitude - driver.lat);
+    const dLng = toRad(t.longitude - driver.lng);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(driver.lat)) * Math.cos(toRad(t.latitude)) * Math.sin(dLng / 2) ** 2;
+    const km = 2 * R * Math.asin(Math.sqrt(h)) * 1.3;
+    return { km, min: Math.max(1, Math.round((km / 22) * 60)) };
+  }, [navTarget, data, driver]);
 
   const status = useMemo(() => {
     if (error) return error;
@@ -363,15 +398,15 @@ export function LiveRideMap({
         role="application"
         aria-label="Live ride map"
       />
-      {navUrl ? (
-        <a
-          href={navUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 flex h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground"
-        >
-          {navTarget === "pickup" ? "Pickup tak voice navigation shuru karein" : "Destination tak voice navigation shuru karein"}
-        </a>
+      {navTarget ? (
+        <div className="mt-3 flex items-center justify-between rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
+          <span className="text-sm font-semibold">
+            {navTarget === "pickup" ? "Pickup ki taraf" : "Destination ki taraf"}
+          </span>
+          <span className="text-sm font-semibold">
+            {navInfo ? `${navInfo.km.toFixed(1)} km · ~${navInfo.min} min` : "GPS dhoondh rahe hain…"}
+          </span>
+        </div>
       ) : null}
       {status ? <p className="mt-2 text-xs text-muted-foreground">{status}</p> : null}
     </div>

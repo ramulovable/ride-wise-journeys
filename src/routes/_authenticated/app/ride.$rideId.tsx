@@ -139,7 +139,7 @@ function RideDetail() {
       ) : (
         <div className="space-y-4">
           {r.rider_id && !["completed", "cancelled"].includes(r.status) ? (
-            <LiveRideMap rideId={rideId} active className="h-64 w-full rounded-2xl" />
+            <LiveRideMap rideId={rideId} active className="w-full" mapClassName="h-80" />
           ) : null}
           <section className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-semibold text-foreground">

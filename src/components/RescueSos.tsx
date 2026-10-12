@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LifeBuoy, Phone, ShieldAlert, Siren, Trash2 } from "lucide-react";
+import { LifeBuoy, Phone, ShieldAlert, Siren, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -249,25 +249,101 @@ export function OpenRescueAlerts() {
     first.current = false;
   }, [open.data]);
 
-  if (!open.data?.length) return null;
+  const [hidden, setHidden] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setHidden(JSON.parse(localStorage.getItem("dismissed-rescues") || "[]"));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const dismiss = (id: string) => {
+    setHidden((h) => {
+      const next = [...h, id].slice(-100);
+      try {
+        localStorage.setItem("dismissed-rescues", JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const rows = (open.data ?? []).filter(
+    (r) => !hidden.includes(r.id) && Date.now() - new Date(r.created_at).getTime() < 24 * 60 * 60 * 1000,
+  );
+  if (!rows.length) return null;
   return (
     <section className="space-y-2">
-      {open.data.map((r) => (
-        <Link
-          key={r.id}
-          to="/rescue/$id"
-          params={{ id: r.id }}
-          className="flex items-center gap-3 rounded-2xl border-2 border-destructive bg-destructive/10 p-3"
-        >
-          <Siren className="h-6 w-6 animate-pulse text-destructive" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-destructive">
-              {r.kind === "sos" ? "SOS" : "Rescue"}: {r.name} ko madad chahiye
-            </p>
-            <p className="text-xs text-muted-foreground">Tap karke details dekhein</p>
-          </div>
-        </Link>
+      {rows.map((r) => (
+        <SwipeAlert key={r.id} onDismiss={() => dismiss(r.id)}>
+          <Link
+            to="/rescue/$id"
+            params={{ id: r.id }}
+            className="flex items-center gap-3 rounded-2xl border-2 border-destructive bg-destructive/10 p-3 pr-10"
+          >
+            <Siren className="h-6 w-6 animate-pulse text-destructive" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-destructive">
+                {r.kind === "sos" ? "SOS" : "Rescue"}: {r.name} ko madad chahiye
+              </p>
+              <p className="text-xs text-muted-foreground">Tap karke details dekhein · Swipe karke hatayein</p>
+            </div>
+          </Link>
+        </SwipeAlert>
       ))}
     </section>
+  );
+}
+
+function SwipeAlert({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+  const [dx, setDx] = useState(0);
+  const [gone, setGone] = useState(false);
+  const start = useRef<number | null>(null);
+  const moved = useRef(false);
+  const finish = () => {
+    if (Math.abs(dx) > 100) {
+      setGone(true);
+      setDx(dx > 0 ? 600 : -600);
+      window.setTimeout(onDismiss, 200);
+    } else setDx(0);
+    start.current = null;
+  };
+  return (
+    <div
+      className="relative touch-pan-y"
+      style={{ transform: `translateX(${dx}px)`, opacity: gone ? 0 : 1 - Math.min(Math.abs(dx) / 300, 0.7), transition: start.current === null ? "transform 200ms, opacity 200ms" : "none" }}
+      onPointerDown={(e) => {
+        start.current = e.clientX;
+        moved.current = false;
+      }}
+      onPointerMove={(e) => {
+        if (start.current === null) return;
+        const d = e.clientX - start.current;
+        if (Math.abs(d) > 8) moved.current = true;
+        setDx(d);
+      }}
+      onPointerUp={finish}
+      onPointerCancel={finish}
+      onClickCapture={(e) => {
+        if (moved.current) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+    >
+      {children}
+      <button
+        type="button"
+        aria-label="Alert hatayein"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss();
+        }}
+        className="absolute right-2 top-2 rounded-full p-1 text-destructive hover:bg-destructive/10"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }

@@ -542,7 +542,7 @@ async function loadFareOptions(fromLocationId: string, toLocationId: string, pas
       .eq("is_approved", true)
       .eq("is_blocked", false)
       .eq("is_online", true)
-      .gte("subscription_valid_until", today),
+      .or(`subscription_valid_until.gte.${today},commission_plan_active.eq.true`),
     supabaseAdmin
       .from("rider_vehicles")
       .select("id, rider_id, vehicle_category_id, seat_capacity, has_ac")
@@ -730,7 +730,7 @@ export const getRiderOffers = createServerFn({ method: "GET" })
         .eq("is_approved", true)
         .eq("is_blocked", false)
         .eq("is_online", true)
-        .gte("subscription_valid_until", today),
+        .or(`subscription_valid_until.gte.${today},commission_plan_active.eq.true`),
       supabaseAdmin.from("profiles").select("id, full_name").in("id", riderIds),
       supabaseAdmin
         .from("rider_vehicles")
@@ -1156,14 +1156,14 @@ export const acceptRide = createServerFn({ method: "POST" })
 
     const { data: rider } = await supabase
       .from("rider_details")
-      .select("is_approved, is_blocked, is_online, subscription_valid_until")
+      .select("is_approved, is_blocked, is_online, subscription_valid_until, commission_plan_active")
       .eq("user_id", userId)
       .maybeSingle();
     if (
       !rider?.is_approved ||
       rider.is_blocked ||
-      !rider.subscription_valid_until ||
-      rider.subscription_valid_until < today
+      (!rider.commission_plan_active &&
+        (!rider.subscription_valid_until || rider.subscription_valid_until < today))
     ) {
       throw new Error("Your subscription is not active. Please pay the monthly fee to the admin.");
     }
@@ -2078,15 +2078,15 @@ export const acceptEnRouteRide = createServerFn({ method: "POST" })
     const today = new Date().toISOString().slice(0, 10);
     const { data: rider } = await supabase
       .from("rider_details")
-      .select("is_approved, is_blocked, is_online, subscription_valid_until")
+      .select("is_approved, is_blocked, is_online, subscription_valid_until, commission_plan_active")
       .eq("user_id", userId)
       .maybeSingle();
     if (
       !rider?.is_approved ||
       rider.is_blocked ||
       !rider.is_online ||
-      !rider.subscription_valid_until ||
-      rider.subscription_valid_until < today
+      (!rider.commission_plan_active &&
+        (!rider.subscription_valid_until || rider.subscription_valid_until < today))
     ) {
       throw new Error("Your account is not eligible to accept rides right now.");
     }

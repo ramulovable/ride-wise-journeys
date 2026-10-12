@@ -187,6 +187,51 @@ export type Database = {
         }
         Relationships: []
       }
+      compensation_rules: {
+        Row: {
+          amount: number
+          created_at: string
+          dormant_days: number
+          effective_from: string
+          effective_to: string | null
+          event_type: string
+          id: string
+          is_active: boolean
+          min_completed_rides: number
+          require_kyc: boolean
+          require_monetization: boolean
+          territory: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          dormant_days?: number
+          effective_from?: string
+          effective_to?: string | null
+          event_type: string
+          id?: string
+          is_active?: boolean
+          min_completed_rides?: number
+          require_kyc?: boolean
+          require_monetization?: boolean
+          territory?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          dormant_days?: number
+          effective_from?: string
+          effective_to?: string | null
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          min_completed_rides?: number
+          require_kyc?: boolean
+          require_monetization?: boolean
+          territory?: string | null
+        }
+        Relationships: []
+      }
       day_night_pricing_config: {
         Row: {
           applies_to_per_km: boolean
@@ -372,6 +417,77 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_monetization_plans: {
+        Row: {
+          city: string | null
+          commission_type: string | null
+          commission_value: number | null
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          grace_days: number
+          id: string
+          is_active: boolean
+          max_commission: number | null
+          min_commission: number | null
+          monthly_fee: number | null
+          name: string
+          plan_type: string
+          rider_id: string | null
+          updated_at: string
+          vehicle_category_id: string | null
+        }
+        Insert: {
+          city?: string | null
+          commission_type?: string | null
+          commission_value?: number | null
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          grace_days?: number
+          id?: string
+          is_active?: boolean
+          max_commission?: number | null
+          min_commission?: number | null
+          monthly_fee?: number | null
+          name: string
+          plan_type: string
+          rider_id?: string | null
+          updated_at?: string
+          vehicle_category_id?: string | null
+        }
+        Update: {
+          city?: string | null
+          commission_type?: string | null
+          commission_value?: number | null
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          grace_days?: number
+          id?: string
+          is_active?: boolean
+          max_commission?: number | null
+          min_commission?: number | null
+          monthly_fee?: number | null
+          name?: string
+          plan_type?: string
+          rider_id?: string | null
+          updated_at?: string
+          vehicle_category_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_monetization_plans_vehicle_category_id_fkey"
+            columns: ["vehicle_category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       earning_transactions: {
         Row: {
           amount: number
@@ -400,6 +516,102 @@ export type Database = {
             columns: ["ride_id"]
             isOneToOne: true
             referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_qualified_events: {
+        Row: {
+          amount: number
+          employee_id: string
+          event_type: string
+          id: string
+          ledger_id: string | null
+          period_key: string
+          qualified_at: string
+          rule_id: string | null
+          subject_id: string
+        }
+        Insert: {
+          amount?: number
+          employee_id: string
+          event_type: string
+          id?: string
+          ledger_id?: string | null
+          period_key?: string
+          qualified_at?: string
+          rule_id?: string | null
+          subject_id: string
+        }
+        Update: {
+          amount?: number
+          employee_id?: string
+          event_type?: string
+          id?: string
+          ledger_id?: string | null
+          period_key?: string
+          qualified_at?: string
+          rule_id?: string | null
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_qualified_events_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_qualified_events_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "financial_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_qualified_events_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "compensation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_targets: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          metric: string
+          month: string
+          slabs: Json
+          target_value: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          metric: string
+          month: string
+          slabs?: Json
+          target_value: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          metric?: string
+          month?: string
+          slabs?: Json
+          target_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_targets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
             referencedColumns: ["id"]
           },
         ]
@@ -804,6 +1016,130 @@ export type Database = {
           },
         ]
       }
+      field_employees: {
+        Row: {
+          can_approve_drivers: boolean
+          commission_plan_note: string | null
+          created_at: string
+          created_by: string | null
+          designation: string
+          employee_code: string
+          id: string
+          incentives_start_date: string | null
+          joining_date: string
+          monthly_salary: number
+          reporting_manager_id: string | null
+          status: string
+          territory: string
+          updated_at: string
+          user_id: string
+          verification_token: string
+        }
+        Insert: {
+          can_approve_drivers?: boolean
+          commission_plan_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          designation?: string
+          employee_code: string
+          id?: string
+          incentives_start_date?: string | null
+          joining_date?: string
+          monthly_salary?: number
+          reporting_manager_id?: string | null
+          status?: string
+          territory: string
+          updated_at?: string
+          user_id: string
+          verification_token?: string
+        }
+        Update: {
+          can_approve_drivers?: boolean
+          commission_plan_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          designation?: string
+          employee_code?: string
+          id?: string
+          incentives_start_date?: string | null
+          joining_date?: string
+          monthly_salary?: number
+          reporting_manager_id?: string | null
+          status?: string
+          territory?: string
+          updated_at?: string
+          user_id?: string
+          verification_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_employees_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_ledger: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string | null
+          id: string
+          note: string | null
+          plan_id: string | null
+          reference: string | null
+          ride_id: string | null
+          status: string
+          txn_type: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          id?: string
+          note?: string | null
+          plan_id?: string | null
+          reference?: string | null
+          ride_id?: string | null
+          status?: string
+          txn_type: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          id?: string
+          note?: string | null
+          plan_id?: string | null
+          reference?: string | null
+          ride_id?: string | null
+          status?: string
+          txn_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_ledger_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       languages: {
         Row: {
           code: string
@@ -1028,8 +1364,59 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          baseline_active: boolean
+          baseline_rides_30d: number
+          baseline_subscription_until: string | null
+          employee_id: string
+          ended_at: string | null
+          id: string
+          subject_type: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          baseline_active?: boolean
+          baseline_rides_30d?: number
+          baseline_subscription_until?: string | null
+          employee_id: string
+          ended_at?: string | null
+          id?: string
+          subject_type: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          baseline_active?: boolean
+          baseline_rides_30d?: number
+          baseline_subscription_until?: string | null
+          employee_id?: string
+          ended_at?: string | null
+          id?: string
+          subject_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          acquired_by_employee_id: string | null
+          acquisition_date: string | null
+          acquisition_source: string | null
+          acquisition_territory: string | null
           address: string | null
           app_version: string | null
           app_version_seen_at: string | null
@@ -1044,11 +1431,16 @@ export type Database = {
           my_referral_code: string | null
           onboarding_step: string
           photo_url: string | null
+          portfolio_manager_id: string | null
           preferred_language: string
           referral_code: string | null
           updated_at: string
         }
         Insert: {
+          acquired_by_employee_id?: string | null
+          acquisition_date?: string | null
+          acquisition_source?: string | null
+          acquisition_territory?: string | null
           address?: string | null
           app_version?: string | null
           app_version_seen_at?: string | null
@@ -1063,11 +1455,16 @@ export type Database = {
           my_referral_code?: string | null
           onboarding_step?: string
           photo_url?: string | null
+          portfolio_manager_id?: string | null
           preferred_language?: string
           referral_code?: string | null
           updated_at?: string
         }
         Update: {
+          acquired_by_employee_id?: string | null
+          acquisition_date?: string | null
+          acquisition_source?: string | null
+          acquisition_territory?: string | null
           address?: string | null
           app_version?: string | null
           app_version_seen_at?: string | null
@@ -1082,11 +1479,27 @@ export type Database = {
           my_referral_code?: string | null
           onboarding_step?: string
           photo_url?: string | null
+          portfolio_manager_id?: string | null
           preferred_language?: string
           referral_code?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_acquired_by_employee_id_fkey"
+            columns: ["acquired_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_portfolio_manager_id_fkey"
+            columns: ["portfolio_manager_id"]
+            isOneToOne: false
+            referencedRelation: "field_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promotional_banners: {
         Row: {
@@ -1692,13 +2105,17 @@ export type Database = {
       }
       rider_details: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           base_location_id: string | null
+          commission_plan_active: boolean
           created_at: string
           is_approved: boolean
           is_blocked: boolean
           is_online: boolean
           is_verified: boolean
           license_number: string | null
+          monetization_plan_id: string | null
           seat_capacity: number
           subscription_valid_until: string | null
           updated_at: string
@@ -1709,13 +2126,17 @@ export type Database = {
           voice_alert_enabled: boolean
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           base_location_id?: string | null
+          commission_plan_active?: boolean
           created_at?: string
           is_approved?: boolean
           is_blocked?: boolean
           is_online?: boolean
           is_verified?: boolean
           license_number?: string | null
+          monetization_plan_id?: string | null
           seat_capacity?: number
           subscription_valid_until?: string | null
           updated_at?: string
@@ -1726,13 +2147,17 @@ export type Database = {
           voice_alert_enabled?: boolean
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           base_location_id?: string | null
+          commission_plan_active?: boolean
           created_at?: string
           is_approved?: boolean
           is_blocked?: boolean
           is_online?: boolean
           is_verified?: boolean
           license_number?: string | null
+          monetization_plan_id?: string | null
           seat_capacity?: number
           subscription_valid_until?: string | null
           updated_at?: string
@@ -1748,6 +2173,13 @@ export type Database = {
             columns: ["base_location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rider_details_monetization_plan_id_fkey"
+            columns: ["monetization_plan_id"]
+            isOneToOne: false
+            referencedRelation: "driver_monetization_plans"
             referencedColumns: ["id"]
           },
           {
@@ -2599,6 +3031,33 @@ export type Database = {
           },
         ]
       }
+      verified_tick_audit: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          driver_id: string
+          id: string
+          new_value: boolean
+          old_value: boolean | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          driver_id: string
+          id?: string
+          new_value: boolean
+          old_value?: boolean | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          driver_id?: string
+          id?: string
+          new_value?: boolean
+          old_value?: boolean | null
+        }
+        Relationships: []
+      }
       wallet_accounts: {
         Row: {
           created_at: string
@@ -2698,6 +3157,7 @@ export type Database = {
         Args: { _ride_id: string; _vehicle_id: string }
         Returns: boolean
       }
+      active_employee_id: { Args: { _user_id: string }; Returns: string }
       admin_adjust_wallet: {
         Args: { _amount: number; _note: string; _user_id: string }
         Returns: boolean
@@ -2718,6 +3178,7 @@ export type Database = {
       award_referral: { Args: { _referral_id: string }; Returns: boolean }
       ensure_referral_code: { Args: { _user_id?: string }; Returns: string }
       ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
+      generate_employee_code: { Args: never; Returns: string }
       generate_eticket_pnr: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       has_role: {

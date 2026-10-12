@@ -5,7 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const broadcastInput = z.object({
   title: z.string().trim().min(2).max(80),
   body: z.string().trim().min(2).max(500),
-  audience: z.enum(["all", "customers", "riders"]),
+  audience: z.enum(["all", "customers", "riders", "person"]),
+  userId: z.string().uuid().optional(),
   actionPath: z.string().trim().min(1).max(200).default("/"),
 });
 
@@ -22,6 +23,13 @@ export const sendBroadcast = createServerFn({ method: "POST" })
     });
     if (!isAdmin) throw new Error("Only admins can send announcements.");
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let userIds: string[] = [];
+    if (data.audience === "person") {
+      if (!data.userId) throw new Error("Choose the person to notify.");
+      userIds = [data.userId];
+    } else {
     const roles =
       data.audience === "all"
         ? ["customer", "rider"]
@@ -29,15 +37,14 @@ export const sendBroadcast = createServerFn({ method: "POST" })
           ? ["customer"]
           : ["rider"];
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
     const { data: roleRows, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("user_id")
       .in("role", roles as never);
     if (roleError) throw new Error(roleError.message);
 
-    const userIds = Array.from(new Set((roleRows ?? []).map((row) => row.user_id)));
+    userIds = Array.from(new Set((roleRows ?? []).map((row) => row.user_id)));
+    }
     if (userIds.length === 0) throw new Error("No people found for this audience yet.");
 
     const { data: broadcast, error: broadcastError } = await supabaseAdmin
@@ -45,7 +52,8 @@ export const sendBroadcast = createServerFn({ method: "POST" })
       .insert({
         title: data.title,
         body: data.body,
-        audience: data.audience,
+        audience:
+          data.audience === "person" ? `person:${data.userId}` : data.audience,
         action_path: data.actionPath,
         recipient_count: userIds.length,
         sent_by: userId,
@@ -167,4 +175,47 @@ export const listBroadcasts = createServerFn({ method: "GET" })
       .limit(50);
     if (error) throw new Error(error.message);
     return data ?? [];
+  });
+
+/** Admin: find customers/drivers by name or mobile for a personal notification. */
+export const searchNotifyUsers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ q: z.string().trim().min(2).max(40) }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Only admins can search people.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const term = data.q.replace(/[%,()]/g, "");
+    const { data: people, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, mobile, photo_url")
+      .or(`full_name.ilike.%${term}%,mobile.ilike.%${term}%`)
+      .limit(15);
+    if (error) throw new Error(error.message);
+    const ids = (people ?? []).map((p) => p.id);
+    const [{ data: roles }, { data: devices }] = await Promise.all([
+      ids.length ? supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids) : Promise.resolve({ data: [] as { user_id: string; role: string }[] }),
+      ids.length ? supabaseAdmin.from("notification_devices").select("user_id").eq("is_active", true).in("user_id", ids) : Promise.resolve({ data: [] as { user_id: string }[] }),
+    ]);
+    return (people ?? []).map((p) => {
+      const r = (roles ?? []).filter((x) => x.user_id === p.id).map((x) => String(x.role));
+      return {
+        ...p,
+        role: r.includes("rider") ? "Driver" : r.includes("admin") ? "Admin" : "Customer",
+        hasPhone: (devices ?? []).some((d) => d.user_id === p.id),
+      };
+    });
+  });
+
+/** Names for personal notifications in history. */
+export const namesForUsers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ ids: z.array(z.string().uuid()).max(100) }).parse(data))
+  .handler(async ({ data, context }) => {
+    if (data.ids.length === 0) return {} as Record<string, string>;
+    const { data: rows } = await context.supabase.from("profiles").select("id, full_name, mobile").in("id", data.ids);
+    return Object.fromEntries((rows ?? []).map((r) => [r.id, r.full_name || r.mobile])) as Record<string, string>;
   });

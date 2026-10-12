@@ -74,9 +74,6 @@ const QUICK_ACTIONS = [
   { to: "/rider/earnings", label: "Earnings", icon: <BadgeIndianRupee className="h-5 w-5" /> },
   { to: "/wallet", label: "Wallet", icon: <Wallet className="h-5 w-5" /> },
   { to: "/rider/qr", label: "QR Code", icon: <QrCode className="h-5 w-5" /> },
-  { to: "/rider/rides", label: "Rider History", icon: <History className="h-5 w-5" /> },
-  { to: "/profile", label: "Profile", icon: <UserRound className="h-5 w-5" /> },
-  { to: "/support", label: "Help & Support", icon: <LifeBuoy className="h-5 w-5" /> },
 ];
 
 function minutesAgo(iso: string) {
@@ -505,32 +502,8 @@ function RiderDashboard() {
           </section>
         ) : null}
 
-        {/* All drivers see the card; drivers who joined before the cutoff start as ON. */}
-        {riderDetails ? (
-          <DriverAlertSetup
-            existingDriver={
-              new Date((riderDetails as { created_at?: string }).created_at ?? 0).getTime() <
-              Date.parse("2026-10-08T05:00:00Z")
-            }
-          />
-        ) : null}
-
         <OpenRescueAlerts />
         <RescueSosCard />
-        <TravelDesk />
-        <QuotesStudioCard />
-        <AppVersionBadge />
-
-
-
-        <section className="grid grid-cols-2 gap-3">
-          {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
-        </section>
 
         <section>
           <div className="mb-2 flex items-center justify-between">

@@ -36,11 +36,7 @@ const customerNav: NavItem[] = [
 const riderNav: NavItem[] = [
   { to: "/rider", label: "Home", icon: icon(<Home className="h-4 w-4" />) },
   { to: "/rider/rides", label: "Bookings", icon: icon(<ClipboardList className="h-4 w-4" />) },
-  {
-    to: "/rider/earnings",
-    label: "Earning",
-    icon: icon(<BadgeIndianRupee className="h-4 w-4" />),
-  },
+  { to: "/rider/services", label: "Other Services", icon: icon(<Plane className="h-4 w-4" />) },
   { to: "/profile", label: "Profile", icon: icon(<User className="h-4 w-4" />) },
 ];
 

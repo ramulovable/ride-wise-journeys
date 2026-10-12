@@ -45,6 +45,7 @@ export function AiVideoAssistant() {
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [caption, setCaption] = useState("");
+  const [listening, setListening] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const sessionRef = useRef<import("@heygen/liveavatar-web-sdk").LiveAvatarSession | null>(null);
   const contextRef = useRef<string | null>(null);
@@ -70,8 +71,18 @@ export function AiVideoAssistant() {
         data: { path: pathname, language },
       });
       contextRef.current = contextId;
+      // Ask for the mic up front so the phone shows the permission prompt.
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        s.getTracks().forEach((t) => t.stop());
+      } catch {
+        throw new Error("Microphone ki permission dijiye, tabhi Ayesha aapki baat sun payegi.");
+      }
       const sdk = await import("@heygen/liveavatar-web-sdk");
-      const session = new sdk.LiveAvatarSession(sessionToken, { autoKeepAlive: true });
+      const session = new sdk.LiveAvatarSession(sessionToken, {
+        autoKeepAlive: true,
+        voiceChat: { mode: sdk.SessionInteractivityMode.CONVERSATIONAL, defaultMuted: false },
+      });
       sessionRef.current = session;
       session.on(sdk.SessionEvent.SESSION_STREAM_READY, () => {
         if (videoRef.current) session.attach(videoRef.current);
@@ -81,6 +92,11 @@ export function AiVideoAssistant() {
         setStatus((s) => (s === "error" ? s : "idle"));
         void cleanup();
         setOpen(false);
+      });
+      session.on(sdk.AgentEventsEnum.USER_SPEAK_STARTED, () => setListening(true));
+      session.on(sdk.AgentEventsEnum.USER_SPEAK_ENDED, () => setListening(false));
+      session.on(sdk.AgentEventsEnum.USER_TRANSCRIPTION, (e: { text?: string }) => {
+        if (e?.text) setCaption(`Aap: ${e.text}`);
       });
       session.on(sdk.AgentEventsEnum.AVATAR_TRANSCRIPTION, (e: { text?: string }) => {
         if (e?.text) {
@@ -159,7 +175,13 @@ export function AiVideoAssistant() {
         ) : null}
       </div>
       <div className="flex items-center justify-between gap-2 p-2">
-        <span className="text-xs text-muted-foreground">Emma · Live AI</span>
+        <span className="text-xs text-muted-foreground">
+          {status === "live" && !muted
+            ? listening
+              ? "🎙️ Ayesha sun rahi hai…"
+              : "Ayesha · boliye"
+            : "Ayesha · Live AI"}
+        </span>
         <div className="flex gap-2">
           <button
             type="button"

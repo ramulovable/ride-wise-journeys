@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
+import { OpenRescueAlerts } from "@/components/RescueSos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,6 +114,9 @@ function NotificationsPage() {
 
   return (
     <AdminShell title="Notifications" subtitle="Alerts sent when customers book a ride.">
+      <div className="mb-4">
+        <OpenRescueAlerts />
+      </div>
       <div className="mb-4 rounded-2xl border border-border bg-card p-4">
         <p className="text-xs text-muted-foreground">Drivers with alerts switched on</p>
         <p className="text-2xl font-bold">{devices.data ?? 0}</p>

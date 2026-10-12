@@ -6,7 +6,7 @@ const API = "https://api.liveavatar.com";
 const AVATAR_ID = "10ba14ab-3911-4b89-8dfd-86b5ba25876f"; // Emma (Friendly)
 
 function key() {
-  const k = process.env.LIVEAVATAR_API_KEY;
+  const k = process.env["LIVEAVATAR_API_KEY"];
   if (!k) throw new Error("AI assistant is not configured yet.");
   return k;
 }

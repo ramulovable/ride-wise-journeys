@@ -174,7 +174,13 @@ export function AiVideoAssistant() {
         ) : null}
       </div>
       <div className="flex items-center justify-between gap-2 p-2">
-        <span className="text-xs text-muted-foreground">Emma · Live AI</span>
+        <span className="text-xs text-muted-foreground">
+          {status === "live" && !muted
+            ? listening
+              ? "🎙️ Ayesha sun rahi hai…"
+              : "Ayesha · boliye"
+            : "Ayesha · Live AI"}
+        </span>
         <div className="flex gap-2">
           <button
             type="button"

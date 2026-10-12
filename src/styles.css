@@ -174,3 +174,16 @@
 .lj-streak { background-size: 1600px auto; background-repeat: repeat-x; filter: blur(6px); animation: lj-str 1.2s linear infinite; mask-image: linear-gradient(to top, black 40%, transparent); transition: opacity .8s; }
 .lj-sway { background: linear-gradient(90deg, oklch(0.5 0.12 140 / 0.5), transparent); transform-origin: bottom; animation: lj-sw 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .lj-kenburns, .lj-shake, .lj-streak, .lj-sway { animation: none !important; } }
+
+.ai-guide-highlight {
+  position: relative;
+  z-index: 45;
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 12px;
+  animation: ai-guide-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ai-guide-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent); }
+  50% { box-shadow: 0 0 0 10px transparent; }
+}

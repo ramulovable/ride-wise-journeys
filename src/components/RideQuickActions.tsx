@@ -10,7 +10,7 @@ function smsLink(mobile: string, text: string) {
 }
 
 /** One-tap quick messages to the other person on the ride. */
-export function QuickChat({ mobile, role }: { mobile?: string | null; role: "customer" | "driver" }) {
+export function QuickChat({ mobile, role }: { mobile?: string | null | undefined; role: "customer" | "driver" }) {
   if (!mobile) return null;
   const msgs = role === "customer" ? CUSTOMER_MSGS : DRIVER_MSGS;
   return (

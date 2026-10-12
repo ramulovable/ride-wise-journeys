@@ -8,6 +8,13 @@
       "when": 1791770290662,
       "tag": "0000_rescue_sos_app_version",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791793391335,
+      "tag": "0001_field_employee_system",
+      "breakpoints": true
     }
   ]
 }

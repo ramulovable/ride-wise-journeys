@@ -53,7 +53,9 @@ export const mobileToEmail = (mobile: string) => `${mobile}@${MOBILE_DOMAIN}`;
 export const isValidMobile = (mobile: string) => /^[6-9]\d{9}$/.test(mobile);
 
 export function subscriptionActive(rider: RiderDetails | null): boolean {
-  if (!rider?.is_approved || rider.is_blocked || !rider.subscription_valid_until) return false;
+  if (!rider?.is_approved || rider.is_blocked) return false;
+  if ((rider as { commission_plan_active?: boolean }).commission_plan_active) return true;
+  if (!rider.subscription_valid_until) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return new Date(`${rider.subscription_valid_until}T00:00:00`) >= today;

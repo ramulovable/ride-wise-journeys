@@ -30,6 +30,7 @@ import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminDispatchRouteImport } from './routes/_authenticated/admin/dispatch'
 import { Route as AuthenticatedAdminEticketsRouteImport } from './routes/_authenticated/admin/etickets'
 import { Route as AuthenticatedAdminFaresRouteImport } from './routes/_authenticated/admin/fares'
+import { Route as AuthenticatedAdminHqRouteImport } from './routes/_authenticated/admin/hq'
 import { Route as AuthenticatedAdminLiveDriversRouteImport } from './routes/_authenticated/admin/live-drivers'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminQrRouteImport } from './routes/_authenticated/admin/qr'
@@ -43,6 +44,8 @@ import { Route as AuthenticatedAdminWithdrawalsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppEticketRouteImport } from './routes/_authenticated/app/eticket'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
+import { Route as AuthenticatedEmployeeIndexRouteImport } from './routes/_authenticated/employee/index'
+import { Route as AuthenticatedEmployeeIdCardRouteImport } from './routes/_authenticated/employee/id-card'
 import { Route as AuthenticatedRescueIdRouteImport } from './routes/_authenticated/rescue.$id'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
 import { Route as AuthenticatedRiderEarningsRouteImport } from './routes/_authenticated/rider/earnings'
@@ -52,6 +55,7 @@ import { Route as AuthenticatedRiderRidesRouteImport } from './routes/_authentic
 import { Route as AuthenticatedRiderServicesRouteImport } from './routes/_authenticated/rider/services'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
 import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/public/razorpay-webhook'
+import { Route as AuthenticatedAdminVerifyEmployeeTokenRouteImport } from './routes/_authenticated/admin/verify-employee.$token'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
 import { Route as AuthenticatedRiderRideRideIdRouteImport } from './routes/_authenticated/rider/ride.$rideId'
 
@@ -166,6 +170,11 @@ const AuthenticatedAdminFaresRoute = AuthenticatedAdminFaresRouteImport.update({
   path: '/admin/fares',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminHqRoute = AuthenticatedAdminHqRouteImport.update({
+  id: '/admin/hq',
+  path: '/admin/hq',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminLiveDriversRoute =
   AuthenticatedAdminLiveDriversRouteImport.update({
     id: '/admin/live-drivers',
@@ -239,6 +248,18 @@ const AuthenticatedAppRidesRoute = AuthenticatedAppRidesRouteImport.update({
   path: '/app/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedEmployeeIndexRoute =
+  AuthenticatedEmployeeIndexRouteImport.update({
+    id: '/employee/',
+    path: '/employee/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployeeIdCardRoute =
+  AuthenticatedEmployeeIdCardRouteImport.update({
+    id: '/employee/id-card',
+    path: '/employee/id-card',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRescueIdRoute = AuthenticatedRescueIdRouteImport.update({
   id: '/rescue/$id',
   path: '/rescue/$id',
@@ -289,6 +310,12 @@ const ApiPublicRazorpayWebhookRoute =
     path: '/api/public/razorpay-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAdminVerifyEmployeeTokenRoute =
+  AuthenticatedAdminVerifyEmployeeTokenRouteImport.update({
+    id: '/admin/verify-employee/$token',
+    path: '/admin/verify-employee/$token',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppRideRideIdRoute =
   AuthenticatedAppRideRideIdRouteImport.update({
     id: '/app/ride/$rideId',
@@ -322,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/admin/etickets': typeof AuthenticatedAdminEticketsRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/admin/hq': typeof AuthenticatedAdminHqRoute
   '/admin/live-drivers': typeof AuthenticatedAdminLiveDriversRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
@@ -334,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/employee/id-card': typeof AuthenticatedEmployeeIdCardRoute
   '/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
@@ -344,7 +373,9 @@ export interface FileRoutesByFullPath {
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/employee/': typeof AuthenticatedEmployeeIndexRoute
   '/rider/': typeof AuthenticatedRiderIndexRoute
+  '/admin/verify-employee/$token': typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
   '/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -368,6 +399,7 @@ export interface FileRoutesByTo {
   '/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/admin/etickets': typeof AuthenticatedAdminEticketsRoute
   '/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/admin/hq': typeof AuthenticatedAdminHqRoute
   '/admin/live-drivers': typeof AuthenticatedAdminLiveDriversRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/qr': typeof AuthenticatedAdminQrRoute
@@ -380,6 +412,7 @@ export interface FileRoutesByTo {
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/employee/id-card': typeof AuthenticatedEmployeeIdCardRoute
   '/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
@@ -390,7 +423,9 @@ export interface FileRoutesByTo {
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/employee': typeof AuthenticatedEmployeeIndexRoute
   '/rider': typeof AuthenticatedRiderIndexRoute
+  '/admin/verify-employee/$token': typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   '/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
   '/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -416,6 +451,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/dispatch': typeof AuthenticatedAdminDispatchRoute
   '/_authenticated/admin/etickets': typeof AuthenticatedAdminEticketsRoute
   '/_authenticated/admin/fares': typeof AuthenticatedAdminFaresRoute
+  '/_authenticated/admin/hq': typeof AuthenticatedAdminHqRoute
   '/_authenticated/admin/live-drivers': typeof AuthenticatedAdminLiveDriversRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/qr': typeof AuthenticatedAdminQrRoute
@@ -428,6 +464,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/_authenticated/app/eticket': typeof AuthenticatedAppEticketRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
+  '/_authenticated/employee/id-card': typeof AuthenticatedEmployeeIdCardRoute
   '/_authenticated/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/_authenticated/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/_authenticated/rider/eticket': typeof AuthenticatedRiderEticketRoute
@@ -438,7 +475,9 @@ export interface FileRoutesById {
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/employee/': typeof AuthenticatedEmployeeIndexRoute
   '/_authenticated/rider/': typeof AuthenticatedRiderIndexRoute
+  '/_authenticated/admin/verify-employee/$token': typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   '/_authenticated/app/ride/$rideId': typeof AuthenticatedAppRideRideIdRoute
   '/_authenticated/rider/ride/$rideId': typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -464,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/dispatch'
     | '/admin/etickets'
     | '/admin/fares'
+    | '/admin/hq'
     | '/admin/live-drivers'
     | '/admin/notifications'
     | '/admin/qr'
@@ -476,6 +516,7 @@ export interface FileRouteTypes {
     | '/admin/withdrawals'
     | '/app/eticket'
     | '/app/rides'
+    | '/employee/id-card'
     | '/rescue/$id'
     | '/rider/earnings'
     | '/rider/eticket'
@@ -486,7 +527,9 @@ export interface FileRouteTypes {
     | '/api/public/razorpay-webhook'
     | '/admin/'
     | '/app/'
+    | '/employee/'
     | '/rider/'
+    | '/admin/verify-employee/$token'
     | '/app/ride/$rideId'
     | '/rider/ride/$rideId'
   fileRoutesByTo: FileRoutesByTo
@@ -510,6 +553,7 @@ export interface FileRouteTypes {
     | '/admin/dispatch'
     | '/admin/etickets'
     | '/admin/fares'
+    | '/admin/hq'
     | '/admin/live-drivers'
     | '/admin/notifications'
     | '/admin/qr'
@@ -522,6 +566,7 @@ export interface FileRouteTypes {
     | '/admin/withdrawals'
     | '/app/eticket'
     | '/app/rides'
+    | '/employee/id-card'
     | '/rescue/$id'
     | '/rider/earnings'
     | '/rider/eticket'
@@ -532,7 +577,9 @@ export interface FileRouteTypes {
     | '/api/public/razorpay-webhook'
     | '/admin'
     | '/app'
+    | '/employee'
     | '/rider'
+    | '/admin/verify-employee/$token'
     | '/app/ride/$rideId'
     | '/rider/ride/$rideId'
   id:
@@ -557,6 +604,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dispatch'
     | '/_authenticated/admin/etickets'
     | '/_authenticated/admin/fares'
+    | '/_authenticated/admin/hq'
     | '/_authenticated/admin/live-drivers'
     | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/qr'
@@ -569,6 +617,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/withdrawals'
     | '/_authenticated/app/eticket'
     | '/_authenticated/app/rides'
+    | '/_authenticated/employee/id-card'
     | '/_authenticated/rescue/$id'
     | '/_authenticated/rider/earnings'
     | '/_authenticated/rider/eticket'
@@ -579,7 +628,9 @@ export interface FileRouteTypes {
     | '/api/public/razorpay-webhook'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
+    | '/_authenticated/employee/'
     | '/_authenticated/rider/'
+    | '/_authenticated/admin/verify-employee/$token'
     | '/_authenticated/app/ride/$rideId'
     | '/_authenticated/rider/ride/$rideId'
   fileRoutesById: FileRoutesById
@@ -742,6 +793,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminFaresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/hq': {
+      id: '/_authenticated/admin/hq'
+      path: '/admin/hq'
+      fullPath: '/admin/hq'
+      preLoaderRoute: typeof AuthenticatedAdminHqRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/live-drivers': {
       id: '/_authenticated/admin/live-drivers'
       path: '/admin/live-drivers'
@@ -833,6 +891,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRidesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employee/': {
+      id: '/_authenticated/employee/'
+      path: '/employee'
+      fullPath: '/employee/'
+      preLoaderRoute: typeof AuthenticatedEmployeeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employee/id-card': {
+      id: '/_authenticated/employee/id-card'
+      path: '/employee/id-card'
+      fullPath: '/employee/id-card'
+      preLoaderRoute: typeof AuthenticatedEmployeeIdCardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/rescue/$id': {
       id: '/_authenticated/rescue/$id'
       path: '/rescue/$id'
@@ -896,6 +968,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRazorpayWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/verify-employee/$token': {
+      id: '/_authenticated/admin/verify-employee/$token'
+      path: '/admin/verify-employee/$token'
+      fullPath: '/admin/verify-employee/$token'
+      preLoaderRoute: typeof AuthenticatedAdminVerifyEmployeeTokenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/ride/$rideId': {
       id: '/_authenticated/app/ride/$rideId'
       path: '/app/ride/$rideId'
@@ -929,6 +1008,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminDispatchRoute: typeof AuthenticatedAdminDispatchRoute
   AuthenticatedAdminEticketsRoute: typeof AuthenticatedAdminEticketsRoute
   AuthenticatedAdminFaresRoute: typeof AuthenticatedAdminFaresRoute
+  AuthenticatedAdminHqRoute: typeof AuthenticatedAdminHqRoute
   AuthenticatedAdminLiveDriversRoute: typeof AuthenticatedAdminLiveDriversRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminQrRoute: typeof AuthenticatedAdminQrRoute
@@ -941,6 +1021,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminWithdrawalsRoute: typeof AuthenticatedAdminWithdrawalsRoute
   AuthenticatedAppEticketRoute: typeof AuthenticatedAppEticketRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
+  AuthenticatedEmployeeIdCardRoute: typeof AuthenticatedEmployeeIdCardRoute
   AuthenticatedRescueIdRoute: typeof AuthenticatedRescueIdRoute
   AuthenticatedRiderEarningsRoute: typeof AuthenticatedRiderEarningsRoute
   AuthenticatedRiderEticketRoute: typeof AuthenticatedRiderEticketRoute
@@ -950,7 +1031,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedEmployeeIndexRoute: typeof AuthenticatedEmployeeIndexRoute
   AuthenticatedRiderIndexRoute: typeof AuthenticatedRiderIndexRoute
+  AuthenticatedAdminVerifyEmployeeTokenRoute: typeof AuthenticatedAdminVerifyEmployeeTokenRoute
   AuthenticatedAppRideRideIdRoute: typeof AuthenticatedAppRideRideIdRoute
   AuthenticatedRiderRideRideIdRoute: typeof AuthenticatedRiderRideRideIdRoute
 }
@@ -971,6 +1054,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminDispatchRoute: AuthenticatedAdminDispatchRoute,
   AuthenticatedAdminEticketsRoute: AuthenticatedAdminEticketsRoute,
   AuthenticatedAdminFaresRoute: AuthenticatedAdminFaresRoute,
+  AuthenticatedAdminHqRoute: AuthenticatedAdminHqRoute,
   AuthenticatedAdminLiveDriversRoute: AuthenticatedAdminLiveDriversRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminQrRoute: AuthenticatedAdminQrRoute,
@@ -983,6 +1067,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminWithdrawalsRoute: AuthenticatedAdminWithdrawalsRoute,
   AuthenticatedAppEticketRoute: AuthenticatedAppEticketRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
+  AuthenticatedEmployeeIdCardRoute: AuthenticatedEmployeeIdCardRoute,
   AuthenticatedRescueIdRoute: AuthenticatedRescueIdRoute,
   AuthenticatedRiderEarningsRoute: AuthenticatedRiderEarningsRoute,
   AuthenticatedRiderEticketRoute: AuthenticatedRiderEticketRoute,
@@ -992,7 +1077,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedEmployeeIndexRoute: AuthenticatedEmployeeIndexRoute,
   AuthenticatedRiderIndexRoute: AuthenticatedRiderIndexRoute,
+  AuthenticatedAdminVerifyEmployeeTokenRoute:
+    AuthenticatedAdminVerifyEmployeeTokenRoute,
   AuthenticatedAppRideRideIdRoute: AuthenticatedAppRideRideIdRoute,
   AuthenticatedRiderRideRideIdRoute: AuthenticatedRiderRideRideIdRoute,
 }

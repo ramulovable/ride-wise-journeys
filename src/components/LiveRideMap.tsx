@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getRideRouteGeometry } from "@/lib/api.functions";
 import { getMapsBrowserKey } from "@/lib/maps.functions";
+import { categoryArtwork } from "@/lib/vehicleArt";
 
 type LatLng = { lat: number; lng: number };
 
@@ -179,6 +180,25 @@ function bearingBetween(a: LatLng, b: LatLng) {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+// Hide every unrelated place, shop and transit label so only the trip is visible.
+const CLEAN_STYLE = [
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+];
+
+function pin(api: MapsApi, color: string) {
+  return {
+    path: api.SymbolPath["CIRCLE"],
+    scale: 13,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeColor: "#ffffff",
+    strokeWeight: 3,
+  };
+}
+
 export function LiveRideMap({
   rideId,
   active,
@@ -186,6 +206,8 @@ export function LiveRideMap({
   mapClassName,
   followDriver = false,
   navTarget,
+  vehicleName,
+  vehicleClass,
 }: {
   rideId: string;
   active: boolean;
@@ -193,7 +215,10 @@ export function LiveRideMap({
   mapClassName?: string;
   followDriver?: boolean;
   navTarget?: "pickup" | "drop";
+  vehicleName?: string | null;
+  vehicleClass?: string | null;
 }) {
+  const vehicleIcon = categoryArtwork(vehicleName, vehicleClass);
   const [localPos, setLocalPos] = useState<LatLng | null>(null);
   // Driver device: use its own GPS directly so the vehicle moves instantly.
   useEffect(() => {
@@ -247,10 +272,8 @@ export function LiveRideMap({
           streetViewControl: false,
           mapTypeControl: false,
           gestureHandling: "greedy",
-          mapId: "DEMO_MAP_ID",
-          tilt: followDriver ? 60 : 0,
+          styles: CLEAN_STYLE,
         });
-        new api.TrafficLayer().setMap(mapRef.current);
       })
       .catch((loadError: Error) => {
         if (!cancelled) setError(loadError.message);
@@ -278,13 +301,17 @@ export function LiveRideMap({
       map,
       position: pickup,
       title: "Pickup",
-      label: { text: "P", color: "#ffffff", fontWeight: "600" },
+      zIndex: 500,
+      icon: pin(api, "#16a34a"),
+      label: { text: "P", color: "#ffffff", fontWeight: "700" },
     });
     const dropMarker = new api.Marker({
       map,
       position: drop,
       title: "Destination",
-      label: { text: "D", color: "#ffffff", fontWeight: "600" },
+      zIndex: 500,
+      icon: pin(api, "#dc2626"),
+      label: { text: "D", color: "#ffffff", fontWeight: "700" },
     });
     overlaysRef.current.push(pickupMarker, dropMarker);
     bounds.extend(pickup);
@@ -297,9 +324,9 @@ export function LiveRideMap({
       const line = new api.Polyline({
         map,
         path,
-        strokeColor: "#16a34a",
-        strokeOpacity: 0.9,
-        strokeWeight: 5,
+        strokeColor: "#111827",
+        strokeOpacity: 0.85,
+        strokeWeight: 6,
       });
       overlaysRef.current.push(line);
       path.forEach((point) => bounds.extend(point));
@@ -314,14 +341,11 @@ export function LiveRideMap({
     const from = shownRef.current ?? driver;
     const moved = Math.abs(from.lat - driver.lat) + Math.abs(from.lng - driver.lng) > 0.00002;
     if (moved) headingRef.current = bearingBetween(from, driver);
+    const g = window as unknown as { google: { maps: { Size: new (w: number, h: number) => unknown; Point: new (x: number, y: number) => unknown } } };
     const icon = () => ({
-      path: api.SymbolPath["FORWARD_CLOSED_ARROW"],
-      scale: 7,
-      rotation: headingRef.current,
-      fillColor: "#1d4ed8",
-      fillOpacity: 1,
-      strokeColor: "#ffffff",
-      strokeWeight: 2.5,
+      url: vehicleIcon,
+      scaledSize: new g.google.maps.Size(52, 52),
+      anchor: new g.google.maps.Point(26, 26),
     });
     if (!driverMarkerRef.current) {
       driverMarkerRef.current = new api.Marker({
@@ -336,15 +360,7 @@ export function LiveRideMap({
     }
     if (followDriver && !followedOnce.current) {
       followedOnce.current = true;
-      map.setZoom(18);
-    }
-    if (followDriver && moved) {
-      try {
-        map.setTilt?.(60);
-        map.setHeading?.(headingRef.current);
-      } catch {
-        /* raster fallback */
-      }
+      map.setZoom(16);
     }
     // Glide smoothly from the last shown point to the new GPS fix.
     if (animRef.current) cancelAnimationFrame(animRef.current);
@@ -367,7 +383,7 @@ export function LiveRideMap({
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [driver, followDriver]);
+  }, [driver, followDriver, vehicleIcon]);
 
   const navInfo = useMemo(() => {
     if (!navTarget || !data || !driver) return null;

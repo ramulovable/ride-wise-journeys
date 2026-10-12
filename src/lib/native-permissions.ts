@@ -119,9 +119,10 @@ export function isNativeApp(): boolean {
   return /ShahinTravelsApp/i.test(window.navigator.userAgent);
 }
 
-function safeRead(fn: (() => boolean) | undefined): boolean {
+function safeRead(bridge: NativeBridge | null, key: "notificationsEnabled" | "overlayEnabled" | "batteryUnrestricted"): boolean {
   try {
-    return typeof fn === "function" ? Boolean(fn()) : false;
+    // Call as a method on the bridge: Android's JS interface throws "Illegal invocation" when unbound.
+    return bridge && typeof bridge[key] === "function" ? Boolean(bridge[key]!()) : false;
   } catch {
     return false;
   }
@@ -130,9 +131,9 @@ function safeRead(fn: (() => boolean) | undefined): boolean {
 export function readAlertPermissions(): AlertPermissionStatus {
   const bridge = nativeBridge();
   return {
-    notifications: safeRead(bridge?.notificationsEnabled),
-    overlay: safeRead(bridge?.overlayEnabled),
-    battery: safeRead(bridge?.batteryUnrestricted),
+    notifications: safeRead(bridge, "notificationsEnabled"),
+    overlay: safeRead(bridge, "overlayEnabled"),
+    battery: safeRead(bridge, "batteryUnrestricted"),
   };
 }
 

@@ -49,6 +49,7 @@ import { Route as AuthenticatedRiderEarningsRouteImport } from './routes/_authen
 import { Route as AuthenticatedRiderEticketRouteImport } from './routes/_authenticated/rider/eticket'
 import { Route as AuthenticatedRiderQrRouteImport } from './routes/_authenticated/rider/qr'
 import { Route as AuthenticatedRiderRidesRouteImport } from './routes/_authenticated/rider/rides'
+import { Route as AuthenticatedRiderServicesRouteImport } from './routes/_authenticated/rider/services'
 import { Route as AuthenticatedRiderVehicleRouteImport } from './routes/_authenticated/rider/vehicle'
 import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/public/razorpay-webhook'
 import { Route as AuthenticatedAppRideRideIdRouteImport } from './routes/_authenticated/app/ride.$rideId'
@@ -270,6 +271,12 @@ const AuthenticatedRiderRidesRoute = AuthenticatedRiderRidesRouteImport.update({
   path: '/rider/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRiderServicesRoute =
+  AuthenticatedRiderServicesRouteImport.update({
+    id: '/rider/services',
+    path: '/rider/services',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRiderVehicleRoute =
   AuthenticatedRiderVehicleRouteImport.update({
     id: '/rider/vehicle',
@@ -332,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/rider/qr': typeof AuthenticatedRiderQrRoute
   '/rider/rides': typeof AuthenticatedRiderRidesRoute
+  '/rider/services': typeof AuthenticatedRiderServicesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -377,6 +385,7 @@ export interface FileRoutesByTo {
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/rider/qr': typeof AuthenticatedRiderQrRoute
   '/rider/rides': typeof AuthenticatedRiderRidesRoute
+  '/rider/services': typeof AuthenticatedRiderServicesRoute
   '/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -424,6 +433,7 @@ export interface FileRoutesById {
   '/_authenticated/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/_authenticated/rider/qr': typeof AuthenticatedRiderQrRoute
   '/_authenticated/rider/rides': typeof AuthenticatedRiderRidesRoute
+  '/_authenticated/rider/services': typeof AuthenticatedRiderServicesRoute
   '/_authenticated/rider/vehicle': typeof AuthenticatedRiderVehicleRoute
   '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -471,6 +481,7 @@ export interface FileRouteTypes {
     | '/rider/eticket'
     | '/rider/qr'
     | '/rider/rides'
+    | '/rider/services'
     | '/rider/vehicle'
     | '/api/public/razorpay-webhook'
     | '/admin/'
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/rider/eticket'
     | '/rider/qr'
     | '/rider/rides'
+    | '/rider/services'
     | '/rider/vehicle'
     | '/api/public/razorpay-webhook'
     | '/admin'
@@ -562,6 +574,7 @@ export interface FileRouteTypes {
     | '/_authenticated/rider/eticket'
     | '/_authenticated/rider/qr'
     | '/_authenticated/rider/rides'
+    | '/_authenticated/rider/services'
     | '/_authenticated/rider/vehicle'
     | '/api/public/razorpay-webhook'
     | '/_authenticated/admin/'
@@ -862,6 +875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRiderRidesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/rider/services': {
+      id: '/_authenticated/rider/services'
+      path: '/rider/services'
+      fullPath: '/rider/services'
+      preLoaderRoute: typeof AuthenticatedRiderServicesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/rider/vehicle': {
       id: '/_authenticated/rider/vehicle'
       path: '/rider/vehicle'
@@ -926,6 +946,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRiderEticketRoute: typeof AuthenticatedRiderEticketRoute
   AuthenticatedRiderQrRoute: typeof AuthenticatedRiderQrRoute
   AuthenticatedRiderRidesRoute: typeof AuthenticatedRiderRidesRoute
+  AuthenticatedRiderServicesRoute: typeof AuthenticatedRiderServicesRoute
   AuthenticatedRiderVehicleRoute: typeof AuthenticatedRiderVehicleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -967,6 +988,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRiderEticketRoute: AuthenticatedRiderEticketRoute,
   AuthenticatedRiderQrRoute: AuthenticatedRiderQrRoute,
   AuthenticatedRiderRidesRoute: AuthenticatedRiderRidesRoute,
+  AuthenticatedRiderServicesRoute: AuthenticatedRiderServicesRoute,
   AuthenticatedRiderVehicleRoute: AuthenticatedRiderVehicleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,

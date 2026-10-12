@@ -20,6 +20,8 @@ import {
   UserRound,
   Wallet,
   Plane,
+  Briefcase,
+  IdCard,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 
@@ -42,6 +44,7 @@ const riderNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: icon(<LayoutGrid className="h-4 w-4" />) },
+  { to: "/admin/hq", label: "Founder HQ", icon: icon(<Briefcase className="h-4 w-4" />) },
   { to: "/admin/customers", label: "Customers", icon: icon(<UserRound className="h-4 w-4" />) },
   { to: "/admin/riders", label: "Drivers", icon: icon(<Users className="h-4 w-4" />) },
   { to: "/admin/catalog", label: "Catalog", icon: icon(<MapPin className="h-4 w-4" />) },
@@ -64,6 +67,20 @@ const adminNav: NavItem[] = [
   { to: "/admin/settings", label: "Settings", icon: icon(<Settings className="h-4 w-4" />) },
   { to: "/admin/auth-settings", label: "Sign-in", icon: icon(<ShieldCheck className="h-4 w-4" />) },
 ];
+
+const employeeNav: NavItem[] = [
+  { to: "/employee", label: "Dashboard", icon: icon(<Briefcase className="h-4 w-4" />) },
+  { to: "/employee/id-card", label: "My ID Card", icon: icon(<IdCard className="h-4 w-4" />) },
+  { to: "/profile", label: "Profile", icon: icon(<User className="h-4 w-4" />) },
+];
+
+export function EmployeeShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={employeeNav}>
+      {children}
+    </AppShell>
+  );
+}
 
 export function CustomerShell({
   title,

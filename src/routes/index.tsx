@@ -261,7 +261,10 @@ function Onboarding() {
         value={mobile}
         onChange={setMobile}
         onBack={() => setStep("role")}
-        onExistingWithPin={() => setStep("pin-login")}
+        onExistingWithPin={() => {
+          setMode("login");
+          setStep("pin-login");
+        }}
         onNeedOtp={() => setStep("otp")}
       />
     );
@@ -426,7 +429,20 @@ function MobileStep({
     setBusy(true);
     setError(null);
     try {
-      const result = await lookup({ data: { mobile: value } });
+      const result = await Promise.race([
+        lookup({ data: { mobile: value } }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Network slow hai. Kripya dobara Continue dabayein.")),
+            12000,
+          ),
+        ),
+      ]);
+      // Existing account with a PIN always goes straight to PIN entry.
+      if (result.exists && result.hasPin) {
+        onExistingWithPin();
+        return;
+      }
       if (mode === "signup" && result.exists) {
         setError(
           `This mobile number is already registered as a ${result.role === "rider" ? "Driver" : "Customer"}. Please log in with your existing account.`,
@@ -437,8 +453,7 @@ function MobileStep({
         setError("No account found for this number.");
         return;
       }
-      if (mode !== "signup" && result.hasPin) onExistingWithPin();
-      else onNeedOtp();
+      onNeedOtp();
     } catch (err) {
       setError(readableError(err));
     } finally {

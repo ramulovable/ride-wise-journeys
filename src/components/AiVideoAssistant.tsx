@@ -46,6 +46,23 @@ export function AiVideoAssistant() {
   const [muted, setMuted] = useState(false);
   const [caption, setCaption] = useState("");
   const [listening, setListening] = useState(false);
+  const [micAvailable, setMicAvailable] = useState(true);
+  const [micNote, setMicNote] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  function sendText(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draft.trim();
+    const s = sessionRef.current;
+    if (!text || !s) return;
+    try {
+      s.message(text);
+      setCaption(`Aap: ${text}`);
+      setDraft("");
+    } catch (err) {
+      setMicNote(err instanceof Error ? err.message : "Message nahi gaya");
+    }
+  }
   const videoRef = useRef<HTMLVideoElement>(null);
   const sessionRef = useRef<import("@heygen/liveavatar-web-sdk").LiveAvatarSession | null>(null);
   const contextRef = useRef<string | null>(null);
@@ -71,17 +88,25 @@ export function AiVideoAssistant() {
         data: { path: pathname, language },
       });
       contextRef.current = contextId;
-      // Ask for the mic up front so the phone shows the permission prompt.
+      // Try the mic; if the phone blocks it, continue in typing mode instead of failing.
+      let micOk = false;
       try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("getUserMedia unavailable");
         const s = await navigator.mediaDevices.getUserMedia({ audio: true });
         s.getTracks().forEach((t) => t.stop());
-      } catch {
-        throw new Error("Microphone ki permission dijiye, tabhi Ayesha aapki baat sun payegi.");
+        micOk = true;
+      } catch (err) {
+        const name = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        console.warn("Ayesha mic unavailable", name);
+        setMicNote(`Mic nahi mila (${name}). Neeche type karke baat karein.`);
       }
+      setMicAvailable(micOk);
       const sdk = await import("@heygen/liveavatar-web-sdk");
       const session = new sdk.LiveAvatarSession(sessionToken, {
         autoKeepAlive: true,
-        voiceChat: { mode: sdk.SessionInteractivityMode.CONVERSATIONAL, defaultMuted: false },
+        ...(micOk
+          ? { voiceChat: { mode: sdk.SessionInteractivityMode.CONVERSATIONAL, defaultMuted: false } }
+          : {}),
       });
       sessionRef.current = session;
       session.on(sdk.SessionEvent.SESSION_STREAM_READY, () => {
@@ -174,6 +199,20 @@ export function AiVideoAssistant() {
           </p>
         ) : null}
       </div>
+      {micNote ? <p className="px-2 pt-2 text-[11px] text-muted-foreground">{micNote}</p> : null}
+      {status === "live" ? (
+        <form onSubmit={sendText} className="flex gap-2 px-2 pt-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={micAvailable ? "Ya yahan type karein…" : "Apna sawal likhiye…"}
+            className="min-w-0 flex-1 rounded-full border border-input bg-background px-3 py-1.5 text-sm text-foreground"
+          />
+          <button type="submit" className="rounded-full bg-primary px-3 text-sm text-primary-foreground">
+            Bhejein
+          </button>
+        </form>
+      ) : null}
       <div className="flex items-center justify-between gap-2 p-2">
         <span className="text-xs text-muted-foreground">
           {status === "live" && !muted

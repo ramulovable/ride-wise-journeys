@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import { InstallAppBar } from "@/components/InstallAppBar";
+import { AiVideoAssistant } from "@/components/AiVideoAssistant";
 
 export type NavItem = { to: string; label: string; icon: ReactNode };
 
@@ -67,6 +68,7 @@ export function AppShell({
       <main className="mx-auto w-full max-w-3xl px-4 py-4">{children}</main>
 
       {showWhatsAppSupport ? <WhatsAppSupportButton /> : null}
+      <AiVideoAssistant />
       {showWhatsAppSupport ? <InstallAppBar /> : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card">

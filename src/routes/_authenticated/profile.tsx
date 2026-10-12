@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { EmployeeEntry } from "@/components/EmployeeEntry";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeCanvas } from "qrcode.react";
 import { ChevronRight, LifeBuoy, Star } from "lucide-react";
@@ -154,6 +155,7 @@ function ProfilePage() {
       ) : null}
       {role === "rider" ? <RiderVehicleQr /> : null}
       {role === "rider" ? <RiderReviews reviews={reviews.data ?? []} /> : null}
+      <EmployeeEntry />
       <Link
         to="/support"
         className="flex items-center justify-between rounded-2xl border border-border bg-card p-4"

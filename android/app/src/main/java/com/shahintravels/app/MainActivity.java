@@ -139,21 +139,50 @@ public class MainActivity extends BridgeActivity {
      * is not configured in this build.
      */
     private void publishPushToken() {
+        // Send the cached token right away, then again after the page has
+        // (re)loaded, so the web app always receives it.
+        final String cached = getSharedPreferences("shahin", MODE_PRIVATE).getString("fcm_token", null);
+        if (cached != null) {
+            injectToken(cached, 0);
+            injectToken(cached, 4000);
+            injectToken(cached, 12000);
+        }
         FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
             try {
                 if (!task.isSuccessful() || task.getResult() == null) return;
                 final String token = task.getResult();
-                if (getBridge() == null) return;
-                final WebView webView = getBridge().getWebView();
-                if (webView == null) return;
-                webView.post(() -> webView.evaluateJavascript(
-                    "window.__shahinNativePushToken=" + JSONUtil.quote(token) +
-                        ";window.dispatchEvent(new Event('shahin-native-push-token'));",
-                    null
-                ));
+                getSharedPreferences("shahin", MODE_PRIVATE).edit().putString("fcm_token", token).apply();
+                injectToken(token, 0);
+                injectToken(token, 5000);
+                injectToken(token, 15000);
             } catch (Throwable t) {
                 Log.w(TAG, "Could not publish push token", t);
             }
         });
+    }
+
+    private void injectToken(final String token, long delayMs) {
+        try {
+            if (getBridge() == null) return;
+            final WebView webView = getBridge().getWebView();
+            if (webView == null) return;
+            webView.postDelayed(() -> webView.evaluateJavascript(
+                "window.__shahinNativePushToken=" + JSONUtil.quote(token) +
+                    ";window.dispatchEvent(new Event('shahin-native-push-token'));",
+                null
+            ), delayMs);
+        } catch (Throwable t) {
+            Log.w(TAG, "Could not inject push token", t);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        try {
+            publishPushToken();
+        } catch (Throwable t) {
+            Log.w(TAG, "Push token unavailable on resume", t);
+        }
     }
 }

@@ -279,7 +279,7 @@ export const getAdminCustomerDetails = createServerFn({ method: "POST" })
           .limit(200),
         supabaseAdmin.rpc("wallet_balance", { _user_id: data.id }),
         supabaseAdmin.from("referrals").select("referrer_user_id, code, status").eq("referred_user_id", data.id).maybeSingle(),
-        supabaseAdmin.from("referrals").select("id", { count: "exact", head: true }).eq("referrer_user_id", data.id),
+        supabaseAdmin.from("referrals").select("id").eq("referrer_user_id", data.id),
         supabaseAdmin.from("notification_devices").select("device_type, is_active, updated_at").eq("user_id", data.id),
       ]);
     if (!profile) throw new Error("Customer not found.");
@@ -304,7 +304,7 @@ export const getAdminCustomerDetails = createServerFn({ method: "POST" })
       },
       wallet: Number(balance ?? 0),
       referrerName,
-      referredCount: (referred as unknown as number | null) ?? 0,
+      referredCount: referred?.length ?? 0,
       phoneAlerts: (devices ?? []).some((d) => d.is_active),
       recent: list.slice(0, 15).map((r) => ({ ...r, from: nm(r.from_location_id), to: nm(r.to_location_id) })),
     };

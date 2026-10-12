@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Phone, Star } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
+import { QuickChat, SafetyToolkit } from "@/components/RideQuickActions";
 import { LiveRideMap } from "@/components/LiveRideMap";
 import { VerifiedByline, VerifiedTick } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,12 @@ function RideDetail() {
     queryFn: () => getRideDriverDetails({ data: { rideId } }),
   });
 
+  const vehicleCat = useQuery({
+    queryKey: ["vehicle-category", ride.data?.vehicle_category_id],
+    enabled: Boolean(ride.data?.vehicle_category_id),
+    queryFn: async () =>
+      (await supabase.from("vehicle_categories").select("name, vehicle_class").eq("id", ride.data!.vehicle_category_id!).maybeSingle()).data,
+  });
   const rating = useQuery({
     queryKey: ["rating", rideId],
     queryFn: async () => {
@@ -139,7 +146,15 @@ function RideDetail() {
       ) : (
         <div className="space-y-4">
           {r.rider_id && !["completed", "cancelled"].includes(r.status) ? (
-            <LiveRideMap rideId={rideId} active className="w-full" mapClassName="h-80" />
+            <LiveRideMap rideId={rideId}
+            vehicleName={vehicleCat.data?.name}
+            vehicleClass={vehicleCat.data?.vehicle_class} active className="w-full" mapClassName="h-80" />
+          ) : null}
+          {!["completed", "cancelled"].includes(r.status) ? (
+            <>
+              <QuickChat mobile={driver.data?.mobile} role="customer" />
+              <SafetyToolkit summary={`${placeName(r.from_location_id)} → ${placeName(r.to_location_id)}`} />
+            </>
           ) : null}
           <section className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-semibold text-foreground">

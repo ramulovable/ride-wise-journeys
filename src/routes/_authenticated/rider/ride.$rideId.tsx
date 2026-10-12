@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RiderShell } from "@/components/shells";
 import { Button } from "@/components/ui/button";
+import { QuickChat, SafetyToolkit } from "@/components/RideQuickActions";
 import { LiveRideMap, useDriverLocationBroadcast } from "@/components/LiveRideMap";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -77,6 +78,12 @@ function RiderRideDetail() {
     enabled: Boolean(r && user && r.rider_id === user.id),
     queryFn: () => getRideCustomerDetails({ data: { rideId } }),
   });
+  const vehicleCat = useQuery({
+    queryKey: ["vehicle-category", ride.data?.vehicle_category_id],
+    enabled: Boolean(ride.data?.vehicle_category_id),
+    queryFn: async () =>
+      (await supabase.from("vehicle_categories").select("name, vehicle_class").eq("id", ride.data!.vehicle_category_id!).maybeSingle()).data,
+  });
   const live = Boolean(
     r && user && r.rider_id === user.id && !["completed", "cancelled"].includes(r.status),
   );
@@ -103,6 +110,8 @@ function RiderRideDetail() {
         <div className="space-y-4">
           <LiveRideMap
             rideId={rideId}
+            vehicleName={vehicleCat.data?.name}
+            vehicleClass={vehicleCat.data?.vehicle_class}
             active={live}
             followDriver
             navTarget={["accepted", "on_the_way", "arrived"].includes(r.status) ? "pickup" : "drop"}
@@ -115,6 +124,12 @@ function RiderRideDetail() {
             </p>
           ) : null}
 
+          {!["completed", "cancelled"].includes(r.status) ? (
+            <>
+              <QuickChat mobile={customer.data?.mobile} role="driver" />
+              <SafetyToolkit summary={`${placeName(r.from_location_id)} → ${placeName(r.to_location_id)}`} />
+            </>
+          ) : null}
           <section className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-semibold text-foreground">
               {placeName(r.from_location_id)} → {placeName(r.to_location_id)}

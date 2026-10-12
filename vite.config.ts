@@ -16,9 +16,12 @@ export default defineConfig({
   vite: {
     resolve: {
       // Browser builds otherwise turn `events` into an empty stub, breaking the LiveAvatar SDK.
-      alias: {
-        events: fileURLToPath(new URL("./node_modules/events/events.js", import.meta.url)),
-      },
+      alias: [
+        {
+          find: /^(node:)?events$/,
+          replacement: fileURLToPath(new URL("./node_modules/events/events.js", import.meta.url)),
+        },
+      ],
     },
   },
 });

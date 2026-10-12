@@ -186,7 +186,7 @@ function CustomerDetailsDialog({ id, onClose }: { id: string | null; onClose: ()
     enabled: Boolean(id),
   });
   const d = q.data;
-  const row = (k: string, v: React.ReactNode) => (
+  const row = (k: string, v: import("react").ReactNode) => (
     <div className="flex justify-between gap-3 border-b border-border py-1.5 text-sm">
       <span className="text-muted-foreground">{k}</span>
       <span className="text-right font-medium">{v}</span>

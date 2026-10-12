@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminShell, CustomerShell, RiderShell } from "@/components/shells";
 import { AppVersionBadge } from "@/components/AppVersionBadge";
+import { DriverAlertSetup } from "@/components/DriverAlertSetup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,6 +144,14 @@ function ProfilePage() {
           {busy ? "Saving…" : "Save profile"}
         </Button>
       </section>
+      {role === "rider" && riderDetails ? (
+        <DriverAlertSetup
+          existingDriver={
+            new Date((riderDetails as { created_at?: string }).created_at ?? 0).getTime() <
+            Date.parse("2026-10-08T05:00:00Z")
+          }
+        />
+      ) : null}
       {role === "rider" ? <RiderVehicleQr /> : null}
       {role === "rider" ? <RiderReviews reviews={reviews.data ?? []} /> : null}
       <Link

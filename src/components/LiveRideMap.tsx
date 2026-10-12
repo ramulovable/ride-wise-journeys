@@ -7,8 +7,16 @@ import { getMapsBrowserKey } from "@/lib/maps.functions";
 type LatLng = { lat: number; lng: number };
 
 type GMapObject = { setMap: (map: unknown) => void };
-type GMarker = GMapObject & { setPosition: (position: LatLng) => void };
-type GMap = { fitBounds: (bounds: GBounds, padding?: number) => void; panTo: (p: LatLng) => void };
+type GMarker = GMapObject & {
+  setPosition: (position: LatLng) => void;
+  setIcon: (icon: Record<string, unknown>) => void;
+};
+type GMap = {
+  fitBounds: (bounds: GBounds, padding?: number) => void;
+  panTo: (p: LatLng) => void;
+  setZoom: (z: number) => void;
+  getZoom: () => number;
+};
 type GBounds = { extend: (position: LatLng) => void; isEmpty: () => boolean };
 type MapsApi = {
   Map: new (el: HTMLElement, options: Record<string, unknown>) => GMap;
@@ -160,15 +168,34 @@ function useDriverPosition(rideId: string, enabled: boolean) {
 }
 
 /** High-resolution live navigation map with route, traffic and a moving vehicle marker. */
+function bearingBetween(a: LatLng, b: LatLng) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const y = Math.sin(toRad(b.lng - a.lng)) * Math.cos(toRad(b.lat));
+  const x =
+    Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) -
+    Math.sin(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.cos(toRad(b.lng - a.lng));
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
 export function LiveRideMap({
   rideId,
   active,
   className,
+  mapClassName,
+  followDriver = false,
+  navTarget,
 }: {
   rideId: string;
   active: boolean;
   className?: string;
+  mapClassName?: string;
+  followDriver?: boolean;
+  navTarget?: "pickup" | "drop";
 }) {
+  const shownRef = useRef<LatLng | null>(null);
+  const headingRef = useRef(0);
+  const animRef = useRef<number | null>(null);
+  const followedOnce = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GMap | null>(null);
   const apiRef = useRef<MapsApi | null>(null);
@@ -265,26 +292,61 @@ export function LiveRideMap({
     const api = apiRef.current;
     const map = mapRef.current;
     if (!api || !map || !driver) return;
+    const from = shownRef.current ?? driver;
+    const moved = Math.abs(from.lat - driver.lat) + Math.abs(from.lng - driver.lng) > 0.00002;
+    if (moved) headingRef.current = bearingBetween(from, driver);
+    const icon = () => ({
+      path: api.SymbolPath["FORWARD_CLOSED_ARROW"],
+      scale: 7,
+      rotation: headingRef.current,
+      fillColor: "#1d4ed8",
+      fillOpacity: 1,
+      strokeColor: "#ffffff",
+      strokeWeight: 2.5,
+    });
     if (!driverMarkerRef.current) {
       driverMarkerRef.current = new api.Marker({
         map,
         position: driver,
         title: "Driver",
         zIndex: 999,
-        icon: {
-          path: api.SymbolPath["CIRCLE"],
-          scale: 8,
-          fillColor: "#1d4ed8",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 3,
-        },
+        icon: icon(),
       });
     } else {
-      driverMarkerRef.current.setPosition(driver);
+      driverMarkerRef.current.setIcon(icon());
     }
-    map.panTo(driver);
-  }, [driver]);
+    if (followDriver && !followedOnce.current) {
+      followedOnce.current = true;
+      map.setZoom(17);
+    }
+    // Glide smoothly from the last shown point to the new GPS fix.
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    const start = performance.now();
+    const duration = 3500;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const ease = t * (2 - t);
+      const p = {
+        lat: from.lat + (driver.lat - from.lat) * ease,
+        lng: from.lng + (driver.lng - from.lng) * ease,
+      };
+      shownRef.current = p;
+      driverMarkerRef.current?.setPosition(p);
+      if (followDriver) map.panTo(p);
+      if (t < 1) animRef.current = requestAnimationFrame(step);
+    };
+    animRef.current = requestAnimationFrame(step);
+    if (!followDriver) map.panTo(driver);
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [driver, followDriver]);
+
+  const navUrl = useMemo(() => {
+    if (!navTarget || !data) return null;
+    const point = navTarget === "pickup" ? data.pickup : data.drop;
+    return `https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}&travelmode=driving&dir_action=navigate`;
+  }, [navTarget, data]);
 
   const status = useMemo(() => {
     if (error) return error;
@@ -297,10 +359,20 @@ export function LiveRideMap({
     <div className={className}>
       <div
         ref={containerRef}
-        className="h-72 w-full overflow-hidden rounded-2xl border border-border bg-muted"
+        className={`${mapClassName ?? "h-72"} w-full overflow-hidden rounded-2xl border border-border bg-muted`}
         role="application"
         aria-label="Live ride map"
       />
+      {navUrl ? (
+        <a
+          href={navUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 flex h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground"
+        >
+          {navTarget === "pickup" ? "Pickup tak voice navigation shuru karein" : "Destination tak voice navigation shuru karein"}
+        </a>
+      ) : null}
       {status ? <p className="mt-2 text-xs text-muted-foreground">{status}</p> : null}
     </div>
   );

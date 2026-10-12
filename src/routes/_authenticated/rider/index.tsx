@@ -22,6 +22,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { DriverAlertSetup } from "@/components/DriverAlertSetup";
 import { TravelDesk } from "@/components/TravelDesk";
 import { QuotesStudioCard } from "@/components/QuotesStudioCard";
+import { OpenRescueAlerts, RescueSosCard } from "@/components/RescueSos";
+import { AppVersionBadge } from "@/components/AppVersionBadge";
 import { IstClock } from "@/components/IstClock";
 import { AdBanner } from "@/components/AdBanner";
 import { Button } from "@/components/ui/button";
@@ -506,8 +508,11 @@ function RiderDashboard() {
           />
         ) : null}
 
+        <OpenRescueAlerts />
+        <RescueSosCard />
         <TravelDesk />
         <QuotesStudioCard />
+        <AppVersionBadge />
 
 
 

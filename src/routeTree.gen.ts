@@ -42,6 +42,7 @@ import { Route as AuthenticatedAdminWithdrawalsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppEticketRouteImport } from './routes/_authenticated/app/eticket'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
+import { Route as AuthenticatedRescueIdRouteImport } from './routes/_authenticated/rescue.$id'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
 import { Route as AuthenticatedRiderEarningsRouteImport } from './routes/_authenticated/rider/earnings'
 import { Route as AuthenticatedRiderEticketRouteImport } from './routes/_authenticated/rider/eticket'
@@ -231,6 +232,11 @@ const AuthenticatedAppRidesRoute = AuthenticatedAppRidesRouteImport.update({
   path: '/app/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRescueIdRoute = AuthenticatedRescueIdRouteImport.update({
+  id: '/rescue/$id',
+  path: '/rescue/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRiderIndexRoute = AuthenticatedRiderIndexRouteImport.update({
   id: '/rider/',
   path: '/rider/',
@@ -314,6 +320,7 @@ export interface FileRoutesByFullPath {
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/rider/qr': typeof AuthenticatedRiderQrRoute
@@ -357,6 +364,7 @@ export interface FileRoutesByTo {
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/rider/qr': typeof AuthenticatedRiderQrRoute
@@ -402,6 +410,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/_authenticated/app/eticket': typeof AuthenticatedAppEticketRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
+  '/_authenticated/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/_authenticated/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/_authenticated/rider/eticket': typeof AuthenticatedRiderEticketRoute
   '/_authenticated/rider/qr': typeof AuthenticatedRiderQrRoute
@@ -447,6 +456,7 @@ export interface FileRouteTypes {
     | '/admin/withdrawals'
     | '/app/eticket'
     | '/app/rides'
+    | '/rescue/$id'
     | '/rider/earnings'
     | '/rider/eticket'
     | '/rider/qr'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/admin/withdrawals'
     | '/app/eticket'
     | '/app/rides'
+    | '/rescue/$id'
     | '/rider/earnings'
     | '/rider/eticket'
     | '/rider/qr'
@@ -534,6 +545,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/withdrawals'
     | '/_authenticated/app/eticket'
     | '/_authenticated/app/rides'
+    | '/_authenticated/rescue/$id'
     | '/_authenticated/rider/earnings'
     | '/_authenticated/rider/eticket'
     | '/_authenticated/rider/qr'
@@ -789,6 +801,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRidesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/rescue/$id': {
+      id: '/_authenticated/rescue/$id'
+      path: '/rescue/$id'
+      fullPath: '/rescue/$id'
+      preLoaderRoute: typeof AuthenticatedRescueIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/rider/': {
       id: '/_authenticated/rider/'
       path: '/rider'
@@ -882,6 +901,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminWithdrawalsRoute: typeof AuthenticatedAdminWithdrawalsRoute
   AuthenticatedAppEticketRoute: typeof AuthenticatedAppEticketRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
+  AuthenticatedRescueIdRoute: typeof AuthenticatedRescueIdRoute
   AuthenticatedRiderEarningsRoute: typeof AuthenticatedRiderEarningsRoute
   AuthenticatedRiderEticketRoute: typeof AuthenticatedRiderEticketRoute
   AuthenticatedRiderQrRoute: typeof AuthenticatedRiderQrRoute
@@ -921,6 +941,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminWithdrawalsRoute: AuthenticatedAdminWithdrawalsRoute,
   AuthenticatedAppEticketRoute: AuthenticatedAppEticketRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
+  AuthenticatedRescueIdRoute: AuthenticatedRescueIdRoute,
   AuthenticatedRiderEarningsRoute: AuthenticatedRiderEarningsRoute,
   AuthenticatedRiderEticketRoute: AuthenticatedRiderEticketRoute,
   AuthenticatedRiderQrRoute: AuthenticatedRiderQrRoute,

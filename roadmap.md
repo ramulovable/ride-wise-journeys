@@ -103,3 +103,13 @@
 
 - [x] Quotes Studio: poster quotes, festivals, share/download
 - [ ] Daily morning Quotes Studio push notification
+
+## Oct 12 batch
+- [x] Admin personal notification to one customer/driver
+- [x] Fix driver permission switches staying OFF
+- [x] Show app version to every user
+- [x] Admin: full customer details view
+- [x] Driver Rescue request (alert admin + all drivers, details, accept/reject)
+- [x] Driver SOS: family contacts + 112, alert + SMS on SOS
+- [ ] Automatic Hindi voice calls to family (needs a calling service account)
+- [ ] Auto nearest police station number (needs a reliable police-station data source)

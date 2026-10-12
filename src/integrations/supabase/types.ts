@@ -345,6 +345,33 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_emergency_contacts: {
+        Row: {
+          created_at: string
+          driver_id: string
+          id: string
+          name: string
+          phone: string
+          relation: string | null
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          id?: string
+          name: string
+          phone: string
+          relation?: string | null
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          id?: string
+          name?: string
+          phone?: string
+          relation?: string | null
+        }
+        Relationships: []
+      }
       earning_transactions: {
         Row: {
           amount: number
@@ -1004,6 +1031,8 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          app_version: string | null
+          app_version_seen_at: string | null
           created_at: string
           date_of_birth: string | null
           first_name: string | null
@@ -1021,6 +1050,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          app_version?: string | null
+          app_version_seen_at?: string | null
           created_at?: string
           date_of_birth?: string | null
           first_name?: string | null
@@ -1038,6 +1069,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          app_version?: string | null
+          app_version_seen_at?: string | null
           created_at?: string
           date_of_birth?: string | null
           first_name?: string | null
@@ -1273,6 +1306,85 @@ export type Database = {
             columns: ["referral_code_id"]
             isOneToOne: false
             referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rescue_requests: {
+        Row: {
+          created_at: string
+          driver_id: string
+          id: string
+          kind: string
+          latitude: number | null
+          longitude: number | null
+          note: string | null
+          resolved_at: string | null
+          ride_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          id?: string
+          kind?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          resolved_at?: string | null
+          ride_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          id?: string
+          kind?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          resolved_at?: string | null
+          ride_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescue_requests_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rescue_responses: {
+        Row: {
+          created_at: string
+          id: string
+          request_id: string
+          responder_id: string
+          response: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          request_id: string
+          responder_id: string
+          response: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          request_id?: string
+          responder_id?: string
+          response?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescue_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "rescue_requests"
             referencedColumns: ["id"]
           },
         ]

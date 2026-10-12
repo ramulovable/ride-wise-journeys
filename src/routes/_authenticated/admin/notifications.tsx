@@ -4,12 +4,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/shells";
 import { EmptyState } from "@/components/EmptyState";
+import { OpenRescueAlerts } from "@/components/RescueSos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { listBroadcasts, sendBroadcast } from "@/lib/broadcast.functions";
+import { listBroadcasts, namesForUsers, searchNotifyUsers, sendBroadcast } from "@/lib/broadcast.functions";
 import { formatDateTime } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 import { useRideAlertSettings, type RideAlertSettings } from "@/lib/rideAlerts";
@@ -42,24 +43,50 @@ function NotificationsPage() {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [audience, setAudience] = useState<"all" | "customers" | "riders">("all");
+  const [audience, setAudience] = useState<"all" | "customers" | "riders" | "person">("all");
+  const [query, setQuery] = useState("");
+  const [person, setPerson] = useState<{ id: string; name: string; role: string } | null>(null);
+  const people = useQuery({
+    queryKey: ["notify-search", query],
+    queryFn: () => searchNotifyUsers({ data: { q: query } }),
+    enabled: audience === "person" && query.trim().length >= 2 && !person,
+  });
 
   const broadcasts = useQuery({ queryKey: ["admin-broadcasts"], queryFn: () => listBroadcasts() });
 
   const send = useMutation({
     mutationFn: () =>
       sendBroadcast({
-        data: { title: title.trim(), body: body.trim(), audience, actionPath: "/notifications" },
+        data: {
+          title: title.trim(),
+          body: body.trim(),
+          audience,
+          userId: audience === "person" ? person?.id : undefined,
+          actionPath: "/notifications",
+        },
       }),
     onSuccess: (result) => {
       toast.success(`Sent to ${result.recipients} people (${result.delivered} phone alerts).`);
       setTitle("");
       setBody("");
+      setPerson(null);
+      setQuery("");
       void qc.invalidateQueries({ queryKey: ["admin-broadcasts"] });
       void qc.invalidateQueries({ queryKey: ["admin-notifications"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const personIds = (broadcasts.data ?? [])
+    .map((b) => (b.audience.startsWith("person:") ? b.audience.slice(7) : null))
+    .filter((x): x is string => Boolean(x));
+  const personNames = useQuery({
+    queryKey: ["broadcast-person-names", personIds.join(",")],
+    queryFn: () => namesForUsers({ data: { ids: personIds } }),
+    enabled: personIds.length > 0,
+  });
+  const audienceText = (a: string) =>
+    a.startsWith("person:") ? `Personal · ${personNames.data?.[a.slice(7)] ?? "one person"}` : (AUDIENCE_LABEL[a] ?? a);
 
   const devices = useQuery({
     queryKey: ["admin-devices"],
@@ -87,6 +114,9 @@ function NotificationsPage() {
 
   return (
     <AdminShell title="Notifications" subtitle="Alerts sent when customers book a ride.">
+      <div className="mb-4">
+        <OpenRescueAlerts />
+      </div>
       <div className="mb-4 rounded-2xl border border-border bg-card p-4">
         <p className="text-xs text-muted-foreground">Drivers with alerts switched on</p>
         <p className="text-2xl font-bold">{devices.data ?? 0}</p>
@@ -105,8 +135,60 @@ function NotificationsPage() {
             <option value="all">Everyone (customers + drivers)</option>
             <option value="customers">Customers only</option>
             <option value="riders">Drivers only</option>
+            <option value="person">One person (name se chunein)</option>
           </select>
         </div>
+        {audience === "person" ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="bc-person">Customer ya driver</Label>
+            {person ? (
+              <div className="flex items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                <span>
+                  {person.name} · {person.role}
+                </span>
+                <button type="button" className="text-xs font-medium text-primary" onClick={() => setPerson(null)}>
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <Input
+                  id="bc-person"
+                  value={query}
+                  placeholder="Name ya mobile number likhein"
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {people.data?.length ? (
+                  <ul className="max-h-60 divide-y divide-border overflow-auto rounded-md border border-border">
+                    {people.data.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted"
+                          onClick={() => setPerson({ id: p.id, name: p.full_name || p.mobile, role: p.role })}
+                        >
+                          {p.photo_url ? (
+                            <img src={p.photo_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                          ) : (
+                            <span className="h-8 w-8 rounded-full bg-muted" />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium">{p.full_name || "No name"}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {p.mobile} · {p.role} · {p.hasPhone ? "Phone alert on" : "In-app only"}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : query.trim().length >= 2 && people.isSuccess ? (
+                  <p className="text-xs text-muted-foreground">Koi user nahi mila.</p>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="bc-title">Title</Label>
           <Input
@@ -130,7 +212,12 @@ function NotificationsPage() {
         </div>
         <Button
           className="w-full"
-          disabled={send.isPending || title.trim().length < 2 || body.trim().length < 2}
+          disabled={
+            send.isPending ||
+            title.trim().length < 2 ||
+            body.trim().length < 2 ||
+            (audience === "person" && !person)
+          }
           onClick={() => send.mutate()}
         >
           {send.isPending ? "Sending…" : "Send now"}
@@ -149,7 +236,7 @@ function NotificationsPage() {
               <p className="text-sm font-medium">{row.title}</p>
               <p className="text-sm text-muted-foreground">{row.body}</p>
               <p className="text-xs text-muted-foreground">
-                {formatDateTime(row.created_at)} · {AUDIENCE_LABEL[row.audience] ?? row.audience} ·{" "}
+                {formatDateTime(row.created_at)} · {audienceText(row.audience)} ·{" "}
                 {row.recipient_count} people · {row.delivered_count} phone alerts
               </p>
             </article>

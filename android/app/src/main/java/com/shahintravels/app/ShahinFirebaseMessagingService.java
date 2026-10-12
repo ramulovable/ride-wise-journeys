@@ -44,6 +44,11 @@ public class ShahinFirebaseMessagingService extends FirebaseMessagingService {
             return;
         }
 
+        if ("rescue".equals(type)) {
+            showRescueAlert(data, title, body);
+            return;
+        }
+
         boolean isRideOffer = "ride_offer".equals(type) || data.containsKey("ride_id");
         if (isRideOffer) {
             showRideAlert(data, data.get("ride_id"), title, body, data.get("path"));
@@ -141,6 +146,36 @@ public class ShahinFirebaseMessagingService extends FirebaseMessagingService {
                 startActivity(full);
             } catch (Throwable ignored) {
             }
+        }
+    }
+
+    /** Emergency rescue alert: loud alarm + repeated Hindi voice, opens the rescue details. */
+    private void showRescueAlert(Map<String, String> data, String title, String body) {
+        String path = data.containsKey("path") ? data.get("path") : "/rider";
+        Intent open = new Intent(this, MainActivity.class);
+        open.putExtra(MainActivity.EXTRA_TARGET_PATH, path);
+        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pi = PendingIntent.getActivity(
+            this, 4004, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification notification = new NotificationCompat.Builder(this, RideAlertNotifier.RIDE_VOICE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSilent(true)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .setFullScreenIntent(pi, true)
+            .build();
+        String speech = data.get("speech");
+        if (speech == null || speech.isEmpty()) speech = "सावधान! एक ड्राइवर मुसीबत में है। तुरंत मदद करें।";
+        try {
+            RideVoiceService.start(this, speech, 60, notification);
+        } catch (Throwable t) {
+            NotificationManager m = getSystemService(NotificationManager.class);
+            if (m != null) m.notify(4004, notification);
         }
     }
 

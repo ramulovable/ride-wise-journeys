@@ -5,6 +5,7 @@ import { Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminShell, CustomerShell, RiderShell } from "@/components/shells";
+import { AppVersionBadge } from "@/components/AppVersionBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,6 +145,7 @@ function ProfilePage() {
       </section>
       {role === "rider" ? <RiderVehicleQr /> : null}
       {role === "rider" ? <RiderReviews reviews={reviews.data ?? []} /> : null}
+      <AppVersionBadge />
     </div>
   );
 

@@ -113,3 +113,4 @@
 - [x] Driver SOS: family contacts + 112, alert + SMS on SOS
 - [ ] Automatic Hindi voice calls to family (needs a calling service account)
 - [ ] Auto nearest police station number (needs a reliable police-station data source)
+- [x] Fix slow login after 1.0.12 (direct PIN redirect, timeouts)

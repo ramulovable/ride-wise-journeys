@@ -8,3 +8,4 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Server-fn bearer middleware is src/lib/fast-auth-attacher.ts (getSession capped at 3s) — a stalled token refresh must never block login requests.

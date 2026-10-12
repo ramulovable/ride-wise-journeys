@@ -45,6 +45,7 @@ export function AiVideoAssistant() {
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [caption, setCaption] = useState("");
+  const [listening, setListening] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const sessionRef = useRef<import("@heygen/liveavatar-web-sdk").LiveAvatarSession | null>(null);
   const contextRef = useRef<string | null>(null);

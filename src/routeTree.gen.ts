@@ -45,6 +45,7 @@ import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppEticketRouteImport } from './routes/_authenticated/app/eticket'
 import { Route as AuthenticatedAppRidesRouteImport } from './routes/_authenticated/app/rides'
 import { Route as AuthenticatedEmployeeIndexRouteImport } from './routes/_authenticated/employee/index'
+import { Route as AuthenticatedEmployeeIdCardRouteImport } from './routes/_authenticated/employee/id-card'
 import { Route as AuthenticatedRescueIdRouteImport } from './routes/_authenticated/rescue.$id'
 import { Route as AuthenticatedRiderIndexRouteImport } from './routes/_authenticated/rider/index'
 import { Route as AuthenticatedRiderEarningsRouteImport } from './routes/_authenticated/rider/earnings'
@@ -253,6 +254,12 @@ const AuthenticatedEmployeeIndexRoute =
     path: '/employee/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployeeIdCardRoute =
+  AuthenticatedEmployeeIdCardRouteImport.update({
+    id: '/employee/id-card',
+    path: '/employee/id-card',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRescueIdRoute = AuthenticatedRescueIdRouteImport.update({
   id: '/rescue/$id',
   path: '/rescue/$id',
@@ -355,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/employee/id-card': typeof AuthenticatedEmployeeIdCardRoute
   '/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
@@ -404,6 +412,7 @@ export interface FileRoutesByTo {
   '/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/app/eticket': typeof AuthenticatedAppEticketRoute
   '/app/rides': typeof AuthenticatedAppRidesRoute
+  '/employee/id-card': typeof AuthenticatedEmployeeIdCardRoute
   '/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/rider/eticket': typeof AuthenticatedRiderEticketRoute
@@ -455,6 +464,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/withdrawals': typeof AuthenticatedAdminWithdrawalsRoute
   '/_authenticated/app/eticket': typeof AuthenticatedAppEticketRoute
   '/_authenticated/app/rides': typeof AuthenticatedAppRidesRoute
+  '/_authenticated/employee/id-card': typeof AuthenticatedEmployeeIdCardRoute
   '/_authenticated/rescue/$id': typeof AuthenticatedRescueIdRoute
   '/_authenticated/rider/earnings': typeof AuthenticatedRiderEarningsRoute
   '/_authenticated/rider/eticket': typeof AuthenticatedRiderEticketRoute
@@ -506,6 +516,7 @@ export interface FileRouteTypes {
     | '/admin/withdrawals'
     | '/app/eticket'
     | '/app/rides'
+    | '/employee/id-card'
     | '/rescue/$id'
     | '/rider/earnings'
     | '/rider/eticket'
@@ -555,6 +566,7 @@ export interface FileRouteTypes {
     | '/admin/withdrawals'
     | '/app/eticket'
     | '/app/rides'
+    | '/employee/id-card'
     | '/rescue/$id'
     | '/rider/earnings'
     | '/rider/eticket'
@@ -605,6 +617,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/withdrawals'
     | '/_authenticated/app/eticket'
     | '/_authenticated/app/rides'
+    | '/_authenticated/employee/id-card'
     | '/_authenticated/rescue/$id'
     | '/_authenticated/rider/earnings'
     | '/_authenticated/rider/eticket'
@@ -885,6 +898,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployeeIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employee/id-card': {
+      id: '/_authenticated/employee/id-card'
+      path: '/employee/id-card'
+      fullPath: '/employee/id-card'
+      preLoaderRoute: typeof AuthenticatedEmployeeIdCardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/rescue/$id': {
       id: '/_authenticated/rescue/$id'
       path: '/rescue/$id'
@@ -1001,6 +1021,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminWithdrawalsRoute: typeof AuthenticatedAdminWithdrawalsRoute
   AuthenticatedAppEticketRoute: typeof AuthenticatedAppEticketRoute
   AuthenticatedAppRidesRoute: typeof AuthenticatedAppRidesRoute
+  AuthenticatedEmployeeIdCardRoute: typeof AuthenticatedEmployeeIdCardRoute
   AuthenticatedRescueIdRoute: typeof AuthenticatedRescueIdRoute
   AuthenticatedRiderEarningsRoute: typeof AuthenticatedRiderEarningsRoute
   AuthenticatedRiderEticketRoute: typeof AuthenticatedRiderEticketRoute
@@ -1046,6 +1067,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminWithdrawalsRoute: AuthenticatedAdminWithdrawalsRoute,
   AuthenticatedAppEticketRoute: AuthenticatedAppEticketRoute,
   AuthenticatedAppRidesRoute: AuthenticatedAppRidesRoute,
+  AuthenticatedEmployeeIdCardRoute: AuthenticatedEmployeeIdCardRoute,
   AuthenticatedRescueIdRoute: AuthenticatedRescueIdRoute,
   AuthenticatedRiderEarningsRoute: AuthenticatedRiderEarningsRoute,
   AuthenticatedRiderEticketRoute: AuthenticatedRiderEticketRoute,

@@ -76,7 +76,7 @@ const employeeNav: NavItem[] = [
 
 export function EmployeeShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <AppShell title={title} {...(subtitle === undefined ? {} : { subtitle })} nav={employeeNav}>
+    <AppShell title={title} {...(subtitle ? { subtitle } : {})} nav={employeeNav}>
       {children}
     </AppShell>
   );

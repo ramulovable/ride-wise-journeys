@@ -123,7 +123,7 @@ function IdCardPage() {
     if (!img) return;
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<html><head><title>Employee ID</title><style>@page{margin:10mm}body{margin:0;display:flex;justify-content:center}img{width:54mm*2;max-width:100%;height:auto}</style></head><body><img src="${img}" onload="window.print()"/></body></html>`);
+    w.document.write(`<html><head><title>Employee ID</title><style>@page{margin:10mm}body{margin:0;display:flex;justify-content:center}img{max-width:100%;height:auto}</style></head><body><img src="${img}" onload="window.print()"/></body></html>`);
     w.document.close();
   }
 

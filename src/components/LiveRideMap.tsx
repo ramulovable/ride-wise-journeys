@@ -285,8 +285,8 @@ export function LiveRideMap({
       overlaysRef.current.push(line);
       path.forEach((point) => bounds.extend(point));
     }
-    if (!bounds.isEmpty()) map.fitBounds(bounds, 48);
-  }, [data]);
+    if (!bounds.isEmpty() && !(followDriver && shownRef.current)) map.fitBounds(bounds, 48);
+  }, [data, followDriver]);
 
   useEffect(() => {
     const api = apiRef.current;

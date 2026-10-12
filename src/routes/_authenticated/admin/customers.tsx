@@ -22,7 +22,9 @@ import {
   getAdminCustomers,
   setCustomerBlocked,
 } from "@/lib/api.functions";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, rupees } from "@/lib/format";
+import { getAdminCustomerDetails } from "@/lib/rescue.functions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/customers")({
@@ -58,6 +60,7 @@ function Customers() {
     },
     onError: (error) => toast.error(error.message),
   });
+  const [detailsFor, setDetailsFor] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
     full_name: string;
@@ -107,6 +110,9 @@ function Customers() {
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2 border-t pt-3">
+                <Button size="sm" variant="outline" onClick={() => setDetailsFor(customer.id)}>
+                  View details
+                </Button>
                 <Button
                   size="sm"
                   variant={customer.is_blocked ? "outline" : "destructive"}
@@ -138,6 +144,8 @@ function Customers() {
         </div>
       )}
 
+      <CustomerDetailsDialog id={detailsFor} onClose={() => setDetailsFor(null)} />
+
       <AlertDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {
@@ -168,5 +176,84 @@ function Customers() {
         </AlertDialogContent>
       </AlertDialog>
     </AdminShell>
+  );
+}
+
+function CustomerDetailsDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const q = useQuery({
+    queryKey: ["admin-customer-details", id],
+    queryFn: () => getAdminCustomerDetails({ data: { id: id! } }),
+    enabled: Boolean(id),
+  });
+  const d = q.data;
+  const row = (k: string, v: React.ReactNode) => (
+    <div className="flex justify-between gap-3 border-b border-border py-1.5 text-sm">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="text-right font-medium">{v}</span>
+    </div>
+  );
+  return (
+    <Dialog open={id !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Customer details</DialogTitle>
+        </DialogHeader>
+        {q.isError ? <p className="text-sm text-destructive">{q.error.message}</p> : null}
+        {!d ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              {d.profile.photo_url ? (
+                <a href={d.profile.photo_url} target="_blank" rel="noreferrer">
+                  <img src={d.profile.photo_url} alt="" className="h-16 w-16 rounded-full object-cover" />
+                </a>
+              ) : (
+                <span className="h-16 w-16 rounded-full bg-muted" />
+              )}
+              <div>
+                <p className="font-semibold">{d.profile.full_name || "Unnamed customer"}</p>
+                <p className="text-sm text-muted-foreground">{d.profile.mobile}</p>
+              </div>
+            </div>
+            <div>
+              {row("Address", d.profile.address || "—")}
+              {row("Date of birth", d.profile.date_of_birth || "—")}
+              {row("Language", d.profile.preferred_language)}
+              {row("Registered", formatDateTime(d.profile.created_at))}
+              {row("App version", d.profile.app_version ? `v${d.profile.app_version}` : "Website / unknown")}
+              {row("Phone alerts", d.phoneAlerts ? "On" : "Off")}
+              {row("Status", d.profile.is_blocked ? "Blocked" : "Active")}
+              {row("Own referral code", d.profile.my_referral_code || "—")}
+              {row("Referred by", d.referrerName || "—")}
+              {row("People referred", d.referredCount)}
+              {row("Wallet balance", rupees(d.wallet))}
+              {row("Total rides", d.stats.total)}
+              {row("Completed / Cancelled", `${d.stats.completed} / ${d.stats.cancelled}`)}
+              {row("Total spent", rupees(d.stats.spent))}
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-semibold">Recent rides</p>
+              {d.recent.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No rides yet.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {d.recent.map((r) => (
+                    <li key={r.id} className="rounded-md border border-border p-2 text-xs">
+                      <p className="font-medium">
+                        {r.from} → {r.to}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {formatDateTime(r.created_at)} · {r.status} · {rupees(Number(r.total_fare))}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -142,7 +142,7 @@ export const sendBroadcast = createServerFn({ method: "POST" })
               }
             } else {
               const status = response.status;
-              if (status === 404 || status === 400) {
+              if (status === 404) {
                 await supabaseAdmin
                   .from("notification_devices")
                   .update({ is_active: false })

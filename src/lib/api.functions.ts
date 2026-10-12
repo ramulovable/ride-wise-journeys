@@ -1070,7 +1070,7 @@ async function deliverPush(args: {
       }
       const errorBody = await response.text();
       console.error(`Push send failed [${response.status}]: ${errorBody}`);
-      if (response.status === 404 || response.status === 400) {
+      if (response.status === 404) {
         await supabaseAdmin
           .from("notification_devices")
           .update({ is_active: false })

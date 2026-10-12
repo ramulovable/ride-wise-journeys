@@ -1,74 +1,95 @@
-// ============= Full file contents =============
-
 import { supabase } from "@/integrations/supabase/client";
+import { registerPushToken } from "@/lib/push-token.functions";
 
 /**
  * Inside the Shahin Travels Android app, the native layer hands us its Firebase
  * token on `window.__shahinNativePushToken`. Store it against the signed-in user
  * so ride alerts reach the phone even when the app is closed.
  *
- * The native layer publishes the token while the app is still starting, which
- * can be before the login session is restored. Retry until the session exists,
- * and save again as soon as the user signs in.
+ * The token is re-saved on every app open, resume, sign-in and session restore,
+ * and retried until it succeeds, so a driver's token never goes missing.
  */
 
-const MAX_SAVE_ATTEMPTS = 5;
-const RETRY_DELAY_MS = 2000;
+const RETRY_DELAY_MS = 3000;
+const MAX_ATTEMPTS = 40; // ~2 minutes of retrying per trigger
 
 let lastToken: string | null = null;
+let savedFor: string | null = null; // "userId:token" already saved this session
+let running = false;
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 async function save(token: string): Promise<boolean> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return false;
-  const { error } = await supabase
-    .from("notification_devices")
-    .upsert(
-      { user_id: auth.user.id, push_token: token, device_type: "android", is_active: true },
-      { onConflict: "push_token" },
-    );
-  return !error;
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user.id;
+  if (!userId) return false;
+  if (savedFor === `${userId}:${token}`) return true;
+  try {
+    await registerPushToken({ data: { token, deviceType: "android" } });
+  } catch {
+    // Fallback: direct save (works when the token already belongs to this user).
+    const { error } = await supabase
+      .from("notification_devices")
+      .upsert(
+        { user_id: userId, push_token: token, device_type: "android", is_active: true },
+        { onConflict: "push_token" },
+      );
+    if (error) return false;
+  }
+  savedFor = `${userId}:${token}`;
+  return true;
 }
 
-/** Keeps trying until the session is ready so an early token is never lost. */
 async function attemptSave(token: string) {
-  for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
-    if (await save(token)) return;
-    await sleep(RETRY_DELAY_MS);
+  if (running) return;
+  running = true;
+  try {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (await save(token)) return;
+      await sleep(RETRY_DELAY_MS);
+    }
+  } finally {
+    running = false;
   }
 }
 
-function currentToken(): string | null {
-  if (typeof window === "undefined") return null;
-  const w = window as Window & { __shahinNativePushToken?: string };
-  return w.__shahinNativePushToken ?? null;
+/** Re-sends the current token (used when going online, resuming, etc.). */
+export function resyncNativePushToken(force = false) {
+  const w = typeof window === "undefined" ? undefined : (window as Window & { __shahinNativePushToken?: string });
+  const token = w?.__shahinNativePushToken ?? lastToken;
+  if (!token) return;
+  lastToken = token;
+  if (force) savedFor = null;
+  void attemptSave(token);
 }
 
 export function listenForNativePushToken(): () => void {
   if (typeof window === "undefined") return () => {};
-  const w = window as Window & { __shahinNativePushToken?: string };
 
-  const handle = () => {
-    const token = w.__shahinNativePushToken;
-    if (!token) return;
-    lastToken = token;
-    void attemptSave(token);
-  };
+  const handle = () => resyncNativePushToken();
 
-  // When the user signs in (or the session restores) after the token arrived,
-  // save it then — this is the path that previously lost the token.
   const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-    if (event !== "SIGNED_IN" || !lastToken) return;
-    void attemptSave(lastToken);
+    if (event === "SIGNED_OUT") {
+      savedFor = null;
+      return;
+    }
+    if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
+      resyncNativePushToken();
+    }
   });
+
+  const onVisible = () => {
+    if (document.visibilityState === "visible") resyncNativePushToken(true);
+  };
 
   handle();
   window.addEventListener("shahin-native-push-token", handle);
+  document.addEventListener("visibilitychange", onVisible);
   return () => {
     window.removeEventListener("shahin-native-push-token", handle);
+    document.removeEventListener("visibilitychange", onVisible);
     authListener.subscription.unsubscribe();
   };
 }

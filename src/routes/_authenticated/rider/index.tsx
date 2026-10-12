@@ -46,6 +46,7 @@ import { useMyRiderDetails } from "@/lib/useMyRiderDetails";
 import { fetchLocations } from "@/lib/data";
 import { formatDate, RIDE_STATUS_LABEL, rupees } from "@/lib/format";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import { resyncNativePushToken } from "@/lib/native-push";
 
 export const Route = createFileRoute("/_authenticated/rider/")({
   head: () => ({
@@ -202,6 +203,7 @@ function RiderDashboard() {
 
   const eligible = subscriptionActive(riderDetails) && !riderDetails?.is_blocked;
   async function toggleOnline() {
+    resyncNativePushToken(true);
     if (!eligible && !riderDetails?.is_online) {
       toast.error("Admin approval and an active subscription are required.");
       return;

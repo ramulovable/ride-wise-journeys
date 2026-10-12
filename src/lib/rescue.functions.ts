@@ -41,7 +41,7 @@ async function pushTo(admin: Admin, userIds: string[], title: string, body: stri
           },
         );
         if (res.ok) delivered += 1;
-        else if (res.status === 404 || res.status === 400)
+        else if (res.status === 404)
           await admin.from("notification_devices").update({ is_active: false }).eq("push_token", d.push_token);
       } catch (e) {
         console.error("rescue push failed", e);

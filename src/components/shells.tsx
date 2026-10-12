@@ -19,16 +19,17 @@ import {
   QrCode,
   UserRound,
   Wallet,
+  Plane,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 
 const icon = (node: ReactNode) => node;
 
 const customerNav: NavItem[] = [
-  { to: "/app", label: "Home", icon: icon(<Home className="h-4 w-4" />) },
+  { to: "/app", label: "Ride", icon: icon(<Home className="h-4 w-4" />) },
   { to: "/app/rides", label: "My Bookings", icon: icon(<ClipboardList className="h-4 w-4" />) },
   { to: "/wallet", label: "Wallet", icon: icon(<Wallet className="h-4 w-4" />) },
-  { to: "/support", label: "Support", icon: icon(<LifeBuoy className="h-4 w-4" />) },
+  { to: "/travel", label: "Travel", icon: icon(<Plane className="h-4 w-4" />) },
   { to: "/profile", label: "Profile", icon: icon(<User className="h-4 w-4" />) },
 ];
 

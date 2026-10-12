@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getNearbyDrivers, nearestPlaceForGps, selectIndiaPlace } from "@/lib/api.functions";
 import { AdBanner } from "@/components/AdBanner";
-import { TravelDesk } from "@/components/TravelDesk";
-import { QuotesStudioCard } from "@/components/QuotesStudioCard";
 
 import { toast } from "sonner";
 import {
@@ -254,8 +252,6 @@ function BookPage() {
           <>
             {/* Big landscape advertising banner, managed from Admin > Banners. */}
             <AdBanner />
-            <TravelDesk />
-            <QuotesStudioCard />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
 
@@ -564,16 +560,6 @@ function BookPage() {
         )}
 
 
-        <Link
-          to="/app/eticket"
-          className="flex items-center justify-between rounded-2xl border border-border bg-card p-4"
-        >
-          <span>
-            <span className="block text-sm font-semibold text-foreground">E-Ticket (Prepaid QR)</span>
-            <span className="block text-xs text-muted-foreground">Online pay karke ticket lein</span>
-          </span>
-          <ArrowRight className="h-5 w-5 text-primary" />
-        </Link>
 
         <Link
           to="/"

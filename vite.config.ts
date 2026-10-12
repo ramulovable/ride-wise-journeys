@@ -14,14 +14,18 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    resolve: {
-      // Browser builds otherwise turn `events` into an empty stub, breaking the LiveAvatar SDK.
-      alias: [
-        {
-          find: /^(node:)?events$/,
-          replacement: fileURLToPath(new URL("./node_modules/events/events.js", import.meta.url)),
+    plugins: [
+      {
+        // Browser builds otherwise turn `events` into an empty stub, breaking the LiveAvatar SDK.
+        name: "liveavatar-events-shim",
+        enforce: "pre",
+        resolveId(id: string, importer?: string) {
+          if ((id === "events" || id === "node:events") && importer?.includes("liveavatar-web-sdk")) {
+            return fileURLToPath(new URL("./node_modules/events/events.js", import.meta.url));
+          }
+          return null;
         },
-      ],
-    },
+      },
+    ],
   },
 });

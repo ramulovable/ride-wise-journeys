@@ -18,7 +18,7 @@ function highlightFromSpeech(text: string) {
   let best: HTMLElement | null = null;
   let bestLen = 0;
   for (const el of nodes) {
-    const label = (el.dataset.guide || el.innerText || el.getAttribute("aria-label") || "")
+    const label = (el.dataset["guide"] || el.innerText || el.getAttribute("aria-label") || "")
       .trim()
       .toLowerCase();
     if (label.length < 3 || label.length > 40) continue;

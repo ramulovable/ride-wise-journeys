@@ -16,6 +16,7 @@ import {
   adminAssignDriverPlan,
   adminAssignPortfolio,
   adminCreateEmployee,
+  adminDeleteEmployee,
   adminDecideLedger,
   adminEvaluateEvents,
   adminListEmployees,
@@ -96,6 +97,11 @@ function Employees() {
   const qc = useQueryClient();
   const emps = useEmployees();
   const [editing, setEditing] = useState<Emp | "new" | null>(null);
+  const del = useMutation({
+    mutationFn: (id: string) => adminDeleteEmployee({ data: { id } }),
+    onSuccess: () => { toast.success("Employee deleted."); void qc.invalidateQueries({ queryKey: ["hq-employees"] }); },
+    onError: (err) => toast.error(err.message),
+  });
   return (
     <div className="space-y-3">
       <div className="flex justify-between">
@@ -124,6 +130,16 @@ function Employees() {
               <Badge variant={e.status === "active" ? "secondary" : "destructive"}>{e.status}</Badge>
               {e.can_approve_drivers ? <Badge variant="outline">Can approve drivers</Badge> : null}
               <Button size="sm" variant="outline" onClick={() => setEditing(e)}>Edit</Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={del.isPending}
+                onClick={() => {
+                  if (window.confirm(`Delete ${e.full_name || "this employee"} (${e.employee_code})? This cannot be undone.`)) del.mutate(e.id);
+                }}
+              >
+                Delete
+              </Button>
               <Button size="sm" variant="ghost" asChild>
                 <Link to="/admin/verify-employee/$token" params={{ token: e.verification_token }}>ID record</Link>
               </Button>

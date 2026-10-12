@@ -160,6 +160,40 @@ export const adminUpdateEmployee = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Founder deletes an employee. Blocked when money/acquisition history exists (use "exited" instead). */
+export const adminDeleteEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireFounder(context);
+    const db = await admin();
+    const id = data.id;
+    const [led, ev, acq] = await Promise.all([
+      db.from("financial_ledger").select("id", { count: "exact", head: true }).eq("employee_id", id),
+      db.from("employee_qualified_events").select("id", { count: "exact", head: true }).eq("employee_id", id),
+      db.from("profiles").select("id", { count: "exact", head: true }).eq("acquired_by_employee_id", id),
+    ]);
+    if ((led.count ?? 0) + (ev.count ?? 0) + (acq.count ?? 0) > 0) {
+      throw new Error("This employee has salary/commission or acquisition history, so they cannot be deleted. Set status to Exited instead.");
+    }
+    const { data: emp } = await db.from("field_employees").select("*").eq("id", id).single();
+    if (!emp) throw new Error("Employee not found.");
+    await db.from("profiles").update({ portfolio_manager_id: null }).eq("portfolio_manager_id", id);
+    await db.from("field_employees").update({ reporting_manager_id: null }).eq("reporting_manager_id", id);
+    await db.from("portfolio_assignments").delete().eq("employee_id", id);
+    await db.from("employee_targets").delete().eq("employee_id", id);
+    const { error } = await db.from("field_employees").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      actor_id: context.userId,
+      action: "employee_deleted",
+      target_type: "field_employees",
+      target_id: id,
+      details: { employee_code: emp.employee_code, user_id: emp.user_id },
+    });
+    return { ok: true };
+  });
+
 /** Founder verifies an employee QR. */
 export const adminVerifyEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

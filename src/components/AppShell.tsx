@@ -65,10 +65,10 @@ export function AppShell({
           </div>
         }
       />
+      <AiVideoAssistant />
       <main className="mx-auto w-full max-w-3xl px-4 py-4">{children}</main>
 
       {showWhatsAppSupport ? <WhatsAppSupportButton /> : null}
-      <AiVideoAssistant />
       {showWhatsAppSupport ? <InstallAppBar /> : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card">

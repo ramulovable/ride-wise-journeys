@@ -38,7 +38,7 @@ async function buildContext(
     supabase.from("user_roles").select("role").eq("user_id", userId),
     supabase
       .from("rides")
-      .select("status, created_at, pickup_label, drop_label, fare")
+      .select("status, created_at, total_fare, distance_km, pickup_note")
       .or(`customer_id.eq.${userId},rider_id.eq.${userId}`)
       .order("created_at", { ascending: false })
       .limit(5),
@@ -49,7 +49,7 @@ async function buildContext(
   const recent = (rides ?? [])
     .map(
       (r: any) =>
-        `${r.status} ${r.pickup_label ?? ""} -> ${r.drop_label ?? ""} ${r.fare ? "₹" + r.fare : ""} (${String(r.created_at).slice(0, 10)})`,
+        `${r.status} ${r.total_fare ? "₹" + r.total_fare : ""} ${r.distance_km ? r.distance_km + "km" : ""} (${String(r.created_at).slice(0, 10)})`,
     )
     .join("; ");
   const vehicles = (cats ?? []).map((c: any) => c.name).join(", ");

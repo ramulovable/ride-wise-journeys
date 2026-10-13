@@ -1,15 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { Mic, MicOff, PhoneOff, Loader2 } from "lucide-react";
-import { startAssistantSession, endAssistantSession } from "@/lib/ai-assistant.functions";
+import { Mic, MicOff, X, Minimize2, Maximize2, Loader2 } from "lucide-react";
+import { askAyesha, transcribeAyesha } from "@/lib/ayesha.functions";
 import { useI18n } from "@/lib/i18n";
+import poster from "@/assets/ayesha-studio.jpg";
+import idleClip from "@/assets/ayesha-idle.mp4.asset.json";
+import speakClip from "@/assets/ayesha-speak.mp4.asset.json";
+import checkClip from "@/assets/ayesha-check.mp4.asset.json";
+import coffeeClip from "@/assets/ayesha-coffee.mp4.asset.json";
 
-const AVATAR_THUMB =
-  "https://static.liveavatar.com/avatars/thumbnails/7b259367428f49138bdaa716565c3636/emotion-curated-20261004/10ba14ab-3911-4b89-8dfd-86b5ba25876f-250-c6d3d7236b2b6135.jpg";
+type Mode = "idle" | "listening" | "thinking" | "speaking";
+type Msg = { role: "user" | "assistant"; content: string };
 
-type Status = "idle" | "connecting" | "live" | "error";
+const CLIPS: Record<"idle" | "speak" | "check" | "coffee", string> = {
+  idle: idleClip.url,
+  speak: speakClip.url,
+  check: checkClip.url,
+  coffee: coffeeClip.url,
+};
 
-/** Highlights the visible button/tab whose label the avatar just mentioned. */
+const GREETING =
+  "Hello! Main Shahin Travels ki AI assistant Ayesha hoon. Ummid hai ki aap acche honge. Bataiye, main aapki kya help kar sakti hoon?";
+
+/** Highlights the visible button/tab whose label Ayesha just mentioned. */
 function highlightFromSpeech(text: string) {
   const said = text.toLowerCase();
   const nodes = Array.from(
@@ -30,214 +43,335 @@ function highlightFromSpeech(text: string) {
   if (!best) return;
   document.querySelectorAll(".ai-guide-highlight").forEach((e) => e.classList.remove("ai-guide-highlight"));
   best.classList.add("ai-guide-highlight");
-  best.scrollIntoView({ behavior: "smooth", block: "center" });
   const target = best;
   const clear = () => target.classList.remove("ai-guide-highlight");
   target.addEventListener("click", clear, { once: true });
   window.setTimeout(clear, 8000);
 }
 
+function pickVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis?.getVoices?.() ?? [];
+  const hi = voices.filter((v) => v.lang.toLowerCase().startsWith("hi"));
+  const female = /female|swara|kalpana|heera|lekha|neerja|aditi|priya/i;
+  return (
+    hi.find((v) => female.test(v.name)) ||
+    hi[0] ||
+    voices.find((v) => v.lang.toLowerCase() === "en-in" && female.test(v.name)) ||
+    voices.find((v) => v.lang.toLowerCase() === "en-in") ||
+    null
+  );
+}
+
+function blobToBase64(b: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+    r.onerror = reject;
+    r.readAsDataURL(b);
+  });
+}
+
 export function AiVideoAssistant() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { language } = useI18n();
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [muted, setMuted] = useState(false);
+  const [mini, setMini] = useState(false);
+  const [mode, setMode] = useState<Mode>("idle");
   const [caption, setCaption] = useState("");
-  const [listening, setListening] = useState(false);
-  const [micAvailable, setMicAvailable] = useState(true);
-  const [micNote, setMicNote] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
+  const [micOn, setMicOn] = useState(true);
+  const [micError, setMicError] = useState<string | null>(null);
 
-  function sendText(e: React.FormEvent) {
-    e.preventDefault();
-    const text = draft.trim();
-    const s = sessionRef.current;
-    if (!text || !s) return;
-    try {
-      s.message(text);
-      setCaption(`Aap: ${text}`);
-      setDraft("");
-    } catch (err) {
-      setMicNote(err instanceof Error ? err.message : "Message nahi gaya");
-    }
+  // Two stacked videos cross-fade between action clips.
+  const vA = useRef<HTMLVideoElement>(null);
+  const vB = useRef<HTMLVideoElement>(null);
+  const [front, setFront] = useState<"A" | "B">("A");
+  const currentClip = useRef<string>("");
+
+  const history = useRef<Msg[]>([]);
+  const modeRef = useRef<Mode>("idle");
+  const micOnRef = useRef(true);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtx = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number>(0);
+  const openRef = useRef(false);
+
+  modeRef.current = mode;
+  micOnRef.current = micOn;
+
+  function playClip(name: keyof typeof CLIPS, loop = true) {
+    const url = CLIPS[name];
+    if (currentClip.current === url) return;
+    currentClip.current = url;
+    const next = front === "A" ? vB.current : vA.current;
+    if (!next) return;
+    next.src = url;
+    next.loop = loop;
+    next.muted = true;
+    next.onended = loop ? null : () => playClip("idle");
+    void next.play().then(
+      () => setFront((f) => (f === "A" ? "B" : "A")),
+      () => null,
+    );
   }
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const sessionRef = useRef<import("@heygen/liveavatar-web-sdk").LiveAvatarSession | null>(null);
-  const contextRef = useRef<string | null>(null);
 
-  async function cleanup() {
-    const s = sessionRef.current;
-    sessionRef.current = null;
-    if (s) await s.stop().catch(() => null);
-    const ctx = contextRef.current;
-    contextRef.current = null;
-    if (ctx) void endAssistantSession({ data: { contextId: ctx } }).catch(() => null);
-  }
+  // Map conversation state → studio action clip.
+  useEffect(() => {
+    if (!open) return;
+    if (mode === "speaking") playClip("speak");
+    else if (mode === "thinking") playClip("check");
+    else playClip("idle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, open]);
 
-  useEffect(() => () => void cleanup(), []);
+  // Occasional natural coffee sip while nobody is talking.
+  useEffect(() => {
+    if (!open || mode !== "listening") return;
+    const t = window.setTimeout(() => {
+      if (modeRef.current === "listening") playClip("coffee", false);
+    }, 22000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, open]);
 
-  async function start() {
-    setOpen(true);
-    setStatus("connecting");
-    setError(null);
-    setCaption("");
-    try {
-      const { sessionToken, contextId } = await startAssistantSession({
-        data: { path: pathname, language },
-      });
-      contextRef.current = contextId;
-      // Try the mic; if the phone blocks it, continue in typing mode instead of failing.
-      let micOk = false;
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error("getUserMedia unavailable");
-        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-        s.getTracks().forEach((t) => t.stop());
-        micOk = true;
-      } catch (err) {
-        const name = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-        console.warn("Ayesha mic unavailable", name);
-        setMicNote(`Mic nahi mila (${name}). Neeche type karke baat karein.`);
+  function speak(text: string) {
+    return new Promise<void>((resolve) => {
+      setMode("speaking");
+      setCaption(text);
+      highlightFromSpeech(text);
+      const synth = window.speechSynthesis;
+      if (!synth) {
+        window.setTimeout(resolve, Math.min(9000, 1200 + text.length * 55));
+        return;
       }
-      setMicAvailable(micOk);
-      const sdk = await import("@heygen/liveavatar-web-sdk");
-      const session = new sdk.LiveAvatarSession(sessionToken, {
-        autoKeepAlive: true,
-        ...(micOk
-          ? { voiceChat: { mode: sdk.SessionInteractivityMode.CONVERSATIONAL, defaultMuted: false } }
-          : {}),
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const v = pickVoice();
+      if (v) u.voice = v;
+      u.lang = v?.lang ?? "hi-IN";
+      u.rate = 0.92;
+      u.pitch = 1.08;
+      const done = () => resolve();
+      u.onend = done;
+      u.onerror = done;
+      synth.speak(u);
+    }).then(() => {
+      if (openRef.current) setMode("listening");
+    });
+  }
+
+  async function handleUtterance(text: string) {
+    history.current.push({ role: "user", content: text });
+    setCaption(`Aap: ${text}`);
+    setMode("thinking");
+    try {
+      const res = await askAyesha({
+        data: { path: pathname, language, messages: history.current.slice(-16) },
       });
-      sessionRef.current = session;
-      session.on(sdk.SessionEvent.SESSION_STREAM_READY, () => {
-        if (videoRef.current) session.attach(videoRef.current);
-        setStatus("live");
-      });
-      session.on(sdk.SessionEvent.SESSION_DISCONNECTED, () => {
-        setStatus((s) => (s === "error" ? s : "idle"));
-        void cleanup();
-        setOpen(false);
-      });
-      session.on(sdk.AgentEventsEnum.USER_SPEAK_STARTED, () => setListening(true));
-      session.on(sdk.AgentEventsEnum.USER_SPEAK_ENDED, () => setListening(false));
-      session.on(sdk.AgentEventsEnum.USER_TRANSCRIPTION, (e: { text?: string }) => {
-        if (e?.text) setCaption(`Aap: ${e.text}`);
-      });
-      session.on(sdk.AgentEventsEnum.AVATAR_TRANSCRIPTION, (e: { text?: string }) => {
-        if (e?.text) {
-          setCaption(e.text);
-          highlightFromSpeech(e.text);
-        }
-      });
-      await session.start();
-    } catch (e) {
-      setStatus("error");
-      setError(e instanceof Error ? e.message : "Assistant start nahi ho payi");
-      await cleanup();
+      history.current.push({ role: "assistant", content: res.reply });
+      if (openRef.current) await speak(res.reply);
+    } catch {
+      if (openRef.current) await speak("Maaf kijiye, connection me dikkat aa gayi. Kya aap phir se bolenge?");
     }
   }
 
-  async function end() {
-    await cleanup();
-    setStatus("idle");
-    setOpen(false);
+  async function startMic() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      streamRef.current = stream;
+      setMicError(null);
+      const ctx = new AudioContext();
+      audioCtx.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const buf = new Uint8Array(analyser.fftSize);
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+
+      let rec: MediaRecorder | null = null;
+      let chunks: Blob[] = [];
+      let lastVoice = 0;
+      let startedAt = 0;
+
+      const stopRec = () => {
+        if (rec && rec.state === "recording") rec.stop();
+      };
+
+      const tick = () => {
+        rafRef.current = requestAnimationFrame(tick);
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (const x of buf) sum += (x - 128) * (x - 128);
+        const level = Math.sqrt(sum / buf.length);
+        const now = performance.now();
+        const canListen = micOnRef.current && modeRef.current === "listening";
+
+        if (!canListen) {
+          if (rec && rec.state === "recording") {
+            chunks = [];
+            rec.onstop = null;
+            rec.stop();
+            rec = null;
+          }
+          return;
+        }
+        if (level > 9) lastVoice = now;
+        if (!rec && level > 12) {
+          chunks = [];
+          rec = new MediaRecorder(stream, { mimeType: mime });
+          rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+          rec.onstop = async () => {
+            const blob = new Blob(chunks, { type: mime });
+            rec = null;
+            if (blob.size < 6000) return;
+            setMode("thinking");
+            setCaption("Sun rahi hoon…");
+            try {
+              const { text } = await transcribeAyesha({
+                data: { audio: await blobToBase64(blob), mime },
+              });
+              if (text && text.length > 1) await handleUtterance(text);
+              else if (openRef.current) setMode("listening");
+            } catch {
+              if (openRef.current) setMode("listening");
+            }
+          };
+          rec.start();
+          startedAt = now;
+          lastVoice = now;
+        }
+        if (rec && (now - lastVoice > 1300 || now - startedAt > 15000)) stopRec();
+      };
+      tick();
+      return true;
+    } catch (err) {
+      const name = err instanceof Error ? `${err.name}` : String(err);
+      setMicError(`Mic nahi mila (${name}). Phone settings me Shahin Travels ko Microphone allow karein.`);
+      return false;
+    }
   }
 
-  function toggleMic() {
-    const vc = sessionRef.current?.voiceChat;
-    if (!vc) return;
-    if (muted) void vc.unmute();
-    else void vc.mute();
-    setMuted(!muted);
+  function stopMic() {
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    void audioCtx.current?.close().catch(() => null);
+    audioCtx.current = null;
+  }
+
+  async function openAssistant() {
+    setOpen(true);
+    openRef.current = true;
+    setMini(false);
+    history.current = [{ role: "assistant", content: GREETING }];
+    currentClip.current = "";
+    // Unlock speech on this user tap (required by Android/Chrome).
+    window.speechSynthesis?.getVoices();
+    void startMic();
+    await speak(GREETING);
+  }
+
+  function close() {
+    openRef.current = false;
+    window.speechSynthesis?.cancel();
+    stopMic();
+    setOpen(false);
+    setMode("idle");
+    setCaption("");
+    currentClip.current = "";
+  }
+
+  useEffect(() => () => close(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function interrupt() {
+    if (modeRef.current === "speaking") {
+      window.speechSynthesis?.cancel();
+      setMode("listening");
+    }
   }
 
   if (!open) {
     return (
-      <button
-        type="button"
-        data-ai-assistant
-        onClick={start}
-        aria-label="Talk to Emma, live AI assistant"
-        className="fixed bottom-20 left-4 z-40 size-14 overflow-hidden rounded-full border-2 border-primary shadow-lg ring-4 ring-primary/20 animate-pulse"
-      >
-        <img src={AVATAR_THUMB} alt="" className="size-full object-cover" />
-      </button>
+      <div data-ai-assistant className="mx-auto w-full max-w-3xl px-4 pt-3">
+        <button
+          type="button"
+          onClick={openAssistant}
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-2 pr-4 text-left shadow-sm"
+        >
+          <img src={poster} alt="" className="h-12 w-20 rounded-xl object-cover object-[30%_30%]" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-foreground">Ayesha · Shahin AI Assistant</span>
+            <span className="block truncate text-xs text-muted-foreground">Tap karein aur boliye — main sun rahi hoon</span>
+          </span>
+          <Mic className="size-5 text-primary" />
+        </button>
+      </div>
     );
   }
 
+  const status =
+    mode === "speaking"
+      ? "Ayesha bol rahi hai… (tap to interrupt)"
+      : mode === "thinking"
+        ? "System me check kar rahi hoon…"
+        : micOn
+          ? "🎙️ Boliye, main sun rahi hoon"
+          : "Mic band hai";
+
   return (
-    <div
-      data-ai-assistant
-      className="fixed bottom-20 left-3 z-50 w-[min(300px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-    >
-      <div className="relative aspect-[3/4] bg-muted">
-        <video ref={videoRef} autoPlay playsInline className="size-full object-cover" />
-        {status !== "live" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 p-4 text-center">
-            <img src={AVATAR_THUMB} alt="Emma" className="size-20 rounded-full object-cover" />
-            {status === "connecting" ? (
-              <p className="flex items-center gap-2 text-sm text-foreground">
-                <Loader2 className="size-4 animate-spin" /> Emma se jud rahe hain…
+    <div data-ai-assistant className="mx-auto w-full max-w-3xl px-4 pt-3">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+        {!mini ? (
+          <button type="button" onClick={interrupt} className="relative block aspect-video w-full bg-muted">
+            {(["A", "B"] as const).map((k) => (
+              <video
+                key={k}
+                ref={k === "A" ? vA : vB}
+                poster={poster}
+                playsInline
+                muted
+                className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
+                  front === k ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            ))}
+            {caption ? (
+              <p className="absolute inset-x-2 bottom-2 line-clamp-3 rounded-lg bg-background/85 px-2 py-1 text-left text-xs text-foreground">
+                {caption}
               </p>
-            ) : (
-              <>
-                <p className="text-sm text-destructive">{error}</p>
-                <button
-                  type="button"
-                  onClick={start}
-                  className="rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground"
-                >
-                  Dobara try karein
-                </button>
-              </>
-            )}
-          </div>
-        ) : null}
-        {caption && status === "live" ? (
-          <p className="absolute inset-x-2 bottom-2 rounded-lg bg-background/85 px-2 py-1 text-xs text-foreground">
-            {caption}
-          </p>
-        ) : null}
-      </div>
-      {micNote ? <p className="px-2 pt-2 text-[11px] text-muted-foreground">{micNote}</p> : null}
-      {status === "live" ? (
-        <form onSubmit={sendText} className="flex gap-2 px-2 pt-2">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={micAvailable ? "Ya yahan type karein…" : "Apna sawal likhiye…"}
-            className="min-w-0 flex-1 rounded-full border border-input bg-background px-3 py-1.5 text-sm text-foreground"
-          />
-          <button type="submit" className="rounded-full bg-primary px-3 text-sm text-primary-foreground">
-            Bhejein
+            ) : null}
           </button>
-        </form>
-      ) : null}
-      <div className="flex items-center justify-between gap-2 p-2">
-        <span className="text-xs text-muted-foreground">
-          {status === "live" && !muted
-            ? listening
-              ? "🎙️ Ayesha sun rahi hai…"
-              : "Ayesha · boliye"
-            : "Ayesha · Live AI"}
-        </span>
-        <div className="flex gap-2">
+        ) : null}
+        <div className="flex items-center gap-2 p-2">
+          {mini ? <img src={poster} alt="" className="h-8 w-12 rounded-md object-cover object-[30%_30%]" /> : null}
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+            {mode === "thinking" ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            <span className="truncate">{micError ?? status}</span>
+          </span>
           <button
             type="button"
-            onClick={toggleMic}
-            disabled={status !== "live"}
-            aria-label={muted ? "Unmute mic" : "Mute mic"}
-            className="rounded-full bg-secondary p-2 text-secondary-foreground disabled:opacity-50"
+            onClick={() => setMicOn((m) => !m)}
+            aria-label={micOn ? "Mic band karein" : "Mic chalu karein"}
+            className="rounded-full bg-secondary p-2 text-secondary-foreground"
           >
-            {muted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+            {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
           </button>
           <button
             type="button"
-            onClick={end}
-            aria-label="End call"
+            onClick={() => setMini((m) => !m)}
+            aria-label={mini ? "Bada karein" : "Chhota karein"}
+            className="rounded-full bg-secondary p-2 text-secondary-foreground"
+          >
+            {mini ? <Maximize2 className="size-4" /> : <Minimize2 className="size-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Band karein"
             className="rounded-full bg-destructive p-2 text-destructive-foreground"
           >
-            <PhoneOff className="size-4" />
+            <X className="size-4" />
           </button>
         </div>
       </div>

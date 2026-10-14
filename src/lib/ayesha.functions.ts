@@ -181,3 +181,32 @@ export const transcribeAyesha = createServerFn({ method: "POST" })
     }
     return { text: String(json?.text ?? "").trim() };
   });
+
+/** Real voice audio (MP3) so speech plays on every phone, even without a Hindi voice pack. */
+export const speakAyesha = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ text: z.string().min(1).max(3000) }).parse(d))
+  .handler(async ({ data }) => {
+    const key = process.env["LOVABLE_API_KEY"];
+    if (!key) return { audio: "", error: "no key" };
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini-tts",
+        input: data.text,
+        voice: "nova",
+        response_format: "mp3",
+        instructions:
+          "Warm, friendly young Indian woman. Speak naturally and slowly in an Indian accent, like a kind customer-care helper.",
+      }),
+    });
+    if (!res.ok) {
+      console.error("Ayesha TTS failed", res.status, await res.text().catch(() => ""));
+      return { audio: "", error: `tts ${res.status}` };
+    }
+    const buf = new Uint8Array(await res.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return { audio: btoa(bin), error: null as string | null };
+  });

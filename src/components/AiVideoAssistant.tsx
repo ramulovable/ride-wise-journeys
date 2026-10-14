@@ -306,13 +306,20 @@ export function AiVideoAssistant() {
     currentClip.current = "";
     // Unlock speech on this user tap (required by Android/Chrome).
     window.speechSynthesis?.getVoices();
+    try {
+      const a = getAudio();
+      a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+      void a.play().catch(() => null);
+    } catch {
+      /* ignore */
+    }
     void startMic();
     await speak(GREETING);
   }
 
   function close() {
     openRef.current = false;
-    window.speechSynthesis?.cancel();
+    stopVoice();
     stopMic();
     setOpen(false);
     setMode("idle");
@@ -324,7 +331,7 @@ export function AiVideoAssistant() {
 
   function interrupt() {
     if (modeRef.current === "speaking") {
-      window.speechSynthesis?.cancel();
+      stopVoice();
       setMode("listening");
     }
   }

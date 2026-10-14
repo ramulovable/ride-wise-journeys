@@ -179,7 +179,6 @@ export function AiVideoAssistant() {
   }
 
   async function speak(text: string) {
-    setMode("thinking");
     setCaption(text);
     let played = false;
     try {

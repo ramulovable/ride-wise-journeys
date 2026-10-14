@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { Mic, MicOff, X, Minimize2, Maximize2, Loader2 } from "lucide-react";
-import { askAyesha, transcribeAyesha } from "@/lib/ayesha.functions";
+import { askAyesha, transcribeAyesha, speakAyesha } from "@/lib/ayesha.functions";
 import { useI18n } from "@/lib/i18n";
 import poster from "@/assets/ayesha-studio.jpg";
 import idleClip from "@/assets/ayesha-idle.mp4.asset.json";
@@ -94,6 +94,7 @@ export function AiVideoAssistant() {
   const audioCtx = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>(0);
   const openRef = useRef(false);
+  const audioEl = useRef<HTMLAudioElement | null>(null);
 
   modeRef.current = mode;
   micOnRef.current = micOn;
@@ -133,11 +134,8 @@ export function AiVideoAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, open]);
 
-  function speak(text: string) {
+  function speakWithDevice(text: string) {
     return new Promise<void>((resolve) => {
-      setMode("speaking");
-      setCaption(text);
-      highlightFromSpeech(text);
       const synth = window.speechSynthesis;
       if (!synth) {
         window.setTimeout(resolve, Math.min(9000, 1200 + text.length * 55));
@@ -150,13 +148,53 @@ export function AiVideoAssistant() {
       u.lang = v?.lang ?? "hi-IN";
       u.rate = 0.92;
       u.pitch = 1.08;
-      const done = () => resolve();
-      u.onend = done;
-      u.onerror = done;
+      u.onend = () => resolve();
+      u.onerror = () => resolve();
       synth.speak(u);
-    }).then(() => {
-      if (openRef.current) setMode("listening");
     });
+  }
+
+  function getAudio() {
+    if (!audioEl.current) {
+      audioEl.current = new Audio();
+      audioEl.current.setAttribute("playsinline", "true");
+    }
+    return audioEl.current;
+  }
+
+  async function speak(text: string) {
+    setMode("thinking");
+    setCaption(text);
+    let played = false;
+    try {
+      const res = await speakAyesha({ data: { text } });
+      if (res.audio && openRef.current) {
+        const a = getAudio();
+        a.src = `data:audio/mpeg;base64,${res.audio}`;
+        a.volume = 1;
+        setMode("speaking");
+        highlightFromSpeech(text);
+        await new Promise<void>((resolve) => {
+          a.onended = () => resolve();
+          a.onerror = () => resolve();
+          a.onpause = () => resolve();
+          a.play().then(() => (played = true)).catch(() => resolve());
+        });
+      }
+    } catch {
+      /* fall back below */
+    }
+    if (!played && openRef.current) {
+      setMode("speaking");
+      highlightFromSpeech(text);
+      await speakWithDevice(text);
+    }
+    if (openRef.current) setMode("listening");
+  }
+
+  function stopVoice() {
+    window.speechSynthesis?.cancel();
+    audioEl.current?.pause();
   }
 
   async function handleUtterance(text: string) {

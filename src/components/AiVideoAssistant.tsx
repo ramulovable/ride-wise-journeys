@@ -3,24 +3,25 @@ import { useRouterState } from "@tanstack/react-router";
 import { Mic, MicOff, X, Minimize2, Maximize2, Loader2 } from "lucide-react";
 import { askAyesha, transcribeAyesha, speakAyesha } from "@/lib/ayesha.functions";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import poster from "@/assets/ayesha-studio.jpg";
 import idleClip from "@/assets/ayesha-idle.mp4.asset.json";
 import speakClip from "@/assets/ayesha-speak.mp4.asset.json";
 import checkClip from "@/assets/ayesha-check.mp4.asset.json";
-import coffeeClip from "@/assets/ayesha-coffee.mp4.asset.json";
 
 type Mode = "idle" | "listening" | "thinking" | "speaking";
 type Msg = { role: "user" | "assistant"; content: string };
 
-const CLIPS: Record<"idle" | "speak" | "check" | "coffee", string> = {
+const CLIPS: Record<"idle" | "speak" | "check", string> = {
   idle: idleClip.url,
   speak: speakClip.url,
   check: checkClip.url,
-  coffee: coffeeClip.url,
 };
 
-const GREETING =
-  "Hello! Main Shahin Travels ki AI assistant Ayesha hoon. Ummid hai ki aap acche honge. Bataiye, main aapki kya help kar sakti hoon?";
+const greetingFor = (name: string) =>
+  `Hello${name ? " " + name + " ji" : ""}! Main Shahin Travels ki AI assistant Ayesha hoon. Ummid hai ki aap acche honge. Bataiye, main aapki kya help kar sakti hoon?`;
+const nudgeFor = (name: string) =>
+  `${name ? name + " ji, " : "Ji, "}bataiye, main aapki kya help kar sakti hoon?`;
 
 /** Highlights the visible button/tab whose label Ayesha just mentioned. */
 function highlightFromSpeech(text: string) {
@@ -74,6 +75,8 @@ function blobToBase64(b: Blob): Promise<string> {
 export function AiVideoAssistant() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { language } = useI18n();
+  const { profile } = useAuth();
+  const firstName = (profile?.full_name ?? "").trim().split(/\s+/)[0] ?? "";
   const [open, setOpen] = useState(false);
   const [mini, setMini] = useState(false);
   const [mode, setMode] = useState<Mode>("idle");
@@ -85,6 +88,8 @@ export function AiVideoAssistant() {
   const vA = useRef<HTMLVideoElement>(null);
   const vB = useRef<HTMLVideoElement>(null);
   const [front, setFront] = useState<"A" | "B">("A");
+  const frontRef = useRef<"A" | "B">("A");
+  const nudged = useRef(0);
   const currentClip = useRef<string>("");
 
   const history = useRef<Msg[]>([]);
@@ -103,14 +108,22 @@ export function AiVideoAssistant() {
     const url = CLIPS[name];
     if (currentClip.current === url) return;
     currentClip.current = url;
-    const next = front === "A" ? vB.current : vA.current;
+    const nextKey = frontRef.current === "A" ? "B" : "A";
+    const next = nextKey === "A" ? vA.current : vB.current;
+    const prev = nextKey === "A" ? vB.current : vA.current;
     if (!next) return;
     next.src = url;
     next.loop = loop;
     next.muted = true;
-    next.onended = loop ? null : () => playClip("idle");
+    // Mouth motion in the speaking clip is slower than real speech — speed it up to match the voice.
+    next.playbackRate = name === "speak" ? 1.2 : 1;
     void next.play().then(
-      () => setFront((f) => (f === "A" ? "B" : "A")),
+      () => {
+        frontRef.current = nextKey;
+        setFront(nextKey);
+        // Stop the hidden clip so the old (talking) one never keeps running.
+        window.setTimeout(() => prev?.pause(), 550);
+      },
       () => null,
     );
   }
@@ -124,12 +137,15 @@ export function AiVideoAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, open]);
 
-  // Occasional natural coffee sip while nobody is talking.
+  // If the user stays silent ~12s, gently ask once more (max 2 nudges until they speak).
   useEffect(() => {
-    if (!open || mode !== "listening") return;
+    if (!open || mode !== "listening" || nudged.current >= 2) return;
     const t = window.setTimeout(() => {
-      if (modeRef.current === "listening") playClip("coffee", false);
-    }, 22000);
+      if (modeRef.current === "listening" && openRef.current) {
+        nudged.current += 1;
+        void speak(nudgeFor(firstName));
+      }
+    }, 12000);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, open]);
@@ -146,7 +162,7 @@ export function AiVideoAssistant() {
       const v = pickVoice();
       if (v) u.voice = v;
       u.lang = v?.lang ?? "hi-IN";
-      u.rate = 0.92;
+      u.rate = 0.85;
       u.pitch = 1.08;
       u.onend = () => resolve();
       u.onerror = () => resolve();
@@ -172,6 +188,7 @@ export function AiVideoAssistant() {
         const a = getAudio();
         a.src = `data:audio/mpeg;base64,${res.audio}`;
         a.volume = 1;
+        a.playbackRate = 0.9;
         setMode("speaking");
         highlightFromSpeech(text);
         await new Promise<void>((resolve) => {
@@ -198,6 +215,7 @@ export function AiVideoAssistant() {
   }
 
   async function handleUtterance(text: string) {
+    nudged.current = 0;
     history.current.push({ role: "user", content: text });
     setCaption(`Aap: ${text}`);
     setMode("thinking");
@@ -302,7 +320,9 @@ export function AiVideoAssistant() {
     setOpen(true);
     openRef.current = true;
     setMini(false);
-    history.current = [{ role: "assistant", content: GREETING }];
+    const greeting = greetingFor(firstName);
+    nudged.current = 0;
+    history.current = [{ role: "assistant", content: greeting }];
     currentClip.current = "";
     // Unlock speech on this user tap (required by Android/Chrome).
     window.speechSynthesis?.getVoices();
@@ -314,7 +334,7 @@ export function AiVideoAssistant() {
       /* ignore */
     }
     void startMic();
-    await speak(GREETING);
+    await speak(greeting);
   }
 
   function close() {

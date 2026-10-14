@@ -12,4 +12,5 @@
 - Field employees are rows in public.field_employees (not an app_role); founder = existing admin role. Employee access is checked server-side in src/lib/field.functions.ts — keeps the auth/role enum untouched and employees can never gain admin powers like the Blue Tick.
 - Driver online eligibility = approved, not blocked, and (subscription valid OR rider_details.commission_plan_active); keep DB triggers/RPCs and every TS eligibility query in sync.
 - financial_ledger is append-only (amounts immutable, no deletes); corrections are new entries.
-- Live AI video assistant uses LiveAvatar FULL mode via src/lib/ai-assistant.functions.ts (key server-only, per-session context deleted on end) — keeps LLM/voice/lipsync in one provider.
+
+- AI assistant Ayesha = pre-generated state video clips (idle/speak/check/coffee) + src/lib/ayesha.functions.ts: Gemini first, Groq only on Gemini 429, Groq Whisper for speech-to-text — avoids paid streaming-avatar subscriptions and never mixes engines in one reply.

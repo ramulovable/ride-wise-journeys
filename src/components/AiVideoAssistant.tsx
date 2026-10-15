@@ -449,7 +449,9 @@ export function AiVideoAssistant() {
     mode === "speaking"
       ? "Ayesha bol rahi hai… (tap to interrupt)"
       : mode === "thinking"
-        ? "System me check kar rahi hoon…"
+        ? checking
+          ? "System me check kar rahi hoon…"
+          : "Soch rahi hoon…"
         : micOn
           ? "🎙️ Boliye, main sun rahi hoon"
           : "Mic band hai";

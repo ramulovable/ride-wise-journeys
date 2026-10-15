@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { pnrLookup, liveLookup } from "@/lib/indianrail.functions";
+import { pnrLookup, liveLookup, railStations, railBetween, railAvailability } from "@/lib/indianrail.functions";
 
 /**
  * Ayesha brain: Gemini is ALWAYS tried first. Groq is used only when Gemini
@@ -62,7 +62,8 @@ Explain slowly, step by step. Address the user by their first name with "ji" now
 Reply in the same language the user speaks (Hindi, Urdu, Maithili, Bhojpuri, English, Hinglish...). Default: simple Hindi in Roman script.
 You can chat about anything general (knowledge, advice, travel info, festivals, motivation) like a friendly helper.
 For Shahin Travels questions, use ONLY the data below. Never invent fares, ride status, train timings or seat availability.
-YOU HAVE LIVE BACKEND ACCESS: the system checks PNR status (10-digit PNR) and live train running status (5-digit train number) for you. If the user wants PNR status but has not given the number, ask: "Apna 10 ankon ka PNR number bataiye." If they want live train status without a train number, ask for the 5-digit train number. When a LIVE DATA block is present below, read it and tell the user the real result clearly (train name, status, coach/berth, delay, current station) — do NOT tell them to check it themselves. Only if LIVE DATA says it failed, apologise and suggest trying again shortly.
+YOU HAVE LIVE BACKEND ACCESS: the system checks PNR status (10-digit PNR), live train running status (5-digit train number), seat availability (train number + from + to station + date + class) and trains between two stations for you. Ask only for the missing details (e.g. "Apna 10 ankon ka PNR number bataiye", "Kis station se kis station tak?"). When a LIVE DATA block is present below, read it and tell the user the real result clearly — do NOT tell them to check it themselves. Only if LIVE DATA says it failed, apologise and suggest trying again shortly.
+Flights and hotels: you do NOT have live flight or hotel data yet. Give general helpful guidance, but never invent prices, timings or availability; say live flight/hotel checking is coming soon.
 When guiding, say the exact on-screen button/tab name so it gets highlighted. Never claim you clicked anything. Never ask for OTP or PIN.
 Current IST time: ${now}. User: ${name}. Role(s): ${roleList}. Screen: ${path}. App language: ${language}.
 Recent rides: ${recent || "none"}. Vehicle types: ${vehicles || "unknown"}.
@@ -71,9 +72,77 @@ ${APP_GUIDE}`;
 
 class QuotaError extends Error {}
 
-/** Detects PNR / train numbers in the latest user turns and fetches real railway data. */
+type TravelIntent = {
+  action: "seats" | "between" | "none";
+  train: string;
+  from: string;
+  to: string;
+  date: string;
+  cls: string;
+};
+
+/** Reads the conversation and pulls out a railway query (Gemini first, Groq only on Gemini quota). */
+async function extractIntent(msgs: z.infer<typeof Msg>[]): Promise<TravelIntent | null> {
+  const todayIst = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const sys = `Extract an Indian railway query from the conversation. Today is ${todayIst} (IST).
+Return ONLY compact JSON: {"action":"seats"|"between"|"none","train":"5-digit or empty","from":"station name or code","to":"station name or code","date":"YYYY-MM-DD or empty","cls":"SL|3A|2A|1A|CC|2S|3E or empty"}.
+"seats" = user wants seat availability for a train. "between" = user wants trains between two stations. Otherwise "none". Resolve words like aaj/kal/parso to dates.`;
+  const convo = msgs.slice(-6);
+  let raw = "";
+  try {
+    raw = await callGemini(sys, convo);
+  } catch (e) {
+    if (!(e instanceof QuotaError)) return null;
+    try {
+      raw = await callGroq(sys, convo);
+    } catch {
+      return null;
+    }
+  }
+  const m = /\{[\s\S]*\}/.exec(raw);
+  if (!m) return null;
+  try {
+    return JSON.parse(m[0]) as TravelIntent;
+  } catch {
+    return null;
+  }
+}
+
+async function stationCode(q: string): Promise<string> {
+  const s = q.trim();
+  if (/^[A-Za-z]{2,5}$/.test(s) && s === s.toUpperCase()) return s;
+  const r: any = await railStations({ data: { q: s } });
+  return r?.success && r.data?.[0]?.code ? String(r.data[0].code) : "";
+}
+
+const TRAVEL_WORDS = /seat|sit|berth|availab|khali|kaun.?si.?train|which train|trains? between|se .+ tak|ticket|station/i;
+
+/** Detects PNR / train / seat / route questions and fetches real railway data. */
 async function liveData(msgs: z.infer<typeof Msg>[]): Promise<string> {
   const userTurns = msgs.filter((m) => m.role === "user").slice(-2).reverse();
+  const latest = userTurns[0]?.content ?? "";
+  if (TRAVEL_WORDS.test(latest)) {
+    const it = await extractIntent(msgs);
+    const date = it?.date || new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+    if (it && it.action !== "none" && it.from && it.to) {
+      const [from, to] = await Promise.all([stationCode(it.from), stationCode(it.to)]);
+      if (!from || !to) return `Station not found for "${it.from}" or "${it.to}". Ask the user for the exact station name.`;
+      if (it.action === "seats" && /^\d{5}$/.test(it.train)) {
+        const r: any = await railAvailability({
+          data: { trainNo: it.train, from, to, date, quota: "GN", classes: it.cls ? [it.cls] : ["SL", "3A", "2A"] },
+        });
+        return r.success
+          ? `Seat availability train ${it.train} ${from}->${to} on ${date}: ${JSON.stringify(r.data).slice(0, 2500)}`
+          : `Seat availability check failed: ${r.error}`;
+      }
+      const r: any = await railBetween({ data: { from, to, date } });
+      if (!r.success) return `Trains between ${from} and ${to} check failed: ${r.error}`;
+      const list = (r.data ?? []).slice(0, 8).map((t: any) => `${t.number} ${t.name} dep ${t.departure} arr ${t.arrival} (${t.duration})`);
+      return `Trains between ${from} and ${to} on ${date}: ${list.join("; ") || "none found"}`;
+    }
+    if (it && it.action === "seats") return "User wants seat availability: ask for train number, from station, to station and date (only what is missing).";
+    if (it && it.action === "between") return "User wants trains between stations: ask for from and to station (only what is missing).";
+  }
   for (const m of userTurns) {
     const digits = m.content.replace(/[\s-]/g, "");
     const pnr = /(?<!\d)(\d{10})(?!\d)/.exec(digits)?.[1];

@@ -371,110 +371,112 @@ function mapRkLive(o: Record<string, unknown>, trainNo: string): LiveStatus | nu
   };
 }
 
+export async function liveLookup(data: { trainNo: string; date: string }): Promise<Res<LiveStatus>> {
+  if (data.trainNo.length !== 5) return fail("ट्रेन नंबर 5 अंक का होना चाहिए।");
+  if (data.date.length !== 8) return fail("यात्रा की तारीख चुनिए।");
+
+  // RailKit first, RapidAPI as automatic backup.
+  const rkDate = dmyCompact(data.date);
+  const rk = await railkit((sdk) => sdk.trackTrain(data.trainNo, rkDate));
+  if (rk.obj) {
+    const mapped = mapRkLive(rk.obj, data.trainNo);
+    if (mapped) return ok(mapped);
+  }
+  if (rk.notFound) return fail("इस तारीख के लिए लाइव जानकारी नहीं मिली।");
+
+  const { json, error } = await getJson(
+    ntesHost(),
+    `/api/trains/v1/train/status?departure_date=${data.date}&isH5=true&client=web&train_number=${data.trainNo}`,
+  );
+  if (error || !json) return fail(INTERNAL_MSG);
+
+  const status = (json["status"] ?? {}) as Record<string, unknown>;
+  if (status["result"] !== "success" || !json["body"]) {
+    const msg = (status["message"] ?? {}) as Record<string, unknown>;
+    return fail(clean(String(msg["message"] ?? "इस तारीख के लिए लाइव जानकारी नहीं मिली।")));
+  }
+  const body = json["body"] as Record<string, unknown>;
+  const raw = Array.isArray(body["stations"]) ? (body["stations"] as Record<string, unknown>[]) : [];
+  if (raw.length === 0) return fail("इस ट्रेन के लिए रूट नहीं मिला।");
+
+  const currentCode = String(body["current_station"] ?? "").toUpperCase();
+  const terminated = body["terminated"] === true;
+  let currentIdx = raw.findIndex((s) => String(s["stationCode"] ?? "").toUpperCase() === currentCode);
+  if (currentIdx < 0) currentIdx = terminated ? raw.length - 1 : 0;
+
+  const stops: LiveStop[] = raw.map((s, i) => {
+    const schedArr = String(s["arrivalTime"] ?? "");
+    const actualArr = String(s["actual_arrival_time"] ?? "");
+    const schedDep = String(s["departureTime"] ?? "");
+    const actualDep = String(s["actual_departure_time"] ?? "");
+    return {
+      code: String(s["stationCode"] ?? "").toUpperCase(),
+      name: String(s["stationName"] ?? ""),
+      serial: Number(s["stnSerialNumber"] ?? i + 1),
+      day: Number(s["dayCount"] ?? 1),
+      distanceKm: Number(s["distance"] ?? 0),
+      haltMin: Number(s["haltTime"] ?? 0),
+      platform: s["expected_platform"] ? String(s["expected_platform"]) : "",
+      schedArr,
+      schedDep,
+      actualArr,
+      actualDep,
+      delayMin: diffMin(schedArr || schedDep, actualArr || actualDep),
+      state: terminated || i < currentIdx ? "passed" : i === currentIdx ? "current" : "upcoming",
+    };
+  });
+
+  const first = stops[0]!;
+  const last = stops[stops.length - 1]!;
+  const cur = stops[currentIdx] ?? first;
+  const nxt = !terminated && currentIdx + 1 < stops.length ? stops[currentIdx + 1] : undefined;
+
+  const totalKm = last.distanceKm || 0;
+  const coveredKm = cur.distanceKm || 0;
+
+  const startStamp = parseStamp(
+    String(raw[0]?.["actual_departure_date"] ?? ""),
+    first.actualDep || first.schedDep,
+  );
+  const nowStamp = parseStamp(
+    String(raw[currentIdx]?.["actual_departure_date"] ?? raw[currentIdx]?.["actual_arrival_date"] ?? ""),
+    cur.actualDep || cur.actualArr || cur.schedDep,
+  );
+  let avgSpeedKmph = 0;
+  if (startStamp !== null && nowStamp !== null && nowStamp > startStamp && coveredKm > 0) {
+    avgSpeedKmph = Math.round((coveredKm / (nowStamp - startStamp)) * 60);
+  }
+  if (avgSpeedKmph > 180 || avgSpeedKmph < 0) avgSpeedKmph = 0;
+
+  return ok<LiveStatus>({
+    trainNo: data.trainNo,
+    message: stripTags(String(body["train_status_message"] ?? "")),
+    updatedAgo: String(body["time_of_availability"] ?? ""),
+    terminated,
+    currentCode: cur.code,
+    currentName: cur.name,
+    nextCode: nxt?.code ?? "",
+    nextName: nxt?.name ?? "",
+    nextEta: nxt ? nxt.actualArr || nxt.schedArr : "",
+    nextSched: nxt?.schedArr ?? "",
+    nextPlatform: nxt?.platform ?? "",
+    distanceToNextKm: nxt ? Math.max(0, nxt.distanceKm - coveredKm) : 0,
+    coveredKm,
+    totalKm,
+    progressPct: totalKm > 0 ? Math.round((coveredKm / totalKm) * 100) : 0,
+    avgSpeedKmph,
+    delayMin: cur.delayMin,
+    onTime: cur.delayMin <= 5,
+    stops,
+  });
+}
+
 export const railLive = createServerFn({ method: "POST" })
   .inputValidator((input: { trainNo: string; date: string }) => ({
     trainNo: String(input.trainNo ?? "").replace(/\D/g, "").slice(0, 5),
     date: String(input.date ?? "").replace(/\D/g, "").slice(0, 8), // YYYYMMDD
   }))
-  .handler(async ({ data }): Promise<Res<LiveStatus>> => {
-    if (data.trainNo.length !== 5) return fail("ट्रेन नंबर 5 अंक का होना चाहिए।");
-    if (data.date.length !== 8) return fail("यात्रा की तारीख चुनिए।");
-
-    // RailKit first, RapidAPI as automatic backup.
-    const rkDate = dmyCompact(data.date);
-    const rk = await railkit((sdk) => sdk.trackTrain(data.trainNo, rkDate));
-    if (rk.obj) {
-      const mapped = mapRkLive(rk.obj, data.trainNo);
-      if (mapped) return ok(mapped);
-    }
-    if (rk.notFound) return fail("इस तारीख के लिए लाइव जानकारी नहीं मिली।");
-
-    const { json, error } = await getJson(
-      ntesHost(),
-      `/api/trains/v1/train/status?departure_date=${data.date}&isH5=true&client=web&train_number=${data.trainNo}`,
-    );
-    if (error || !json) return fail(INTERNAL_MSG);
-
-    const status = (json["status"] ?? {}) as Record<string, unknown>;
-    if (status["result"] !== "success" || !json["body"]) {
-      const msg = (status["message"] ?? {}) as Record<string, unknown>;
-      return fail(clean(String(msg["message"] ?? "इस तारीख के लिए लाइव जानकारी नहीं मिली।")));
-    }
-    const body = json["body"] as Record<string, unknown>;
-    const raw = Array.isArray(body["stations"]) ? (body["stations"] as Record<string, unknown>[]) : [];
-    if (raw.length === 0) return fail("इस ट्रेन के लिए रूट नहीं मिला।");
-
-    const currentCode = String(body["current_station"] ?? "").toUpperCase();
-    const terminated = body["terminated"] === true;
-    let currentIdx = raw.findIndex((s) => String(s["stationCode"] ?? "").toUpperCase() === currentCode);
-    if (currentIdx < 0) currentIdx = terminated ? raw.length - 1 : 0;
-
-    const stops: LiveStop[] = raw.map((s, i) => {
-      const schedArr = String(s["arrivalTime"] ?? "");
-      const actualArr = String(s["actual_arrival_time"] ?? "");
-      const schedDep = String(s["departureTime"] ?? "");
-      const actualDep = String(s["actual_departure_time"] ?? "");
-      return {
-        code: String(s["stationCode"] ?? "").toUpperCase(),
-        name: String(s["stationName"] ?? ""),
-        serial: Number(s["stnSerialNumber"] ?? i + 1),
-        day: Number(s["dayCount"] ?? 1),
-        distanceKm: Number(s["distance"] ?? 0),
-        haltMin: Number(s["haltTime"] ?? 0),
-        platform: s["expected_platform"] ? String(s["expected_platform"]) : "",
-        schedArr,
-        schedDep,
-        actualArr,
-        actualDep,
-        delayMin: diffMin(schedArr || schedDep, actualArr || actualDep),
-        state: terminated || i < currentIdx ? "passed" : i === currentIdx ? "current" : "upcoming",
-      };
-    });
-
-    const first = stops[0]!;
-    const last = stops[stops.length - 1]!;
-    const cur = stops[currentIdx] ?? first;
-    const nxt = !terminated && currentIdx + 1 < stops.length ? stops[currentIdx + 1] : undefined;
-
-    const totalKm = last.distanceKm || 0;
-    const coveredKm = cur.distanceKm || 0;
-
-    const startStamp = parseStamp(
-      String(raw[0]?.["actual_departure_date"] ?? ""),
-      first.actualDep || first.schedDep,
-    );
-    const nowStamp = parseStamp(
-      String(raw[currentIdx]?.["actual_departure_date"] ?? raw[currentIdx]?.["actual_arrival_date"] ?? ""),
-      cur.actualDep || cur.actualArr || cur.schedDep,
-    );
-    let avgSpeedKmph = 0;
-    if (startStamp !== null && nowStamp !== null && nowStamp > startStamp && coveredKm > 0) {
-      avgSpeedKmph = Math.round((coveredKm / (nowStamp - startStamp)) * 60);
-    }
-    if (avgSpeedKmph > 180 || avgSpeedKmph < 0) avgSpeedKmph = 0;
-
-    return ok<LiveStatus>({
-      trainNo: data.trainNo,
-      message: stripTags(String(body["train_status_message"] ?? "")),
-      updatedAgo: String(body["time_of_availability"] ?? ""),
-      terminated,
-      currentCode: cur.code,
-      currentName: cur.name,
-      nextCode: nxt?.code ?? "",
-      nextName: nxt?.name ?? "",
-      nextEta: nxt ? nxt.actualArr || nxt.schedArr : "",
-      nextSched: nxt?.schedArr ?? "",
-      nextPlatform: nxt?.platform ?? "",
-      distanceToNextKm: nxt ? Math.max(0, nxt.distanceKm - coveredKm) : 0,
-      coveredKm,
-      totalKm,
-      progressPct: totalKm > 0 ? Math.round((coveredKm / totalKm) * 100) : 0,
-      avgSpeedKmph,
-      delayMin: cur.delayMin,
-      onTime: cur.delayMin <= 5,
-      stops,
-    });
-  });
+  .handler(({ data }) => liveLookup(data));
 
 /* ------------------------------------------------------------------ */
 /* 2. Train search + full schedule                                     */
@@ -726,62 +728,64 @@ function mapRkPnr(o: Record<string, unknown>, pnr: string): PnrStatus {
 }
 
 
+export async function pnrLookup(data: { pnr: string }): Promise<Res<PnrStatus>> {
+  if (data.pnr.length !== 10) return fail("PNR 10 अंक का होना चाहिए।");
+
+  const rk = await railkit((sdk) => sdk.checkPNRStatus(data.pnr));
+  if (rk.obj && (rk.obj["train"] || rk.obj["passengers"])) {
+    return ok(mapRkPnr(rk.obj, data.pnr));
+  }
+  if (rk.notFound) return fail("यह PNR नहीं मिला। नंबर दोबारा जाँचिए।");
+
+  const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
+  if (error || !json) return fail(INTERNAL_MSG);
+  if (json["status"] !== true || !json["data"]) {
+    return fail(clean(String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।")));
+  }
+  const d = json["data"] as Record<string, unknown>;
+  const list = pickRows(d, "passengerList", "passengers");
+
+  const passengers: PnrPassenger[] = list.map((p, i) => {
+    const current = str(p, "currentStatus", "currentStatusNew", "bookingStatus");
+    return {
+      serial: Number(p["passengerSerialNumber"] ?? i + 1),
+      booking: [str(p, "bookingStatus"), str(p, "bookingCoachId"), str(p, "bookingBerthNo")]
+        .filter(Boolean)
+        .join(" "),
+      current,
+      coach: str(p, "currentCoachId", "bookingCoachId"),
+      berth: str(p, "currentBerthNo", "bookingBerthNo"),
+      berthType: berthType(str(p, "currentBerthCode", "bookingBerthCode")),
+    };
+  });
+  const { tone, headline } = pnrTone(passengers[0]?.current ?? "");
+
+  return ok<PnrStatus>({
+    pnr: data.pnr,
+    trainNo: str(d, "trainNumber"),
+    trainName: str(d, "trainName"),
+    journeyDate: str(d, "dateOfJourney", "doj"),
+    fromCode: str(d, "sourceStation", "boardingPoint"),
+    fromName: str(d, "sourceStationName", "boardingStationName"),
+    toCode: str(d, "destinationStation", "reservationUpto"),
+    toName: str(d, "destinationStationName", "reservationUptoName"),
+    boardingCode: str(d, "boardingPoint"),
+    boardingName: str(d, "boardingStationName"),
+    departure: str(d, "departureTime", "arrivalDate"),
+    arrival: str(d, "arrivalTime"),
+    travelClass: str(d, "journeyClass"),
+    quota: str(d, "quota"),
+    chartPrepared: d["chartStatus"] === "Chart Prepared" || d["chartPrepared"] === true,
+    fare: str(d, "bookingFare", "ticketFare"),
+    headline,
+    tone,
+    passengers,
+  });
+}
+
 export const railPnr = createServerFn({ method: "POST" })
   .inputValidator((input: { pnr: string }) => ({ pnr: String(input.pnr ?? "").replace(/\D/g, "").slice(0, 10) }))
-  .handler(async ({ data }): Promise<Res<PnrStatus>> => {
-    if (data.pnr.length !== 10) return fail("PNR 10 अंक का होना चाहिए।");
-
-    const rk = await railkit((sdk) => sdk.checkPNRStatus(data.pnr));
-    if (rk.obj && (rk.obj["train"] || rk.obj["passengers"])) {
-      return ok(mapRkPnr(rk.obj, data.pnr));
-    }
-    if (rk.notFound) return fail("यह PNR नहीं मिला। नंबर दोबारा जाँचिए।");
-
-    const { json, error } = await getJson(irctcHost(), `/api/v3/getPNRStatus?pnrNumber=${data.pnr}`);
-    if (error || !json) return fail(INTERNAL_MSG);
-    if (json["status"] !== true || !json["data"]) {
-      return fail(clean(String(json["message"] ?? "यह PNR नहीं मिला। नंबर दोबारा जाँचिए।")));
-    }
-    const d = json["data"] as Record<string, unknown>;
-    const list = pickRows(d, "passengerList", "passengers");
-
-    const passengers: PnrPassenger[] = list.map((p, i) => {
-      const current = str(p, "currentStatus", "currentStatusNew", "bookingStatus");
-      return {
-        serial: Number(p["passengerSerialNumber"] ?? i + 1),
-        booking: [str(p, "bookingStatus"), str(p, "bookingCoachId"), str(p, "bookingBerthNo")]
-          .filter(Boolean)
-          .join(" "),
-        current,
-        coach: str(p, "currentCoachId", "bookingCoachId"),
-        berth: str(p, "currentBerthNo", "bookingBerthNo"),
-        berthType: berthType(str(p, "currentBerthCode", "bookingBerthCode")),
-      };
-    });
-    const { tone, headline } = pnrTone(passengers[0]?.current ?? "");
-
-    return ok<PnrStatus>({
-      pnr: data.pnr,
-      trainNo: str(d, "trainNumber"),
-      trainName: str(d, "trainName"),
-      journeyDate: str(d, "dateOfJourney", "doj"),
-      fromCode: str(d, "sourceStation", "boardingPoint"),
-      fromName: str(d, "sourceStationName", "boardingStationName"),
-      toCode: str(d, "destinationStation", "reservationUpto"),
-      toName: str(d, "destinationStationName", "reservationUptoName"),
-      boardingCode: str(d, "boardingPoint"),
-      boardingName: str(d, "boardingStationName"),
-      departure: str(d, "departureTime", "arrivalDate"),
-      arrival: str(d, "arrivalTime"),
-      travelClass: str(d, "journeyClass"),
-      quota: str(d, "quota"),
-      chartPrepared: d["chartStatus"] === "Chart Prepared" || d["chartPrepared"] === true,
-      fare: str(d, "bookingFare", "ticketFare"),
-      headline,
-      tone,
-      passengers,
-    });
-  });
+  .handler(({ data }) => pnrLookup(data));
 
 /* ------------------------------------------------------------------ */
 /* 4. Station search                                                   */

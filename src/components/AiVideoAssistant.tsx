@@ -178,6 +178,59 @@ export function AiVideoAssistant() {
     return audioEl.current;
   }
 
+  // Audio-driven lip-sync: lips move only while the voice is actually audible.
+  const lipCtx = useRef<AudioContext | null>(null);
+  function trackLips(a: HTMLAudioElement) {
+    try {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!lipCtx.current) lipCtx.current = new Ctx();
+      const ctx = lipCtx.current!;
+      void ctx.resume();
+      const anyA = a as any;
+      if (!anyA._lipSrc) {
+        const src = ctx.createMediaElementSource(a);
+        const an = ctx.createAnalyser();
+        an.fftSize = 512;
+        src.connect(an);
+        an.connect(ctx.destination);
+        anyA._lipSrc = src;
+        anyA._lipAn = an;
+      }
+      const an: AnalyserNode = anyA._lipAn;
+      const data = new Uint8Array(an.fftSize);
+      let silentFor = 0;
+      let talking = false;
+      const tick = () => {
+        if (a.paused || a.ended) return;
+        an.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = ((data[i] ?? 128) - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        const vid = frontRef.current === "A" ? vA.current : vB.current;
+        if (rms > 0.02) {
+          silentFor = 0;
+          if (!talking) {
+            talking = true;
+            if (modeRef.current !== "speaking") setMode("speaking");
+          }
+          if (vid && currentClip.current === CLIPS.speak) {
+            vid.playbackRate = Math.min(1.35, 0.9 + rms * 4);
+            if (vid.paused) void vid.play().catch(() => null);
+          }
+        } else if (++silentFor > 8 && vid && currentClip.current === CLIPS.speak) {
+          vid.pause(); // pause between words → mouth stops
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch {
+      /* analyser unavailable — clip just plays with audio */
+    }
+  }
+
   async function speak(text: string) {
     setCaption(text);
     let played = false;
@@ -185,15 +238,18 @@ export function AiVideoAssistant() {
       const res = await speakAyesha({ data: { text } });
       if (res.audio && openRef.current) {
         const a = getAudio();
-        a.src = `data:audio/mpeg;base64,${res.audio}`;
+        a.src = `data:${(res as any).mime || "audio/wav"};base64,${res.audio}`;
         a.volume = 1;
-        a.playbackRate = 0.9;
-        setMode("speaking");
+        a.playbackRate = 1;
         highlightFromSpeech(text);
         await new Promise<void>((resolve) => {
           a.onended = () => resolve();
           a.onerror = () => resolve();
           a.onpause = () => resolve();
+          a.onplaying = () => {
+            setMode("speaking");
+            trackLips(a);
+          };
           a.play().then(() => (played = true)).catch(() => resolve());
         });
       }

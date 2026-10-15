@@ -205,7 +205,7 @@ export function AiVideoAssistant() {
         an.getByteTimeDomainData(data);
         let sum = 0;
         for (let i = 0; i < data.length; i++) {
-          const v = (data[i] - 128) / 128;
+          const v = ((data[i] ?? 128) - 128) / 128;
           sum += v * v;
         }
         const rms = Math.sqrt(sum / data.length);

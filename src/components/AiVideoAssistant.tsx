@@ -100,6 +100,13 @@ export function AiVideoAssistant() {
   const rafRef = useRef<number>(0);
   const openRef = useRef(false);
   const audioEl = useRef<HTMLAudioElement | null>(null);
+  // Laptop clip only when Ayesha really checks system data (PNR, train, booking...).
+  const [checking, setChecking] = useState(false);
+  const checkingRef = useRef(false);
+  const setCheck = (v: boolean) => {
+    checkingRef.current = v;
+    setChecking(v);
+  };
 
   modeRef.current = mode;
   micOnRef.current = micOn;
@@ -132,10 +139,10 @@ export function AiVideoAssistant() {
   useEffect(() => {
     if (!open) return;
     if (mode === "speaking") playClip("speak");
-    else if (mode === "thinking") playClip("check");
+    else if (mode === "thinking" && checkingRef.current) playClip("check");
     else playClip("idle");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, open]);
+  }, [mode, open, checking]);
 
   // If the user stays silent ~12s, gently ask once more (max 2 nudges until they speak).
   useEffect(() => {
@@ -273,14 +280,18 @@ export function AiVideoAssistant() {
     nudged.current = 0;
     history.current.push({ role: "user", content: text });
     setCaption(`Aap: ${text}`);
+    const digits = text.replace(/[\s-]/g, "");
+    setCheck(/(?<!\d)\d{5}(?!\d)|(?<!\d)\d{10}(?!\d)/.test(digits));
     setMode("thinking");
     try {
       const res = await askAyesha({
         data: { path: pathname, language, messages: history.current.slice(-16) },
       });
       history.current.push({ role: "assistant", content: res.reply });
+      setCheck(false);
       if (openRef.current) await speak(res.reply);
     } catch {
+      setCheck(false);
       if (openRef.current) await speak("Maaf kijiye, connection me dikkat aa gayi. Kya aap phir se bolenge?");
     }
   }
@@ -327,15 +338,19 @@ export function AiVideoAssistant() {
           }
           return;
         }
-        if (level > 9) lastVoice = now;
-        if (!rec && level > 12) {
+        if (level > 6) lastVoice = now;
+        if (!rec && level > 8) {
           chunks = [];
           rec = new MediaRecorder(stream, { mimeType: mime });
           rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
           rec.onstop = async () => {
             const blob = new Blob(chunks, { type: mime });
             rec = null;
-            if (blob.size < 6000) return;
+            if (blob.size < 2500) {
+              if (openRef.current) setMode("listening");
+              return;
+            }
+            setCheck(false);
             setMode("thinking");
             setCaption("Sun rahi hoon…");
             try {
@@ -352,7 +367,7 @@ export function AiVideoAssistant() {
           startedAt = now;
           lastVoice = now;
         }
-        if (rec && (now - lastVoice > 1300 || now - startedAt > 15000)) stopRec();
+        if (rec && (now - lastVoice > 1600 || now - startedAt > 15000)) stopRec();
       };
       tick();
       return true;
@@ -434,7 +449,9 @@ export function AiVideoAssistant() {
     mode === "speaking"
       ? "Ayesha bol rahi hai… (tap to interrupt)"
       : mode === "thinking"
-        ? "System me check kar rahi hoon…"
+        ? checking
+          ? "System me check kar rahi hoon…"
+          : "Soch rahi hoon…"
         : micOn
           ? "🎙️ Boliye, main sun rahi hoon"
           : "Mic band hai";

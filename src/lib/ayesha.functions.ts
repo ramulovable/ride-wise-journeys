@@ -1,13 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { pnrLookup, liveLookup } from "@/lib/indianrail.functions";
 
 /**
  * Ayesha brain: Gemini is ALWAYS tried first. Groq is used only when Gemini
  * reports its quota is exhausted (HTTP 429), so one reply never mixes engines.
  */
 const GEMINI_MODEL = "gemini-3.8-flash";
-const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_MODEL = "qwen/qwen3.8-27b";
 
 const APP_GUIDE = `
 SHAHIN TRAVELS APP GUIDE (Darbhanga, Bihar based ride + travel app):
@@ -60,7 +61,8 @@ Sound like a real kind human: short, simple, spoken sentences (max 3-4 sentences
 Explain slowly, step by step. Address the user by their first name with "ji" now and then (not in every sentence) to sound personal and professional. If you did not understand the user, politely ask them to repeat or clarify.
 Reply in the same language the user speaks (Hindi, Urdu, Maithili, Bhojpuri, English, Hinglish...). Default: simple Hindi in Roman script.
 You can chat about anything general (knowledge, advice, travel info, festivals, motivation) like a friendly helper.
-For Shahin Travels questions, use ONLY the data below. Never invent fares, ride status, train timings or seat availability; for live train/flight/hotel details guide the user to the "Travel" tab (Travel Desk) and say which button to tap.
+For Shahin Travels questions, use ONLY the data below. Never invent fares, ride status, train timings or seat availability.
+YOU HAVE LIVE BACKEND ACCESS: the system checks PNR status (10-digit PNR) and live train running status (5-digit train number) for you. If the user wants PNR status but has not given the number, ask: "Apna 10 ankon ka PNR number bataiye." If they want live train status without a train number, ask for the 5-digit train number. When a LIVE DATA block is present below, read it and tell the user the real result clearly (train name, status, coach/berth, delay, current station) — do NOT tell them to check it themselves. Only if LIVE DATA says it failed, apologise and suggest trying again shortly.
 When guiding, say the exact on-screen button/tab name so it gets highlighted. Never claim you clicked anything. Never ask for OTP or PIN.
 Current IST time: ${now}. User: ${name}. Role(s): ${roleList}. Screen: ${path}. App language: ${language}.
 Recent rides: ${recent || "none"}. Vehicle types: ${vehicles || "unknown"}.
@@ -68,6 +70,29 @@ ${APP_GUIDE}`;
 }
 
 class QuotaError extends Error {}
+
+/** Detects PNR / train numbers in the latest user turns and fetches real railway data. */
+async function liveData(msgs: z.infer<typeof Msg>[]): Promise<string> {
+  const userTurns = msgs.filter((m) => m.role === "user").slice(-2).reverse();
+  for (const m of userTurns) {
+    const digits = m.content.replace(/[\s-]/g, "");
+    const pnr = /(?<!\d)(\d{10})(?!\d)/.exec(digits)?.[1];
+    if (pnr) {
+      const r = await pnrLookup({ pnr });
+      return r.success ? `PNR ${pnr}: ${JSON.stringify(r.data).slice(0, 2500)}` : `PNR ${pnr} check failed: ${r.error}`;
+    }
+    const train = /(?<!\d)(\d{5})(?!\d)/.exec(digits)?.[1];
+    if (train) {
+      const date = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10).replace(/-/g, "");
+      const r = await liveLookup({ trainNo: train, date });
+      if (!r.success) return `Live status for train ${train} today failed: ${r.error}`;
+      const d: any = r.data;
+      const brief = { ...d, stops: undefined, stations: undefined };
+      return `Live status train ${train} (today): ${JSON.stringify(brief).slice(0, 2000)}`;
+    }
+  }
+  return "";
+}
 
 async function callGemini(system: string, messages: z.infer<typeof Msg>[]) {
   const key = process.env["GEMINI_API_KEY"];
@@ -99,7 +124,7 @@ async function callGemini(system: string, messages: z.infer<typeof Msg>[]) {
     if (text) return text;
     throw new Error("empty");
   }
-  throw new Error("busy");
+  throw new QuotaError("gemini busy");
 }
 
 async function callGroq(system: string, messages: z.infer<typeof Msg>[]) {
@@ -131,26 +156,31 @@ export const askAyesha = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const system = await buildContext(context.supabase, context.userId, data.path, data.language);
+    let system = await buildContext(context.supabase, context.userId, data.path, data.language);
     const msgs = data.messages.slice(-16);
+    const live = await liveData(msgs);
+    if (live) system += `\n\nLIVE DATA (fetched just now from railway backend):\n${live}`;
+    const checked = !!live;
     try {
-      return { reply: await callGemini(system, msgs), engine: "gemini" as const };
+      return { reply: await callGemini(system, msgs), engine: "gemini" as const, checked };
     } catch (e) {
       if (!(e instanceof QuotaError)) {
         console.error("Gemini failed", e);
         return {
           reply: "Maaf kijiye, abhi network thoda dheema hai. Kya aap apni baat ek baar phir se bol sakte hain?",
           engine: "none" as const,
+          checked,
         };
       }
     }
     try {
-      return { reply: await callGroq(system, msgs), engine: "groq" as const };
+      return { reply: await callGroq(system, msgs), engine: "groq" as const, checked };
     } catch (e) {
       console.error("Groq failed", e);
       return {
         reply: "Maaf kijiye, main abhi thodi busy hoon. Thodi der baad phir se poochhiye.",
         engine: "none" as const,
+        checked,
       };
     }
   });

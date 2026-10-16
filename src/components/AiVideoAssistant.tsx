@@ -8,15 +8,19 @@ import poster from "@/assets/ayesha-studio.jpg";
 import idleClip from "@/assets/ayesha-idle.mp4.asset.json";
 import speakClip from "@/assets/ayesha-speak.mp4.asset.json";
 import checkClip from "@/assets/ayesha-check.mp4.asset.json";
+import coffeeClip from "@/assets/ayesha-coffee.mp4.asset.json";
+import { LedBookingGuide } from "@/components/LedBookingGuide";
 
 type Mode = "idle" | "listening" | "thinking" | "speaking";
 type Msg = { role: "user" | "assistant"; content: string };
 
-const CLIPS: Record<"idle" | "speak" | "check", string> = {
+const CLIPS: Record<"idle" | "speak" | "check" | "coffee", string> = {
   idle: idleClip.url,
   speak: speakClip.url,
   check: checkClip.url,
+  coffee: coffeeClip.url,
 };
+const TRAVEL_Q = /pnr|train|seat|berth|station|ticket|flight|hotel|availab|running|status/i;
 
 const greetingFor = (name: string) =>
   `Hello${name ? " " + name + " ji" : ""}! Main Shahin Travels ki AI assistant Ayesha hoon. Ummid hai ki aap acche honge. Bataiye, main aapki kya help kar sakti hoon?`;
@@ -129,20 +133,44 @@ export function AiVideoAssistant() {
         frontRef.current = nextKey;
         setFront(nextKey);
         // Stop the hidden clip so the old (talking) one never keeps running.
-        window.setTimeout(() => prev?.pause(), 550);
+        window.setTimeout(() => prev?.pause(), 1100);
       },
       () => null,
     );
   }
 
   // Map conversation state → studio action clip.
+  const [sipping, setSipping] = useState(false);
   useEffect(() => {
     if (!open) return;
     if (mode === "speaking") playClip("speak");
     else if (mode === "thinking" && checkingRef.current) playClip("check");
+    else if (sipping && mode === "listening") playClip("coffee", false);
     else playClip("idle");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, open, checking]);
+  }, [mode, open, checking, sipping]);
+
+  // During a quiet 1–2 minute gap, Ayesha takes one natural sip of coffee, then waits again.
+  useEffect(() => {
+    if (!open || mode !== "listening" || sipping) return;
+    const t = window.setTimeout(() => setSipping(true), 60000 + Math.random() * 45000);
+    return () => window.clearTimeout(t);
+  }, [mode, open, sipping]);
+  useEffect(() => {
+    if (!sipping) return;
+    if (mode !== "listening") {
+      setSipping(false);
+      return;
+    }
+    const vid = frontRef.current === "A" ? vA.current : vB.current;
+    const done = () => setSipping(false);
+    vid?.addEventListener("ended", done, { once: true });
+    const t = window.setTimeout(done, 12000);
+    return () => {
+      vid?.removeEventListener("ended", done);
+      window.clearTimeout(t);
+    };
+  }, [sipping, mode, front]);
 
   // If the user stays silent ~12s, gently ask once more (max 2 nudges until they speak).
   useEffect(() => {
@@ -281,7 +309,7 @@ export function AiVideoAssistant() {
     history.current.push({ role: "user", content: text });
     setCaption(`Aap: ${text}`);
     const digits = text.replace(/[\s-]/g, "");
-    setCheck(/(?<!\d)\d{5}(?!\d)|(?<!\d)\d{10}(?!\d)/.test(digits));
+    setCheck(/(?<!\d)\d{5}(?!\d)|(?<!\d)\d{10}(?!\d)/.test(digits) || TRAVEL_Q.test(text));
     setMode("thinking");
     try {
       const res = await askAyesha({
@@ -468,11 +496,12 @@ export function AiVideoAssistant() {
                 poster={poster}
                 playsInline
                 muted
-                className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
+                className={`absolute inset-0 size-full object-cover transition-opacity duration-1000 ease-in-out ${
                   front === k ? "opacity-100" : "opacity-0"
                 }`}
               />
             ))}
+            <LedBookingGuide />
             {caption ? (
               <p className="absolute inset-x-2 bottom-2 line-clamp-3 rounded-lg bg-background/85 px-2 py-1 text-left text-xs text-foreground">
                 {caption}

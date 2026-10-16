@@ -133,7 +133,7 @@ export function AiVideoAssistant() {
         frontRef.current = nextKey;
         setFront(nextKey);
         // Stop the hidden clip so the old (talking) one never keeps running.
-        window.setTimeout(() => prev?.pause(), 550);
+        window.setTimeout(() => prev?.pause(), 1100);
       },
       () => null,
     );

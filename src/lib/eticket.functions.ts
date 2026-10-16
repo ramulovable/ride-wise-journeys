@@ -280,3 +280,113 @@ export const completeETicket = createServerFn({ method: "POST" })
       .eq("status", "IN_PROGRESS");
     return { ok: true };
   });
+
+/* ---------------- Direct UPI / QR payment (manual UTR verification) ---------------- */
+
+async function upiConfig(db: Any) {
+  const { data } = await db.from("app_text_settings").select("key,value").in("key", ["eticket_upi_id", "eticket_upi_name"]);
+  const m = new Map((data ?? []).map((r: Any) => [r.key, r.value as string]));
+  const vpa = (m.get("eticket_upi_id") || "").trim();
+  return { vpa, name: (m.get("eticket_upi_name") || "Shahin Travels").trim() };
+}
+
+export const getETicketUpiInfo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const c = await upiConfig(await admin());
+    return { enabled: Boolean(c.vpa), vpa: c.vpa, name: c.name };
+  });
+
+export const createETicketUpiOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) =>
+    quoteInput
+      .extend({
+        categoryId: z.string().uuid(),
+        insurance: z.boolean(),
+        passengerName: z.string().trim().min(2).max(80),
+        pickupLandmark: z.string().trim().max(200).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = await admin();
+    const upi = await upiConfig(db);
+    if (!upi.vpa) throw new Error("UPI payment abhi set nahi hai. Admin se sampark karein.");
+    const q = await quote(db, data.fromLocationId, data.toLocationId, data.passengers);
+    const opt = q.options.find((o) => o.categoryId === data.categoryId);
+    if (!opt || !opt.available) throw new Error("Yeh vehicle is route ke liye available nahi hai.");
+    const insuranceCharge = data.insurance && q.insurance ? q.insurance.charge * data.passengers : 0;
+    const total = opt.fare + insuranceCharge;
+    if (total < 1) throw new Error("Fare set nahi hai. Admin se sampark karein.");
+    const { data: profile } = await db.from("profiles").select("mobile").eq("id", context.userId).single();
+    const { data: pnr, error: pnrErr } = await db.rpc("generate_eticket_pnr");
+    if (pnrErr) throw new Error("PNR generate nahi hua.");
+    const { data: ticket, error } = await db
+      .from("etickets")
+      .insert({
+        pnr,
+        customer_id: context.userId,
+        passenger_name: data.passengerName,
+        passenger_mobile: profile?.mobile ?? "",
+        from_location_id: data.fromLocationId,
+        to_location_id: data.toLocationId,
+        vehicle_category_id: data.categoryId,
+        passengers: data.passengers,
+        pickup_landmark: data.pickupLandmark || null,
+        distance_km: q.distanceKm,
+        fare_amount: opt.fare,
+        insurance_opted: insuranceCharge > 0,
+        insurance_charge: insuranceCharge,
+        total_amount: total,
+        fare_snapshot: { vehicle: opt.name, distanceKm: q.distanceKm, fare: opt.fare, insuranceCharge, upiVpa: upi.vpa },
+        payment_gateway: "upi",
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    const amount = total.toFixed(2);
+    const upiUrl =
+      `upi://pay?pa=${encodeURIComponent(upi.vpa)}&pn=${encodeURIComponent(upi.name)}` +
+      `&am=${amount}&cu=INR&tn=${encodeURIComponent("ETicket " + pnr)}&tr=${encodeURIComponent(pnr)}`;
+    return { ticketId: ticket.id as string, pnr: pnr as string, amount, upiUrl, vpa: upi.vpa, name: upi.name };
+  });
+
+export const submitETicketUtr = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) =>
+    z.object({ ticketId: z.string().uuid(), utr: z.string().trim().regex(/^\d{12}$/, "UTR 12 ank ka hona chahiye.") }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = await admin();
+    const { data: t } = await db.from("etickets").select("id,customer_id,payment_status,payment_gateway,created_at").eq("id", data.ticketId).single();
+    if (!t || t.customer_id !== context.userId || t.payment_gateway !== "upi") throw new Error("Ticket nahi mila.");
+    if (t.payment_status === "PAID") return { status: "PAID" };
+    if (t.payment_status !== "PENDING") throw new Error("Is ticket ka UTR pehle hi bheja ja chuka hai.");
+    const { data: dup } = await db.from("etickets").select("id").eq("upi_utr", data.utr).maybeSingle();
+    if (dup) throw new Error("Yeh UTR pehle kisi aur ticket me use ho chuka hai. Booking failed.");
+    const { error } = await db
+      .from("etickets")
+      .update({ upi_utr: data.utr, utr_submitted_at: new Date().toISOString(), payment_status: "VERIFYING", payment_id: data.utr })
+      .eq("id", t.id)
+      .eq("payment_status", "PENDING");
+    if (error) throw new Error("UTR save nahi hua. Dobara koshish karein.");
+    return { status: "VERIFYING" };
+  });
+
+export const adminReviewETicketUpi = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) =>
+    z.object({ ticketId: z.string().uuid(), approve: z.boolean(), note: z.string().trim().max(200).optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await (context.supabase as Any).rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Sirf admin.");
+    const db = await admin();
+    const patch = data.approve
+      ? { payment_status: "PAID", status: "ACTIVE", paid_at: new Date().toISOString(), payment_note: data.note ?? null }
+      : { payment_status: "FAILED", status: "CANCELLED", cancelled_at: new Date().toISOString(), payment_note: data.note ?? "UTR match nahi hua" };
+    const { error } = await db.from("etickets").update(patch).eq("id", data.ticketId).eq("payment_status", "VERIFYING");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

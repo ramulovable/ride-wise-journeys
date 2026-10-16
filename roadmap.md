@@ -114,3 +114,7 @@
 - [ ] Automatic Hindi voice calls to family (needs a calling service account)
 - [ ] Auto nearest police station number (needs a reliable police-station data source)
 - [x] Fix slow login after 1.0.12 (direct PIN redirect, timeouts)
+
+## Oct 16
+- [ ] Ayesha: stable desk/tablet between clips, remove LED booking overlay, coffee sip every ~1-2 min
+- [ ] E-Ticket: direct UPI intent + QR payment with admin UPI ID, UTR submission + verification, success popup

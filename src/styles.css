@@ -187,3 +187,19 @@
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent); }
   50% { box-shadow: 0 0 0 10px transparent; }
 }
+
+/* Ayesha studio LED screen: ride-booking guide */
+.led-guide {
+  left: 46%; top: 5%; width: 40%; height: 41%;
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  color: var(--card-foreground);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 45%, transparent);
+  animation: led-in 0.6s ease;
+}
+.led-field { border-radius: 4px; padding: 2% 3%; background: var(--muted); opacity: .55; transition: all .4s; }
+.led-field.led-on { opacity: 1; outline: 1px solid var(--primary); }
+.led-veh { border-radius: 4px; padding: 3%; background: var(--muted); text-align: center; animation: led-in .4s ease; transition: all .3s; }
+.led-veh.led-pick { background: var(--primary); color: var(--primary-foreground); transform: scale(1.06); }
+.led-book { border-radius: 4px; padding: 2.5%; text-align: center; font-weight: 700; background: var(--primary); color: var(--primary-foreground); transition: transform .2s; }
+.led-book.led-press { transform: scale(.94); background: var(--accent); color: var(--accent-foreground); }
+@keyframes led-in { from { opacity: 0; transform: translateX(8%); } to { opacity: 1; transform: none; } }

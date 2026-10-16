@@ -788,6 +788,7 @@ export type Database = {
           passengers: number
           payment_gateway: string | null
           payment_id: string | null
+          payment_note: string | null
           payment_order_id: string | null
           payment_status: string
           pickup_landmark: string | null
@@ -798,6 +799,8 @@ export type Database = {
           to_location_id: string
           total_amount: number
           updated_at: string
+          upi_utr: string | null
+          utr_submitted_at: string | null
           vehicle_category_id: string
           vehicle_id: string | null
         }
@@ -822,6 +825,7 @@ export type Database = {
           passengers?: number
           payment_gateway?: string | null
           payment_id?: string | null
+          payment_note?: string | null
           payment_order_id?: string | null
           payment_status?: string
           pickup_landmark?: string | null
@@ -832,6 +836,8 @@ export type Database = {
           to_location_id: string
           total_amount: number
           updated_at?: string
+          upi_utr?: string | null
+          utr_submitted_at?: string | null
           vehicle_category_id: string
           vehicle_id?: string | null
         }
@@ -856,6 +862,7 @@ export type Database = {
           passengers?: number
           payment_gateway?: string | null
           payment_id?: string | null
+          payment_note?: string | null
           payment_order_id?: string | null
           payment_status?: string
           pickup_landmark?: string | null
@@ -866,6 +873,8 @@ export type Database = {
           to_location_id?: string
           total_amount?: number
           updated_at?: string
+          upi_utr?: string | null
+          utr_submitted_at?: string | null
           vehicle_category_id?: string
           vehicle_id?: string | null
         }

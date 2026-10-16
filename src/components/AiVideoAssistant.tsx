@@ -9,7 +9,6 @@ import idleClip from "@/assets/ayesha-idle.mp4.asset.json";
 import speakClip from "@/assets/ayesha-speak.mp4.asset.json";
 import checkClip from "@/assets/ayesha-check.mp4.asset.json";
 import coffeeClip from "@/assets/ayesha-coffee.mp4.asset.json";
-import { LedBookingGuide } from "@/components/LedBookingGuide";
 
 type Mode = "idle" | "listening" | "thinking" | "speaking";
 type Msg = { role: "user" | "assistant"; content: string };
@@ -128,6 +127,13 @@ export function AiVideoAssistant() {
     next.muted = true;
     // Mouth motion in the speaking clip is slower than real speech — speed it up to match the voice.
     next.playbackRate = name === "speak" ? 1.2 : 1;
+    // Idle footage changes the desk layout after ~1.3s; loop only the matching opening segment.
+    next.ontimeupdate =
+      name === "idle"
+        ? () => {
+            if (next.currentTime > 1.15) next.currentTime = 0.05;
+          }
+        : null;
     void next.play().then(
       () => {
         frontRef.current = nextKey;
@@ -150,27 +156,28 @@ export function AiVideoAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, open, checking, sipping]);
 
-  // During a quiet 1–2 minute gap, Ayesha takes one natural sip of coffee, then waits again.
+  // Every ~1–2 minutes while Ayesha is waiting for the user, she takes one sip of coffee.
+  // Interval runs for the whole session, so nudges/replies never reset it.
   useEffect(() => {
-    if (!open || mode !== "listening" || sipping) return;
-    const t = window.setTimeout(() => setSipping(true), 60000 + Math.random() * 45000);
-    return () => window.clearTimeout(t);
-  }, [mode, open, sipping]);
+    if (!open) return;
+    let next = Date.now() + 60000 + Math.random() * 30000;
+    const iv = window.setInterval(() => {
+      if (Date.now() < next) return;
+      if (modeRef.current !== "listening") return; // wait for a quiet moment
+      next = Date.now() + 60000 + Math.random() * 45000;
+      setSipping(true);
+    }, 1000);
+    return () => window.clearInterval(iv);
+  }, [open]);
   useEffect(() => {
     if (!sipping) return;
     if (mode !== "listening") {
       setSipping(false);
       return;
     }
-    const vid = frontRef.current === "A" ? vA.current : vB.current;
-    const done = () => setSipping(false);
-    vid?.addEventListener("ended", done, { once: true });
-    const t = window.setTimeout(done, 12000);
-    return () => {
-      vid?.removeEventListener("ended", done);
-      window.clearTimeout(t);
-    };
-  }, [sipping, mode, front]);
+    const t = window.setTimeout(() => setSipping(false), 8200);
+    return () => window.clearTimeout(t);
+  }, [sipping, mode]);
 
   // If the user stays silent ~12s, gently ask once more (max 2 nudges until they speak).
   useEffect(() => {
@@ -501,7 +508,6 @@ export function AiVideoAssistant() {
                 }`}
               />
             ))}
-            <LedBookingGuide />
             {caption ? (
               <p className="absolute inset-x-2 bottom-2 line-clamp-3 rounded-lg bg-background/85 px-2 py-1 text-left text-xs text-foreground">
                 {caption}

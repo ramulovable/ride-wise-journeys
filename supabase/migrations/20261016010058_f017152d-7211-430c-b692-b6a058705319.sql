@@ -1,0 +1,2 @@
+ALTER TABLE public.etickets ADD COLUMN IF NOT EXISTS upi_utr text, ADD COLUMN IF NOT EXISTS utr_submitted_at timestamptz, ADD COLUMN IF NOT EXISTS payment_note text;
+CREATE UNIQUE INDEX IF NOT EXISTS etickets_upi_utr_unique ON public.etickets (upi_utr) WHERE upi_utr IS NOT NULL;

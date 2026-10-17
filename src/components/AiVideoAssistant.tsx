@@ -169,14 +169,25 @@ export function AiVideoAssistant() {
     }, 1000);
     return () => window.clearInterval(iv);
   }, [open]);
+  // Let the whole coffee clip play to its natural end (no early cut).
   useEffect(() => {
     if (!sipping) return;
     if (mode !== "listening") {
       setSipping(false);
       return;
     }
-    const t = window.setTimeout(() => setSipping(false), 8200);
-    return () => window.clearTimeout(t);
+    const vid = frontRef.current === "A" ? vA.current : vB.current;
+    const done = () => setSipping(false);
+    const onEnd = () => done();
+    vA.current?.addEventListener("ended", onEnd);
+    vB.current?.addEventListener("ended", onEnd);
+    const dur = vid && Number.isFinite(vid.duration) && vid.duration > 0 ? vid.duration : 10;
+    const t = window.setTimeout(done, (dur + 2) * 1000);
+    return () => {
+      vA.current?.removeEventListener("ended", onEnd);
+      vB.current?.removeEventListener("ended", onEnd);
+      window.clearTimeout(t);
+    };
   }, [sipping, mode]);
 
   // If the user stays silent ~12s, gently ask once more (max 2 nudges until they speak).

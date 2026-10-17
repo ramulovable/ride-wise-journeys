@@ -18,6 +18,9 @@ import {
   getETicketStatus,
   listMyETickets,
   verifyETicketPayment,
+  getETicketUpiInfo,
+  createETicketUpiOrder,
+  submitETicketUtr,
 } from "@/lib/eticket.functions";
 
 export const Route = createFileRoute("/_authenticated/app/eticket")({
@@ -52,6 +55,7 @@ const statusLabel: Record<string, string> = {
   IN_PROGRESS: "Trip chal rahi hai",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
+  CREATED: "Payment verify ho raha hai",
 };
 
 function ETicketPage() {
@@ -67,6 +71,10 @@ function ETicketPage() {
   const [name, setName] = useState(profile?.full_name ?? "");
   const [landmark, setLandmark] = useState("");
   const [paying, setPaying] = useState(false);
+  const [upiOrder, setUpiOrder] = useState<null | { ticketId: string; pnr: string; amount: string; upiUrl: string; vpa: string }>(null);
+  const [utr, setUtr] = useState("");
+  const [utrDone, setUtrDone] = useState<string | null>(null);
+  const upiInfo = useQuery({ queryKey: ["eticket-upi"], queryFn: () => getETicketUpiInfo() });
 
   const status = useQuery({ queryKey: ["eticket-status"], queryFn: () => getETicketStatus() });
   const locations = useQuery({ queryKey: ["locations"], queryFn: () => fetchLocations(true) });
@@ -140,6 +148,41 @@ function ETicketPage() {
       rzp.open();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Payment shuru nahi hua.");
+      setPaying(false);
+    }
+  }
+
+  async function payUpi() {
+    if (!selected) { toast.error("Vehicle chunein."); return; }
+    if (name.trim().length < 2) { toast.error("Passenger ka naam likhein."); return; }
+    setPaying(true);
+    try {
+      const o = await createETicketUpiOrder({
+        data: { fromLocationId: fromId, toLocationId: toId, passengers, categoryId, insurance, passengerName: name.trim(), pickupLandmark: landmark.trim() || undefined },
+      });
+      setUpiOrder(o);
+      setUtr("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Payment shuru nahi hua.");
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  async function sendUtr() {
+    if (!upiOrder) return;
+    const clean = utr.replace(/\D/g, "");
+    if (clean.length !== 12) { toast.error("12 ank ka UTR number daalein."); return; }
+    setPaying(true);
+    try {
+      await submitETicketUtr({ data: { ticketId: upiOrder.ticketId, utr: clean } });
+      setUtrDone(upiOrder.pnr);
+      setUpiOrder(null);
+      setCategoryId("");
+      void qc.invalidateQueries({ queryKey: ["my-etickets"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "UTR verify nahi hua.");
+    } finally {
       setPaying(false);
     }
   }
@@ -231,11 +274,41 @@ function ETicketPage() {
                   <Button size="lg" className="h-14 w-full text-base font-semibold" disabled={!selected || paying} onClick={pay}>
                     {paying ? "Processing…" : `Pay ${rupees(total)} & Get Ticket`}
                   </Button>
+                  {upiInfo.data?.enabled ? (
+                    <Button size="lg" variant="outline" className="h-14 w-full text-base font-semibold" disabled={!selected || paying} onClick={payUpi}>
+                      UPI / QR se Pay karein ({rupees(total)})
+                    </Button>
+                  ) : null}
                 </>
               ) : null
             ) : null}
           </section>
         )}
+
+        {upiOrder ? (
+          <section className="space-y-3 rounded-2xl border-2 border-primary bg-card p-4 text-center">
+            <p className="text-sm font-semibold">PNR {upiOrder.pnr} · Pay ₹{upiOrder.amount}</p>
+            <a href={upiOrder.upiUrl} className="flex h-14 w-full items-center justify-center rounded-xl bg-primary text-base font-bold text-primary-foreground">
+              UPI app kholein (GPay / PhonePe / Paytm)
+            </a>
+            <p className="text-xs text-muted-foreground">Ya dusre phone se yeh QR scan karein — UPI ID {upiOrder.vpa}</p>
+            <div className="mx-auto w-fit rounded-xl bg-background p-3"><QRCodeSVG value={upiOrder.upiUrl} size={180} /></div>
+            <p className="text-left text-xs text-muted-foreground">Payment ke baad UPI app se 12 ank ka UTR / Reference number copy karke yahan daalein.</p>
+            <Input inputMode="numeric" placeholder="12 ank ka UTR number" value={utr} maxLength={14} onChange={(e) => setUtr(e.target.value)} />
+            <Button className="w-full" disabled={paying} onClick={sendUtr}>{paying ? "Check ho raha hai…" : "UTR verify karein"}</Button>
+            <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setUpiOrder(null)}>Band karein</button>
+          </section>
+        ) : null}
+
+        {utrDone ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6" role="dialog">
+            <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-card p-5 text-center shadow-xl">
+              <p className="text-lg font-bold">Payment mil gaya ✅</p>
+              <p className="text-sm">PNR {utrDone} ka UTR verification ke liye bhej diya gaya hai. Payment match hote hi ticket ACTIVE ho jayega aur neeche "Mere E-Tickets" me QR dikhega.</p>
+              <Button className="w-full" onClick={() => setUtrDone(null)}>Theek hai</Button>
+            </div>
+          </div>
+        ) : null}
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">Mere E-Tickets</h2>
@@ -258,7 +331,9 @@ function ETicketPage() {
                     {t.from?.name} → {t.to?.name}
                   </p>
                   {t.pickup_landmark ? <p className="text-xs text-muted-foreground">Landmark: {t.pickup_landmark}</p> : null}
-                  <p className="font-bold text-primary">Paid {rupees(Number(t.total_amount))}</p>
+                  <p className="font-bold text-primary">
+                    {t.payment_status === "PAID" ? "Paid" : t.payment_status === "FAILED" ? "Booking failed" : "Verifying"} {rupees(Number(t.total_amount))}
+                  </p>
                   {t.insurance_opted ? (
                     <p className="text-xs">
                       Insured{t.fare_snapshot?.insuranceProvider ? ` · ${t.fare_snapshot.insuranceProvider}` : ""}

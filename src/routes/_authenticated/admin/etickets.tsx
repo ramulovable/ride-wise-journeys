@@ -207,13 +207,9 @@ function UpiAdmin() {
 
   async function saveUpi() {
     if (vpa && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(vpa.trim())) { toast.error("Sahi UPI ID daalein (jaise name@okaxis)."); return; }
-    const { error } = await supabase.from("app_text_settings").upsert(
-      [
-        { key: "eticket_upi_id", value: vpa.trim() },
-        { key: "eticket_upi_name", value: payee.trim() || "Shahin Travels" },
-      ] as never,
-      { onConflict: "key" },
-    );
+    const r1 = await supabase.from("app_text_settings").update({ value: vpa.trim() }).eq("key", "eticket_upi_id");
+    const r2 = await supabase.from("app_text_settings").update({ value: payee.trim() || "Shahin Travels" }).eq("key", "eticket_upi_name");
+    const error = r1.error ?? r2.error;
     if (error) { toast.error(error.message); return; }
     toast.success("UPI ID save ho gaya.");
     void qc.invalidateQueries({ queryKey: ["eticket-upi-admin"] });

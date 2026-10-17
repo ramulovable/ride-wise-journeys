@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCategories } from "@/lib/data";
 import { useRoleGuard } from "@/lib/useRoleGuard";
+import { adminReviewETicketUpi } from "@/lib/eticket.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/etickets")({
   head: () => ({
@@ -167,7 +168,87 @@ function ETicketAdmin() {
         </div>
 
         <Button className="w-full" onClick={() => void save()} disabled={busy}>{busy ? "Saving…" : "Save E-Ticket settings"}</Button>
+
+        <UpiAdmin />
       </div>
     </AdminShell>
+  );
+}
+
+function UpiAdmin() {
+  const qc = useQueryClient();
+  const [vpa, setVpa] = useState("");
+  const [payee, setPayee] = useState("Shahin Travels");
+  const cfg = useQuery({
+    queryKey: ["eticket-upi-admin"],
+    queryFn: async () => {
+      const { data } = await supabase.from("app_text_settings").select("key,value").in("key", ["eticket_upi_id", "eticket_upi_name"]);
+      return new Map((data ?? []).map((r) => [r.key, r.value]));
+    },
+  });
+  useEffect(() => {
+    if (!cfg.data) return;
+    setVpa(cfg.data.get("eticket_upi_id") ?? "");
+    setPayee(cfg.data.get("eticket_upi_name") || "Shahin Travels");
+  }, [cfg.data]);
+  const pending = useQuery({
+    queryKey: ["eticket-utr-pending"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("etickets" as never)
+        .select("id,pnr,passenger_name,passenger_mobile,total_amount,upi_utr,utr_submitted_at,created_at")
+        .eq("payment_status", "VERIFYING")
+        .order("utr_submitted_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as Array<{ id: string; pnr: string; passenger_name: string; passenger_mobile: string; total_amount: number; upi_utr: string; utr_submitted_at: string; created_at: string }>;
+    },
+    refetchInterval: 15000,
+  });
+
+  async function saveUpi() {
+    if (vpa && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(vpa.trim())) { toast.error("Sahi UPI ID daalein (jaise name@okaxis)."); return; }
+    const r1 = await supabase.from("app_text_settings").update({ value: vpa.trim() }).eq("key", "eticket_upi_id");
+    const r2 = await supabase.from("app_text_settings").update({ value: payee.trim() || "Shahin Travels" }).eq("key", "eticket_upi_name");
+    const error = r1.error ?? r2.error;
+    if (error) { toast.error(error.message); return; }
+    toast.success("UPI ID save ho gaya.");
+    void qc.invalidateQueries({ queryKey: ["eticket-upi-admin"] });
+  }
+
+  async function review(id: string, approve: boolean) {
+    try {
+      await adminReviewETicketUpi({ data: { ticketId: id, approve } });
+      toast.success(approve ? "Ticket confirm ho gaya." : "Booking failed mark ho gaya.");
+      void qc.invalidateQueries({ queryKey: ["eticket-utr-pending"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update nahi hua.");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3 rounded-2xl border border-border p-3">
+        <p className="font-semibold">Direct UPI / QR payment</p>
+        <div className="space-y-1.5"><Label>Aapka UPI ID</Label><Input placeholder="name@okaxis" value={vpa} onChange={(e) => setVpa(e.target.value)} /></div>
+        <div className="space-y-1.5"><Label>Payee name</Label><Input value={payee} onChange={(e) => setPayee(e.target.value)} /></div>
+        <p className="text-xs text-muted-foreground">Khali chhodne par customers ko UPI option nahi dikhega.</p>
+        <Button className="w-full" onClick={() => void saveUpi()}>Save UPI ID</Button>
+      </div>
+      <div className="space-y-2 rounded-2xl border border-border p-3">
+        <p className="font-semibold">UTR verification ({pending.data?.length ?? 0})</p>
+        <p className="text-xs text-muted-foreground">Apne bank/UPI app me UTR, amount aur time milaayein, phir Confirm ya Reject karein.</p>
+        {(pending.data ?? []).map((t) => (
+          <div key={t.id} className="space-y-1 rounded-xl bg-muted/40 p-3 text-sm">
+            <p className="font-bold">PNR {t.pnr} · ₹{Number(t.total_amount)}</p>
+            <p>UTR <span className="font-mono font-semibold">{t.upi_utr}</span></p>
+            <p className="text-xs text-muted-foreground">{t.passenger_name} · {t.passenger_mobile} · {new Date(t.utr_submitted_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" className="flex-1" onClick={() => void review(t.id, true)}>Confirm</Button>
+              <Button size="sm" variant="destructive" className="flex-1" onClick={() => void review(t.id, false)}>Reject</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

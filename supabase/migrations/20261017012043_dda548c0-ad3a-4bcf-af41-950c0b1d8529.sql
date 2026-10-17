@@ -1,0 +1,1 @@
+INSERT INTO public.app_text_settings (key, value) VALUES ('eticket_upi_id',''),('eticket_upi_name','Shahin Travels') ON CONFLICT (key) DO NOTHING;

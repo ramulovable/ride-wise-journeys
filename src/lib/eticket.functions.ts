@@ -285,7 +285,7 @@ export const completeETicket = createServerFn({ method: "POST" })
 
 async function upiConfig(db: Any) {
   const { data } = await db.from("app_text_settings").select("key,value").in("key", ["eticket_upi_id", "eticket_upi_name"]);
-  const m = new Map((data ?? []).map((r: Any) => [r.key, r.value as string]));
+  const m = new Map<string, string>((data ?? []).map((r: Any) => [r.key as string, r.value as string]));
   const vpa = (m.get("eticket_upi_id") || "").trim();
   return { vpa, name: (m.get("eticket_upi_name") || "Shahin Travels").trim() };
 }

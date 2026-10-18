@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { pnrLookup, liveLookup, railStations, railBetween, railAvailability } from "@/lib/indianrail.functions";
 import { POPULAR_STATIONS } from "@/lib/rail-stations";
+import { routeFromQuestion } from "@/lib/rail-intent";
 
 /**
  * Ayesha brain: Gemini is ALWAYS tried first. Groq is used only when Gemini
@@ -155,15 +156,20 @@ async function liveData(msgs: z.infer<typeof Msg>[]): Promise<string> {
   const userTurns = msgs.filter((m) => m.role === "user").slice(-2).reverse();
   const latest = userTurns[0]?.content ?? "";
   if (TRAVEL_WORDS.test(latest)) {
-    const it = await extractIntent(msgs);
+    const fallback = routeFromQuestion(latest);
+    const extracted = await extractIntent(msgs);
+    const it = extracted?.action && extracted.action !== "none" ? extracted : fallback
+      ? { action: "between" as const, train: "", ...fallback, date: "", cls: "" } : extracted;
     const date = it?.date || new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
     if (it && it.action !== "none" && it.from && it.to) {
       const [froms, tos] = await Promise.all([stationCodes(it.from), stationCodes(it.to)]);
       if (!froms.length || !tos.length)
         return `Station not found for "${it.from}" or "${it.to}". Ask the user for the exact station name.`;
-      const from = froms[0]!;
-      const to = tos[0]!;
+      const from = froms[0];
+      const to = tos[0];
+      if (!from || !to) return "Ask for the exact departure and arrival station names.";
       if (it.action === "seats" && /^\d{5}$/.test(it.train)) {
+        if (froms.length > 1 || tos.length > 1) return `Seat availability needs exact stations: departure choices ${froms.join(", ")}; arrival choices ${tos.join(", ")}. Ask which stations on this train the passenger wants; do not silently pick a city station.`;
         const r: any = await railAvailability({
           data: { trainNo: it.train, from, to, date, quota: "GN", classes: it.cls ? [it.cls] : ["SL", "3A", "2A"] },
         });
@@ -188,11 +194,15 @@ async function liveData(msgs: z.infer<typeof Msg>[]): Promise<string> {
           );
         }
       });
-      if (!list.length) return `Trains between ${it.from} and ${it.to} check failed or none found (checked ${pairs.map((p) => p.join("-")).join(", ")}).`;
-      return `Trains from ${it.from} to ${it.to} on ${date} (${list.length} found): ${list.slice(0, 12).join("; ")}`;
+      const successful = results.filter((r) => r?.success).length;
+      if (!list.length) return successful === pairs.length
+        ? `Railway provider returned no direct trains between ${it.from} and ${it.to} on ${date}. Do not say the check failed.`
+        : `Railway lookup incomplete for ${it.from} to ${it.to}; ${pairs.length - successful} station checks failed. Do not claim no trains exist; ask to retry.`;
+      return `Trains from ${it.from} to ${it.to} on ${date} (${list.length} found${successful < pairs.length ? "; partial results, some station lookups failed" : ""}): ${list.slice(0, 12).join("; ")}`;
     }
     if (it && it.action === "seats") return "User wants seat availability: ask for train number, from station, to station and date (only what is missing).";
     if (it && it.action === "between") return "User wants trains between stations: ask for from and to station (only what is missing).";
+    if (!/\d{5}|\d{10}/.test(latest)) return "Railway enquiry could not be resolved. Ask only for the missing train number, departure/arrival station or travel date. Do not give instructions to check Travel Desk or invent a result.";
   }
   for (const m of userTurns) {
     const digits = m.content.replace(/[\s-]/g, "");

@@ -15,3 +15,4 @@
 
 - AI assistant Ayesha = pre-generated state video clips (idle/speak/check/coffee) + src/lib/ayesha.functions.ts: Gemini first, Groq only on Gemini 429, Groq Whisper for speech-to-text — avoids paid streaming-avatar subscriptions and never mixes engines in one reply.
 - E-Ticket quotes reuse loadFareOptions and ticketOptions without a second formula; snapshots retain the selected journey/AC policy so prepaid and cash pricing cannot drift.
+- Railway route intent has a deterministic fallback before provider lookup; distinguish empty verified results from failed/partial requests to avoid unsupported travel claims.

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { Minus, Plus, ShieldCheck, Ticket } from "lucide-react";
+import { Download, Minus, Plus, ShieldCheck, Ticket } from "lucide-react";
 import { CustomerShell } from "@/components/shells";
 import { LocationPicker } from "@/components/LocationPicker";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,7 @@ function ETicketPage() {
   const [toId, setToId] = useState("");
   const [picked, setPicked] = useState<Location[]>([]);
   const [passengers, setPassengers] = useState(1);
-  const [categoryId, setCategoryId] = useState("");
+  const [optionId, setCategoryId] = useState("");
   const [insurance, setInsurance] = useState(false);
   const [name, setName] = useState(profile?.full_name ?? "");
   const [landmark, setLandmark] = useState("");
@@ -78,7 +78,31 @@ function ETicketPage() {
 
   const status = useQuery({ queryKey: ["eticket-status"], queryFn: () => getETicketStatus() });
   const locations = useQuery({ queryKey: ["locations"], queryFn: () => fetchLocations(true) });
-  const tickets = useQuery({ queryKey: ["my-etickets"], queryFn: () => listMyETickets() });
+  const tickets = useQuery({ queryKey: ["my-etickets"], queryFn: () => listMyETickets(), refetchInterval: 10000 });
+  const [confirmed, setConfirmed] = useState<string | null>(null);
+  const known = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    if (!tickets.data) return;
+    const previous = known.current;
+    for (const t of tickets.data) {
+      if (previous?.has(t.id) && previous.get(t.id) !== "PAID" && t.payment_status === "PAID") setConfirmed(t.pnr);
+    }
+    known.current = new Map(tickets.data.map(t => [t.id, t.payment_status]));
+  }, [tickets.data]);
+
+  async function downloadTicket(id: string, pnr: string) {
+    const element = document.getElementById(`eticket-${id}`);
+    if (!element) return;
+    try {
+      const [{ default: capture }, { jsPDF }] = await Promise.all([import("html2canvas-pro"), import("jspdf")]);
+      const canvas = await capture(element, { scale: 2, ignoreElements: (node) => node.hasAttribute("data-ticket-action") });
+      const pdf = new jsPDF();
+      const width = 190;
+      const height = Math.min(277, canvas.height * width / canvas.width);
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, width, height);
+      pdf.save(`Shahin-Travels-${pnr}.pdf`);
+    } catch { toast.error("Ticket download nahi hua. Dobara koshish karein."); }
+  }
   const all = [...(locations.data ?? []), ...picked].filter((l, i, a) => a.findIndex((x) => x.id === l.id) === i);
   const ready = Boolean(fromId && toId && fromId !== toId);
   const quote = useQuery({
@@ -86,7 +110,7 @@ function ETicketPage() {
     queryFn: () => getETicketQuote({ data: { fromLocationId: fromId, toLocationId: toId, passengers } }),
     enabled: ready && status.data?.enabled === true,
   });
-  const selected = quote.data?.options.find((o) => o.categoryId === categoryId);
+  const selected = quote.data?.options.find((o) => o.optionId === optionId);
   const insCharge = insurance && quote.data?.insurance ? quote.data.insurance.charge * passengers : 0;
   const total = (selected?.fare ?? 0) + insCharge;
 
@@ -109,13 +133,15 @@ function ETicketPage() {
           fromLocationId: fromId,
           toLocationId: toId,
           passengers,
-          categoryId,
+          categoryId: selected.categoryId,
+          optionId: selected.optionId,
           insurance,
           passengerName: name.trim(),
           pickupLandmark: landmark.trim() || undefined,
         },
       });
-      const Rzp = (window as RzpWindow).Razorpay!;
+      const Rzp = (window as RzpWindow).Razorpay;
+      if (!Rzp) throw new Error("Payment page load nahi hua.");
       const rzp = new Rzp({
         key: order.keyId,
         order_id: order.orderId,
@@ -130,7 +156,7 @@ function ETicketPage() {
             await verifyETicketPayment({
               data: { ticketId: order.ticketId, orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature },
             });
-            toast.success(`Ticket confirm! PNR ${order.pnr}`);
+            setConfirmed(order.pnr);
             setCategoryId("");
             void qc.invalidateQueries({ queryKey: ["my-etickets"] });
           } catch (e) {
@@ -158,7 +184,7 @@ function ETicketPage() {
     setPaying(true);
     try {
       const o = await createETicketUpiOrder({
-        data: { fromLocationId: fromId, toLocationId: toId, passengers, categoryId, insurance, passengerName: name.trim(), pickupLandmark: landmark.trim() || undefined },
+        data: { fromLocationId: fromId, toLocationId: toId, passengers, categoryId: selected.categoryId, optionId: selected.optionId, insurance, passengerName: name.trim(), pickupLandmark: landmark.trim() || undefined },
       });
       setUpiOrder(o);
       setUtr("");
@@ -241,19 +267,19 @@ function ETicketPage() {
                   <p className="text-xs text-muted-foreground">{quote.data.distanceKm} km by road</p>
                   <div className="grid grid-cols-2 gap-2">
                     {quote.data.options.map((o) => (
-                      <button
-                        key={o.categoryId}
+                      <Button variant="outline"
+                        key={o.optionId}
                         type="button"
                         disabled={!o.available}
-                        onClick={() => setCategoryId(o.categoryId)}
-                        className={`rounded-xl border p-3 text-left disabled:opacity-50 ${
-                          categoryId === o.categoryId ? "border-primary ring-2 ring-primary/40" : "border-border"
+                        onClick={() => setCategoryId(o.optionId)}
+                        className={`h-auto flex-col items-start whitespace-normal rounded-xl border p-3 text-left disabled:opacity-50 ${
+                          optionId === o.optionId ? "border-primary ring-2 ring-primary/40" : "border-border"
                         }`}
                       >
                         <span className="block text-sm font-semibold">{o.name}</span>
                         <span className="block text-base font-bold text-primary">{rupees(o.fare)}</span>
                         {!o.available ? <span className="text-[11px]">Seats {o.seatCapacity} only</span> : null}
-                      </button>
+                      </Button>
                     ))}
                     {quote.data.options.length === 0 ? (
                       <p className="col-span-2 text-sm text-muted-foreground">Admin ne abhi fare set nahi kiya hai.</p>
@@ -271,11 +297,11 @@ function ETicketPage() {
                   ) : null}
                   <Input placeholder="Passenger ka naam" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
                   <Input placeholder="Landmark (optional)" value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={200} />
-                  <Button size="lg" className="h-14 w-full text-base font-semibold" disabled={!selected || paying} onClick={pay}>
+                  <Button size="lg" className="h-14 w-full text-base font-semibold" disabled={!selected?.available || paying || quote.isFetching} onClick={pay}>
                     {paying ? "Processing…" : `Pay ${rupees(total)} & Get Ticket`}
                   </Button>
                   {upiInfo.data?.enabled ? (
-                    <Button size="lg" variant="outline" className="h-14 w-full text-base font-semibold" disabled={!selected || paying} onClick={payUpi}>
+                    <Button size="lg" variant="outline" className="h-14 w-full text-base font-semibold" disabled={!selected?.available || paying || quote.isFetching} onClick={payUpi}>
                       UPI / QR se Pay karein ({rupees(total)})
                     </Button>
                   ) : null}
@@ -300,10 +326,19 @@ function ETicketPage() {
           </section>
         ) : null}
 
+        {confirmed ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6" role="dialog" aria-label="Ticket booking successful">
+            <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-card p-5 text-center shadow-xl">
+              <p className="text-lg font-bold">Ticket booking successful</p>
+              <p className="text-sm">PNR {confirmed}</p>
+              <Button className="w-full" onClick={() => setConfirmed(null)}>Theek hai</Button>
+            </div>
+          </div>
+        ) : null}
         {utrDone ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6" role="dialog">
             <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-card p-5 text-center shadow-xl">
-              <p className="text-lg font-bold">Payment mil gaya ✅</p>
+              <p className="text-lg font-bold">UTR bhej diya gaya</p>
               <p className="text-sm">PNR {utrDone} ka UTR verification ke liye bhej diya gaya hai. Payment match hote hi ticket ACTIVE ho jayega aur neeche "Mere E-Tickets" me QR dikhega.</p>
               <Button className="w-full" onClick={() => setUtrDone(null)}>Theek hai</Button>
             </div>
@@ -316,7 +351,7 @@ function ETicketPage() {
             <p className="text-sm text-muted-foreground">Abhi koi ticket nahi hai.</p>
           ) : null}
           {(tickets.data ?? []).map((t) => (
-            <article key={t.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+            <article id={`eticket-${t.id}`} key={t.id} className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className="flex items-center justify-between bg-primary px-4 py-2 text-primary-foreground">
                 <span className="flex items-center gap-2 text-sm font-bold">
                   <Ticket className="size-4" /> Shahin Travels E-Ticket
@@ -351,6 +386,11 @@ function ETicketPage() {
                 <p className="whitespace-pre-line border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
                   Claim: {t.fare_snapshot.claimRules}
                 </p>
+              ) : null}
+              {t.payment_status === "PAID" ? (
+                <Button data-ticket-action variant="ghost" className="w-full" onClick={() => void downloadTicket(t.id, t.pnr)}>
+                  <Download className="mr-2 size-4" /> Download ticket
+                </Button>
               ) : null}
               <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
                 Driver ko QR dikhayein. Ticket sirf ek baar valid hai.

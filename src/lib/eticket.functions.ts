@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { calculateDrivingDistance } from "@/lib/api.functions";
+import { loadFareOptions } from "@/lib/api.functions";
+import { ticketOptions } from "@/lib/eticket-pricing";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -20,31 +21,13 @@ async function quote(db: Any, fromId: string, toId: string, passengers: number) 
   if (fromId === toId) throw new Error("Pickup and destination cannot be same.");
   const settings = await loadSettings(db);
   if (!settings?.is_enabled) throw new Error("E-Ticket service abhi band hai.");
-  const route = await calculateDrivingDistance(fromId, toId);
-  const [{ data: fares }, { data: cats }] = await Promise.all([
-    db.from("eticket_fares").select("*").eq("is_active", true),
-    db.from("vehicle_categories").select("id,name,seat_capacity,is_active").eq("is_active", true),
-  ]);
-  const options = (cats ?? [])
-    .map((c: Any) => {
-      const f = (fares ?? []).find((x: Any) => x.vehicle_category_id === c.id);
-      if (!f) return null;
-      const perSeat = Math.max(
-        Number(f.min_fare),
-        Math.round(Number(f.base_fare) + Number(f.per_km_rate) * route.distanceKm),
-      );
-      return {
-        categoryId: c.id as string,
-        name: c.name as string,
-        seatCapacity: c.seat_capacity as number,
-        fare: perSeat * passengers,
-        available: passengers <= c.seat_capacity,
-      };
-    })
-    .filter(Boolean) as Array<{ categoryId: string; name: string; seatCapacity: number; fare: number; available: boolean }>;
+  const route = await loadFareOptions(fromId, toId, passengers);
+  const options = ticketOptions(route.options, passengers);
   return {
     distanceKm: route.distanceKm,
     durationMinutes: route.durationMinutes,
+    fareCalculatedAt: route.fareCalculatedAt,
+    pricingTimezone: route.pricingTimezone,
     options,
     insurance: settings.insurance_enabled
       ? {
@@ -68,7 +51,8 @@ export const getETicketQuote = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = await admin();
     const q = await quote(db, data.fromLocationId, data.toLocationId, data.passengers);
-    return { distanceKm: q.distanceKm, durationMinutes: q.durationMinutes, options: q.options, insurance: q.insurance };
+    return { distanceKm: q.distanceKm, durationMinutes: q.durationMinutes,
+      options: q.options.map(({ snapshot: _snapshot, ...option }) => option), insurance: q.insurance };
   });
 
 export const getETicketStatus = createServerFn({ method: "GET" })
@@ -91,6 +75,7 @@ export const createETicketOrder = createServerFn({ method: "POST" })
     quoteInput
       .extend({
         categoryId: z.string().uuid(),
+        optionId: z.string().max(100).optional(),
         insurance: z.boolean(),
         passengerName: z.string().trim().min(2).max(80),
         pickupLandmark: z.string().trim().max(200).optional(),
@@ -100,7 +85,7 @@ export const createETicketOrder = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = await admin();
     const q = await quote(db, data.fromLocationId, data.toLocationId, data.passengers);
-    const opt = q.options.find((o) => o.categoryId === data.categoryId);
+    const opt = q.options.find((o) => o.categoryId === data.categoryId && (!data.optionId || o.optionId === data.optionId));
     if (!opt || !opt.available) throw new Error("Yeh vehicle is route ke liye available nahi hai.");
     const insuranceCharge = data.insurance && q.insurance ? q.insurance.charge * data.passengers : 0;
     const total = opt.fare + insuranceCharge;
@@ -126,6 +111,9 @@ export const createETicketOrder = createServerFn({ method: "POST" })
         insurance_charge: insuranceCharge,
         total_amount: total,
         fare_snapshot: {
+          ...opt.snapshot,
+          fareCalculatedAt: q.fareCalculatedAt,
+          timezone: q.pricingTimezone,
           vehicle: opt.name,
           distanceKm: q.distanceKm,
           fare: opt.fare,
@@ -303,6 +291,7 @@ export const createETicketUpiOrder = createServerFn({ method: "POST" })
     quoteInput
       .extend({
         categoryId: z.string().uuid(),
+        optionId: z.string().max(100).optional(),
         insurance: z.boolean(),
         passengerName: z.string().trim().min(2).max(80),
         pickupLandmark: z.string().trim().max(200).optional(),
@@ -314,7 +303,7 @@ export const createETicketUpiOrder = createServerFn({ method: "POST" })
     const upi = await upiConfig(db);
     if (!upi.vpa) throw new Error("UPI payment abhi set nahi hai. Admin se sampark karein.");
     const q = await quote(db, data.fromLocationId, data.toLocationId, data.passengers);
-    const opt = q.options.find((o) => o.categoryId === data.categoryId);
+    const opt = q.options.find((o) => o.categoryId === data.categoryId && (!data.optionId || o.optionId === data.optionId));
     if (!opt || !opt.available) throw new Error("Yeh vehicle is route ke liye available nahi hai.");
     const insuranceCharge = data.insurance && q.insurance ? q.insurance.charge * data.passengers : 0;
     const total = opt.fare + insuranceCharge;
@@ -339,7 +328,10 @@ export const createETicketUpiOrder = createServerFn({ method: "POST" })
         insurance_opted: insuranceCharge > 0,
         insurance_charge: insuranceCharge,
         total_amount: total,
-        fare_snapshot: { vehicle: opt.name, distanceKm: q.distanceKm, fare: opt.fare, insuranceCharge, upiVpa: upi.vpa },
+        fare_snapshot: { ...opt.snapshot, fareCalculatedAt: q.fareCalculatedAt, timezone: q.pricingTimezone,
+          vehicle: opt.name, distanceKm: q.distanceKm, fare: opt.fare, insuranceCharge, upiVpa: upi.vpa,
+          insuranceProvider: q.insurance?.provider ?? null, insurancePolicy: q.settings.insurance_policy_number ?? null,
+          claimRules: q.settings.insurance_claim_rules ?? null },
         payment_gateway: "upi",
       })
       .select("id")

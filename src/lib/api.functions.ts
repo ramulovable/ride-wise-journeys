@@ -516,7 +516,7 @@ export function reserveIsAvailable(
   );
 }
 
-async function loadFareOptions(fromLocationId: string, toLocationId: string, passengers: number) {
+export async function loadFareOptions(fromLocationId: string, toLocationId: string, passengers: number) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const route = await calculateDrivingDistance(fromLocationId, toLocationId);
   const today = new Date().toISOString().slice(0, 10);

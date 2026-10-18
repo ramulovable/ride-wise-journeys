@@ -52,12 +52,6 @@
 - [x] Wallet withdrawal history with rejection reason
 - [ ] Translate remaining 21 languages (English, Hindi, Maithili done; others fall back to English)
 
-## Android app (APK/Play Store)
-- [ ] Capacitor Android wrapper + full-screen ride alert (native)
-- [ ] GitHub Actions workflow to build APK + AAB
-- [ ] Website /download page + buttons, admin-configurable APK URL
-- [ ] Single app for both customers and drivers (customer signup works in app)
-
 ## Android app (APK + Play Store)
 - [x] Capacitor Android wrapper (com.shahintravels.app, one app for customers + drivers)
 - [x] Full-screen lock-screen ride alert activity + Firebase messaging service
@@ -92,7 +86,7 @@
 
 ## Travel Desk (Sep 28)
 - [x] Customer home: Flights + Hotels (Trip.com affiliate, INR) opening inside the app
-- [x] Trains card with bold "COMING SOON" sticker badge
+- [x] Train information tools (PNR, running status, routes, availability); ticket purchase still requires an authorised booking provider
 
 
 ## Driver alerts + train info
@@ -116,5 +110,15 @@
 - [x] Fix slow login after 1.0.12 (direct PIN redirect, timeouts)
 
 ## Oct 16
-- [x] Ayesha: stable desk/tablet between clips, remove LED booking overlay, coffee sip every ~1-2 min
-- [x] E-Ticket: direct UPI intent + QR payment with admin UPI ID, UTR submission + verification, success popup
+- [x] Ayesha: remove LED booking overlay, schedule coffee during quiet listening
+- [ ] Ayesha: replace inconsistent clips with complete 8–10 second actions, hair adjustment and 3–4 extra contextual scenes — blocked by video credits; 10-second generation refused (about 6.09 credits for attempted coffee clip)
+- [x] E-Ticket: direct UPI intent + QR payment with admin UPI ID, UTR submission + manual admin verification
+
+## Oct 18 completion
+- [x] E-Ticket: reuse online ride category/distance/day-night fares, preserve booked snapshots, remove separate fare editor (five fare tests pass)
+- [x] E-Ticket: confirmed-ticket success notification and PDF download added; authenticated payment/download end-to-end check blocked by missing preview session
+- [x] Ayesha: deterministic railway route enquiry fallback and accurate lookup failure handling (two tests pass); reads only user's own recent tickets
+- [x] Reconcile duplicate Android tasks and stale train/video/payment claims
+- [ ] Live flight/hotel answers and rail ticket purchase — need authorised live/booking providers
+- [ ] Automatic direct-UPI bank verification — needs bank/payment-provider transaction integration; UTR text alone cannot prove receipt
+- [ ] Authenticated end-to-end fare/payment/download and Ayesha live-provider checks — sign in to preview; requesting user's account could not be minted

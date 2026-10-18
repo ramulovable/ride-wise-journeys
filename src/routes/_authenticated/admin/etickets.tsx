@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCategories } from "@/lib/data";
 import { useRoleGuard } from "@/lib/useRoleGuard";
 import { adminReviewETicketUpi } from "@/lib/eticket.functions";
 
@@ -36,7 +35,6 @@ type Settings = {
   insurance_policy_number: string | null;
   insurance_claim_rules: string | null;
 };
-type Fare = { vehicle_category_id: string; base_fare: number; per_km_rate: number; min_fare: number; is_active: boolean };
 
 function ETicketAdmin() {
   useRoleGuard("admin");
@@ -49,33 +47,10 @@ function ETicketAdmin() {
       return data as unknown as Settings;
     },
   });
-  const cats = useQuery({ queryKey: ["categories-all"], queryFn: () => fetchCategories(true) });
-  const faresQ = useQuery({
-    queryKey: ["eticket-fares"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("eticket_fares" as never).select("*");
-      if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as Fare[];
-    },
-  });
-
   const [s, setS] = useState<Settings | null>(null);
-  const [fares, setFares] = useState<Record<string, Fare>>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (settingsQ.data) setS(settingsQ.data); }, [settingsQ.data]);
-  useEffect(() => {
-    if (!cats.data) return;
-    const map: Record<string, Fare> = {};
-    for (const c of cats.data) {
-      const f = faresQ.data?.find((x) => x.vehicle_category_id === c.id);
-      map[c.id] = f ?? { vehicle_category_id: c.id, base_fare: 0, per_km_rate: 0, min_fare: 0, is_active: false };
-    }
-    setFares(map);
-  }, [cats.data, faresQ.data]);
-
-  const setFare = (id: string, patch: Partial<Fare>) => setFares((m) => ({ ...m, [id]: { ...(m[id] as Fare), ...patch } }));
-
   async function save() {
     if (!s) return;
     if (s.commission_type === "percent" && s.commission_value > 100) { toast.error("Commission cannot exceed 100%."); return; }
@@ -86,20 +61,11 @@ function ETicketAdmin() {
       commission_value: Number(rest.commission_value),
       insurance_charge: Number(rest.insurance_charge),
     } as never).eq("id", id);
-    const rows = Object.values(fares).map((f) => ({
-      vehicle_category_id: f.vehicle_category_id,
-      base_fare: Number(f.base_fare) || 0,
-      per_km_rate: Number(f.per_km_rate) || 0,
-      min_fare: Number(f.min_fare) || 0,
-      is_active: f.is_active,
-    }));
-    const r2 = await supabase.from("eticket_fares" as never).upsert(rows as never, { onConflict: "vehicle_category_id" });
     setBusy(false);
-    const err = r1.error ?? r2.error;
+    const err = r1.error;
     if (err) { toast.error(err.message); return; }
     toast.success("E-Ticket settings saved.");
     void qc.invalidateQueries({ queryKey: ["eticket-settings"] });
-    void qc.invalidateQueries({ queryKey: ["eticket-fares"] });
   }
 
   if (!s) return <AdminShell title="E-Ticket"><p className="text-sm text-muted-foreground">Loading…</p></AdminShell>;
@@ -130,25 +96,9 @@ function ETicketAdmin() {
           <p className="text-xs text-muted-foreground">Driver gets ticket fare minus commission, only after the trip is completed.</p>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-border p-3">
-          <p className="font-semibold">Fare per vehicle</p>
-          {(cats.data ?? []).map((c) => {
-            const f = fares[c.id];
-            if (!f) return null;
-            return (
-              <div key={c.id} className="space-y-2 rounded-xl bg-muted/40 p-3">
-                <label className="flex items-center justify-between text-sm font-medium">
-                  <span>{c.name}</span>
-                  <input type="checkbox" className="h-5 w-5" checked={f.is_active} onChange={(e) => setFare(c.id, { is_active: e.target.checked })} />
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1"><Label className="text-xs">Base ₹</Label><Input type="number" value={f.base_fare} onChange={(e) => setFare(c.id, { base_fare: e.target.value as unknown as number })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Per km ₹</Label><Input type="number" value={f.per_km_rate} onChange={(e) => setFare(c.id, { per_km_rate: e.target.value as unknown as number })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Minimum ₹</Label><Input type="number" value={f.min_fare} onChange={(e) => setFare(c.id, { min_fare: e.target.value as unknown as number })} /></div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between border-y border-border py-3">
+          <p className="font-semibold">Online ride fares</p>
+          <Button variant="outline" asChild><Link to="/admin/fares">Manage fares</Link></Button>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border p-3">

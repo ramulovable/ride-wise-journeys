@@ -116,5 +116,12 @@
 - [x] Fix slow login after 1.0.12 (direct PIN redirect, timeouts)
 
 ## Oct 16
-- [x] Ayesha: stable desk/tablet between clips, remove LED booking overlay, coffee sip every ~1-2 min
-- [x] E-Ticket: direct UPI intent + QR payment with admin UPI ID, UTR submission + verification, success popup
+- [x] Ayesha: remove LED booking overlay, schedule coffee during quiet listening
+- [ ] Ayesha: replace inconsistent clips with complete 8–10 second actions, hair adjustment and 3–4 extra contextual scenes
+- [x] E-Ticket: direct UPI intent + QR payment with admin UPI ID, UTR submission + manual admin verification
+
+## Oct 18 completion
+- [ ] E-Ticket: reuse online ride category/distance/day-night fares, preserve booked snapshots, remove separate fare editor
+- [ ] E-Ticket: confirmed-ticket success notification and PDF download
+- [ ] Ayesha: deterministic railway route enquiry fallback and accurate lookup failure handling
+- [ ] Reconcile remaining tasks; name credential/provider/account blockers accurately

@@ -36,7 +36,7 @@ async function buildContext(
   path: string,
   language: string,
 ) {
-  const [{ data: profile }, { data: roles }, { data: rides }, { data: cats }] = await Promise.all([
+  const [{ data: profile }, { data: roles }, { data: rides }, { data: cats }, ticketsResult] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", userId),
     supabase
@@ -46,6 +46,8 @@ async function buildContext(
       .order("created_at", { ascending: false })
       .limit(5),
     supabase.from("vehicle_categories").select("name, seat_capacity").eq("is_active", true),
+    supabase.from("etickets").select("pnr,status,payment_status,total_amount,passengers,created_at")
+      .or(`customer_id.eq.${userId},driver_id.eq.${userId}`).order("created_at", { ascending: false }).limit(5),
   ]);
   const name = profile?.full_name || "friend";
   const roleList = (roles ?? []).map((r: { role: string }) => r.role).join(", ") || "customer";
@@ -70,6 +72,8 @@ Flights and hotels: you do NOT have live flight or hotel data yet. Give general 
 When guiding, say the exact on-screen button/tab name so it gets highlighted. Never claim you clicked anything. Never ask for OTP or PIN.
 Current IST time: ${now}. User: ${name}. Role(s): ${roleList}. Screen: ${path}. App language: ${language}.
 Recent rides: ${recent || "none"}. Vehicle types: ${vehicles || "unknown"}.
+User's recent E-Tickets: ${ticketsResult.error ? "Unavailable; do not claim there are no tickets" : JSON.stringify(ticketsResult.data ?? [])}.
+E-Ticket fares use online ride distance/category/journey/AC and day/night rules. Direct UPI UTR submissions await manual admin verification; never say payment succeeded until payment_status is PAID. You have read-only access to this user's records only, not other customers' private data.
 ${APP_GUIDE}`;
 }
 

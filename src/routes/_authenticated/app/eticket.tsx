@@ -95,7 +95,7 @@ function ETicketPage() {
     if (!element) return;
     try {
       const [{ default: capture }, { jsPDF }] = await Promise.all([import("html2canvas-pro"), import("jspdf")]);
-      const canvas = await capture(element, { scale: 2 });
+      const canvas = await capture(element, { scale: 2, ignoreElements: (node) => node.hasAttribute("data-ticket-action") });
       const pdf = new jsPDF();
       const width = 190;
       const height = Math.min(277, canvas.height * width / canvas.width);
@@ -388,7 +388,7 @@ function ETicketPage() {
                 </p>
               ) : null}
               {t.payment_status === "PAID" ? (
-                <Button variant="ghost" className="w-full" onClick={() => void downloadTicket(t.id, t.pnr)}>
+                <Button data-ticket-action variant="ghost" className="w-full" onClick={() => void downloadTicket(t.id, t.pnr)}>
                   <Download className="mr-2 size-4" /> Download ticket
                 </Button>
               ) : null}

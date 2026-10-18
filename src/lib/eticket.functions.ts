@@ -51,7 +51,8 @@ export const getETicketQuote = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = await admin();
     const q = await quote(db, data.fromLocationId, data.toLocationId, data.passengers);
-    return { distanceKm: q.distanceKm, durationMinutes: q.durationMinutes, options: q.options, insurance: q.insurance };
+    return { distanceKm: q.distanceKm, durationMinutes: q.durationMinutes,
+      options: q.options.map(({ snapshot: _snapshot, ...option }) => option), insurance: q.insurance };
   });
 
 export const getETicketStatus = createServerFn({ method: "GET" })

@@ -17,7 +17,9 @@ describe("E-Ticket uses the online ride fare without recalculation", () => {
   });
   it("preserves the night total rather than applying a second multiplier", () => {
     const cats = category([{ fare: 84, journeyType: "standard", requestedAc: null }]);
-    cats[0].fares[0].pricingPeriod = "night";
+    const fare = cats[0]?.fares[0];
+    if (!fare) throw new Error("Missing fixture");
+    fare.pricingPeriod = "night";
     expect(ticketOptions(cats, 1)[0]?.fare).toBe(84);
   });
   it("keeps AC and non-AC separate with their own exact prices", () => {
